@@ -1,6 +1,6 @@
 import {html, LitElement} from 'lit';
 import {classMap} from 'lit/directives/class-map.js';
-import   './ckeditor';
+import './ckeditor';
 
 export class VaadinCKEditor extends LitElement {
 
@@ -10,7 +10,7 @@ export class VaadinCKEditor extends LitElement {
             'editor-content'  : true
         };
         this.config = {};
-        this.version = 'v4.1.2'
+        this.version = 'v5.0-SNAPSHOT'
         this.autosave = false;
         this.sync = true;
         this.position = 0;
