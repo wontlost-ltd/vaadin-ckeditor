@@ -286,8 +286,8 @@ try {
 ## Getting Help
 
 - **CKEditor Documentation**: [ckeditor.com/docs](https://ckeditor.com/docs/ckeditor5/latest/)
-- **CKEditor Support**: [ckeditor.com/support](https://ckeditor.com/support)
-- **License Questions**: [ckeditor.com/contact](https://ckeditor.com/contact)
+- **CKEditor Support**: [ckeditor.com/support](https://support.ckeditor.com/)
+- **License Questions**: [ckeditor.com/license](https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html)
 
 ## Professional Services
 
@@ -300,4 +300,4 @@ Need assistance with premium integration? We offer:
 | **Custom Development** | Bespoke features | $150/hour |
 | **Support Plan** | Priority response | $500/month |
 
-Contact: [your-email@example.com]
+Contact: [service@wontlost.com]

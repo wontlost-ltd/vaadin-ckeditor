@@ -1,3 +1,6 @@
+[![Published on Vaadin Directory](https://img.shields.io/badge/Vaadin%20Directory-published-00b4f0.svg)](https://vaadin.com/directory/component/<owner><element>)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Feroself%2Fvaadin-litelement-ckeditor.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Feroself%2Fvaadin-litelement-ckeditor?ref=badge_shield)
+
 # Vaadin CKEditor 5
 
 A comprehensive CKEditor 5 integration for Vaadin 24+.
@@ -28,15 +31,15 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 ```xml
 <dependency>
     <groupId>com.wontlost</groupId>
-    <artifactId>vaadin-ckeditor</artifactId>
-    <version>5.0.0</version>
+    <artifactId>ckeditor-vaadin</artifactId>
+    <version>5.0.2</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```kotlin
-implementation("com.wontlost:vaadin-ckeditor:5.0.0")
+implementation("com.wontlost:ckeditor-vaadin:5.0.2")
 ```
 
 ## Quick Start
@@ -417,23 +420,12 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - Safari (latest)
 - Edge (latest)
 
----
-
-## License
-
-This addon is licensed under Apache 2.0.
-
-CKEditor 5 is dual-licensed:
-- **GPL 2+** for open-source projects
-- **Commercial license** for proprietary use
-
-Premium features require a commercial license from [CKEditor](https://ckeditor.com/pricing).
 
 ---
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/user/vaadin-ckeditor/issues)
+- **Issues**: [GitHub Issues](https://github.com/wontlost-ltd/vaadin-ckeditor/issues)
 - **CKEditor Docs**: [ckeditor.com/docs](https://ckeditor.com/docs/ckeditor5/latest/)
 - **Vaadin**: [vaadin.com](https://vaadin.com)
 
@@ -458,3 +450,19 @@ For comprehensive documentation including all configuration options, events, and
 
 - **[User Guide](docs/USER_GUIDE.md)** - Full documentation
 - **[Quick Reference](docs/QUICK_REFERENCE.md)** - Cheat sheet
+- **[Changelog](CHANGELOG.md)** - Version history
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+---
+
+## License
+
+This addon is licensed under Apache 2.0.
+
+CKEditor 5 is dual-licensed:
+- **GPL 2+** for open-source projects
+- **Commercial license** for proprietary use
+
+Premium features require a commercial license from [CKEditor](https://ckeditor.com/pricing).
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Feroself%2Fvaadin-litelement-ckeditor.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Feroself%2Fvaadin-litelement-ckeditor?ref=badge_large)
+

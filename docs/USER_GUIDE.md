@@ -30,15 +30,15 @@ Vaadin CKEditor 5 is a rich text editor component for Vaadin applications, provi
 ```xml
 <dependency>
     <groupId>com.wontlost</groupId>
-    <artifactId>vaadin-ckeditor</artifactId>
-    <version>5.0.0</version>
+    <artifactId>ckeditor-vaadin</artifactId>
+    <version>5.0.2</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.wontlost:vaadin-ckeditor:5.0.0'
+implementation 'com.wontlost:ckeditor-vaadin:5.0.2'
 ```
 
 ---
@@ -865,9 +865,11 @@ window.VAADIN_CKEDITOR_DEBUG = true;
 
 ## Version History
 
-| Version | CKEditor 5 | Vaadin | Notes |
-|---------|------------|--------|-------|
-| 5.0.0 | 47.4.0 | 24.x | Current release |
+| Version | CKEditor 5 | Vaadin | Notes           |
+|---------|------------|--------|-----------------|
+| 5.0.2   | 47.4.0 | 25.0.4 | Current release |
+| 5.0.1   | 47.4.0 | 25.0.4 | Bug fixes       |
+| 5.0.0   | 47.4.0 | 25.0.3 | Initial v5 release |
 
 ---
 

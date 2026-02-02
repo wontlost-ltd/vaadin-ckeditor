@@ -5,8 +5,8 @@
 ```xml
 <dependency>
     <groupId>com.wontlost</groupId>
-    <artifactId>vaadin-ckeditor</artifactId>
-    <version>5.0.0</version>
+    <artifactId>ckeditor-vaadin</artifactId>
+    <version>5.0.2</version>
 </dependency>
 ```
 

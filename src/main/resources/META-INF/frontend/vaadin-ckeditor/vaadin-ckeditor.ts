@@ -269,7 +269,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info
-    private readonly version = '5.0.0';
+    private readonly version = '5.0.2';
 
     constructor() {
         super();

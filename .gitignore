@@ -1,11 +1,6 @@
 # Build outputs
-build/
-out/
 target/
-
-# Gradle
-.gradle/
-gradle/wrapper/gradle-wrapper.jar
+out/
 
 # IDE
 .idea/

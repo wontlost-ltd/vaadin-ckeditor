@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
@@ -22,6 +24,11 @@ import java.util.logging.Logger;
 public class UploadManager {
 
     private static final Logger logger = Logger.getLogger(UploadManager.class.getName());
+
+    /**
+     * 默认上传超时时间（秒）
+     */
+    private static final long DEFAULT_UPLOAD_TIMEOUT_SECONDS = 300; // 5 minutes
 
     /**
      * 上传任务状态
@@ -94,9 +101,10 @@ public class UploadManager {
     private final UploadResultCallback resultCallback;
     private final Map<String, UploadTask> activeTasks = new ConcurrentHashMap<>();
     private final AtomicLong uploadCounter = new AtomicLong(0);
+    private final long uploadTimeoutSeconds;
 
     /**
-     * 创建上传管理器
+     * 创建上传管理器（使用默认超时）
      *
      * @param uploadHandler 上传处理器
      * @param uploadConfig 上传配置，为 null 时使用默认配置
@@ -105,9 +113,25 @@ public class UploadManager {
     public UploadManager(UploadHandler uploadHandler,
                         UploadHandler.UploadConfig uploadConfig,
                         UploadResultCallback resultCallback) {
+        this(uploadHandler, uploadConfig, resultCallback, DEFAULT_UPLOAD_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * 创建上传管理器（自定义超时）
+     *
+     * @param uploadHandler 上传处理器
+     * @param uploadConfig 上传配置，为 null 时使用默认配置
+     * @param resultCallback 结果回调
+     * @param uploadTimeoutSeconds 上传超时时间（秒），0 表示无超时
+     */
+    public UploadManager(UploadHandler uploadHandler,
+                        UploadHandler.UploadConfig uploadConfig,
+                        UploadResultCallback resultCallback,
+                        long uploadTimeoutSeconds) {
         this.uploadHandler = uploadHandler;
         this.uploadConfig = uploadConfig != null ? uploadConfig : new UploadHandler.UploadConfig();
         this.resultCallback = resultCallback;
+        this.uploadTimeoutSeconds = uploadTimeoutSeconds > 0 ? uploadTimeoutSeconds : 0;
     }
 
     /**
@@ -153,11 +177,19 @@ public class UploadManager {
             new ByteArrayInputStream(fileData)
         );
 
+        // 应用超时机制（如果配置了超时）
+        CompletableFuture<UploadHandler.UploadResult> timedFuture;
+        if (uploadTimeoutSeconds > 0) {
+            timedFuture = future.orTimeout(uploadTimeoutSeconds, TimeUnit.SECONDS);
+        } else {
+            timedFuture = future;
+        }
+
         // 保存 Future 引用以支持取消
-        task.setFuture(future);
+        task.setFuture(timedFuture);
 
         // 使用 handle 而不是 thenAccept + exceptionally，确保单一处理路径
-        future.handle((result, ex) -> {
+        timedFuture.handle((result, ex) -> {
             // 同步更新任务状态
             synchronized (task) {
                 if (task.getStatus() == UploadStatus.CANCELLED) {
@@ -171,9 +203,15 @@ public class UploadManager {
                     Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
                         ? ex.getCause() : ex;
                     task.setStatus(UploadStatus.FAILED);
-                    String errorMsg = cause.getMessage();
-                    if (errorMsg == null || errorMsg.isEmpty()) {
-                        errorMsg = cause.getClass().getSimpleName() + " occurred during upload";
+                    String errorMsg;
+                    if (cause instanceof TimeoutException) {
+                        errorMsg = "Upload timed out after " + uploadTimeoutSeconds + " seconds";
+                        logger.log(Level.WARNING, "Upload {0} timed out", uploadId);
+                    } else {
+                        errorMsg = cause.getMessage();
+                        if (errorMsg == null || errorMsg.isEmpty()) {
+                            errorMsg = cause.getClass().getSimpleName() + " occurred during upload";
+                        }
                     }
                     task.setErrorMessage(errorMsg);
                     notifyResult(uploadId, null, errorMsg);

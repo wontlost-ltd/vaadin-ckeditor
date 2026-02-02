@@ -4,7 +4,8 @@
 Bundle-Name: VaadinCKEditor
 Bundle-SymbolicName: com.wontlost.vaadin-ckeditor
 
-# Export all public packages for Vaadin component discovery
+# Export public API packages for Vaadin component discovery
+# Note: internal package is NOT exported (implementation detail)
 Export-Package: \
     com.wontlost.ckeditor,\
     com.wontlost.ckeditor.event,\
