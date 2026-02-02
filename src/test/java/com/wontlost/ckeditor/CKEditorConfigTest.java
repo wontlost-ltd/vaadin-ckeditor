@@ -620,13 +620,13 @@ class CKEditorConfigTest {
             .build();
         assertThat(plugin5.getImportPath()).isEqualTo("@scope/package/subpath");
 
-        // 带扩展名的相对路径
+        // Relative path with extension
         CustomPlugin plugin6 = CustomPlugin.builder("MyPlugin")
             .withImportPath("./plugin.js")
             .build();
         assertThat(plugin6.getImportPath()).isEqualTo("./plugin.js");
 
-        // 两级向上的相对路径 (允许)
+        // Two-level parent relative path (allowed)
         CustomPlugin plugin7 = CustomPlugin.builder("MyPlugin")
             .withImportPath("../../shared/plugin")
             .build();
@@ -729,11 +729,11 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should allow 172.15.x.x and 172.32.x.x (not private)")
     void setSimpleUploadShouldAllow17215And17232() {
-        // 172.15.x.x 不是私有地址
+        // 172.15.x.x is not a private address
         config.setSimpleUpload("http://172.15.1.1/upload");
         assertThat(config.getSimpleUploadUrl()).isEqualTo("http://172.15.1.1/upload");
 
-        // 172.32.x.x 不是私有地址
+        // 172.32.x.x is not a private address
         config.setSimpleUpload("http://172.32.1.1/upload");
         assertThat(config.getSimpleUploadUrl()).isEqualTo("http://172.32.1.1/upload");
     }
@@ -874,11 +874,11 @@ class CKEditorConfigTest {
         config.allowPrivateNetworks(true);
         assertThat(config.isAllowPrivateNetworks()).isTrue();
 
-        // 禁用
+        // Disable
         config.allowPrivateNetworks(false);
         assertThat(config.isAllowPrivateNetworks()).isFalse();
 
-        // 禁用后应该拒绝私有地址
+        // After disabling, should reject private addresses
         assertThatThrownBy(() -> config.setSimpleUpload("http://localhost/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -897,7 +897,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject IPv6 localhost ::1")
     void setSimpleUploadShouldRejectIPv6Localhost() {
-        // IPv6 localhost 无方括号 (URI 解析可能会失败，但应该被拒绝)
+        // IPv6 localhost without brackets (URI parsing may fail, but should be rejected)
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -906,17 +906,17 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject IPv4-mapped IPv6 addresses")
     void setSimpleUploadShouldRejectIPv4MappedIPv6() {
-        // ::ffff:127.0.0.1 是 127.0.0.1 的 IPv6 映射
+        // ::ffff:127.0.0.1 is IPv6 mapped address for 127.0.0.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:127.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::ffff:192.168.1.1 是 192.168.1.1 的 IPv6 映射
+        // ::ffff:192.168.1.1 is IPv6 mapped address for 192.168.1.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:192.168.1.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::ffff:10.0.0.1 是 10.0.0.1 的 IPv6 映射
+        // ::ffff:10.0.0.1 is IPv6 mapped address for 10.0.0.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:10.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -933,8 +933,8 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject octal IP representation")
     void setSimpleUploadShouldRejectOctalIP() {
-        // 0177.0.0.1 = 127.0.0.1 (八进制表示)
-        // Java URI 会解析此地址，然后被 isObfuscatedPrivateIPv4 函数检测到
+        // 0177.0.0.1 = 127.0.0.1 (octal representation)
+        // Java URI will parse this address, then detected by isObfuscatedPrivateIPv4 function
         assertThatThrownBy(() -> config.setSimpleUpload("http://0177.0.0.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -943,13 +943,13 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject single-segment octal IP")
     void setSimpleUploadShouldRejectSingleSegmentOctalIP() {
-        // 单段八进制 IP 0177 = 127（十进制）
-        // Java URI 解析器可以处理单段 IP，我们的代码会检测并拒绝为私有地址
+        // Single-segment octal IP 0177 = 127 (decimal)
+        // Java URI parser can handle single-segment IP, our code will detect and reject as private address
         assertThatThrownBy(() -> config.setSimpleUpload("http://0177/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // 双段八进制 IP: 0177.1 - Java URI 解析器返回 null host
+        // Two-segment octal IP: 0177.1 - Java URI parser returns null host
         assertThatThrownBy(() -> config.setSimpleUpload("http://0177.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("valid host");
@@ -958,9 +958,9 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject hexadecimal IP representation")
     void setSimpleUploadShouldRejectHexIP() {
-        // 0x7f.0.0.1 = 127.0.0.1 (十六进制表示)
-        // 注意：Java URI 解析器不支持十六进制 IP，会返回 null host，
-        // 因此抛出 "must have a valid host" 错误而非 "internal/private"
+        // 0x7f.0.0.1 = 127.0.0.1 (hexadecimal representation)
+        // Note: Java URI parser does not support hexadecimal IP, returns null host,
+        // thus throws "must have a valid host" error instead of "internal/private"
         assertThatThrownBy(() -> config.setSimpleUpload("http://0x7f.0.0.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("valid host");
@@ -969,7 +969,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject IPv6 link-local addresses")
     void setSimpleUploadShouldRejectIPv6LinkLocal() {
-        // fe80:: 是 IPv6 链路本地地址
+        // fe80:: is IPv6 link-local address
         assertThatThrownBy(() -> config.setSimpleUpload("http://[fe80::1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -978,7 +978,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject IPv6 unique local addresses (ULA)")
     void setSimpleUploadShouldRejectIPv6ULA() {
-        // fc00::/7 是 IPv6 唯一本地地址
+        // fc00::/7 is IPv6 unique local address
         assertThatThrownBy(() -> config.setSimpleUpload("http://[fc00::1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -1015,7 +1015,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject 169.254.x.x link-local addresses")
     void setSimpleUploadShouldRejectLinkLocal169254() {
-        // 169.254.x.x 是 IPv4 链路本地地址
+        // 169.254.x.x is IPv4 link-local address
         assertThatThrownBy(() -> config.setSimpleUpload("http://169.254.1.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -1026,22 +1026,22 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject IPv4-compatible IPv6 addresses (::x.x.x.x)")
     void setSimpleUploadShouldRejectIPv4CompatibleIPv6() {
-        // ::127.0.0.1 是 IPv4 兼容 IPv6 地址（已弃用但仍需防护）
+        // ::127.0.0.1 is IPv4-compatible IPv6 address (deprecated but still needs protection)
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::127.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::192.168.1.1 是 192.168.1.1 的 IPv4 兼容格式
+        // ::192.168.1.1 is IPv4-compatible format for 192.168.1.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::192.168.1.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::10.0.0.1 是 10.0.0.1 的 IPv4 兼容格式
+        // ::10.0.0.1 is IPv4-compatible format for 10.0.0.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::10.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::0.0.0.0 是 0.0.0.0 的 IPv4 兼容格式
+        // ::0.0.0.0 is IPv4-compatible format for 0.0.0.0
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::0.0.0.0]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -1050,17 +1050,17 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject SIIT format IPv6 addresses (::ffff:0:x.x.x.x)")
     void setSimpleUploadShouldRejectSIITIPv6() {
-        // ::ffff:0:127.0.0.1 是 SIIT 格式的 IPv6 地址
+        // ::ffff:0:127.0.0.1 is SIIT format IPv6 address
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:127.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::ffff:0:192.168.1.1 是 192.168.1.1 的 SIIT 格式
+        // ::ffff:0:192.168.1.1 is SIIT format for 192.168.1.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:192.168.1.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // ::ffff:0:10.0.0.1 是 10.0.0.1 的 SIIT 格式
+        // ::ffff:0:10.0.0.1 is SIIT format for 10.0.0.1
         assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:10.0.0.1]/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -1085,7 +1085,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should allow public IPv4-compatible IPv6 addresses")
     void setSimpleUploadShouldAllowPublicIPv4CompatibleIPv6() {
-        // ::8.8.8.8 是公网地址的 IPv4 兼容格式，应该允许
+        // ::8.8.8.8 is IPv4-compatible format for public address, should be allowed
         config.setSimpleUpload("http://[::8.8.8.8]/upload");
         assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::8.8.8.8]/upload");
     }
@@ -1095,14 +1095,14 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should allow decimal integer IP representation")
     void setSimpleUploadShouldAllowDecimalIntegerIP() {
-        // 2130706433 是 127.0.0.1 的十进制整数表示
-        // Java URI 解析器将其作为普通域名处理（host 不为 null）
-        // 由于看起来像域名而非 IP 地址，SSRF 检查不会拦截
-        // 注意：浏览器对这种格式的支持不一致
+        // 2130706433 is decimal integer representation of 127.0.0.1
+        // Java URI parser treats it as a normal domain name (host is not null)
+        // Since it looks like a domain name rather than IP address, SSRF check won't block
+        // Note: Browser support for this format is inconsistent
         config.setSimpleUpload("http://2130706433/upload");
         assertThat(config.getSimpleUploadUrl()).isEqualTo("http://2130706433/upload");
 
-        // 3232235777 是 192.168.1.1 的十进制整数表示
+        // 3232235777 is decimal integer representation of 192.168.1.1
         CKEditorConfig config2 = new CKEditorConfig();
         config2.setSimpleUpload("http://3232235777/upload");
         assertThat(config2.getSimpleUploadUrl()).isEqualTo("http://3232235777/upload");
@@ -1111,8 +1111,8 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject mixed decimal notation")
     void setSimpleUploadShouldRejectMixedDecimalNotation() {
-        // 127.1 是 127.0.0.1 的简写形式
-        // Java URI 解析器返回 null host，因此被拒绝
+        // 127.1 is shorthand for 127.0.0.1
+        // Java URI parser returns null host, thus rejected
         assertThatThrownBy(() -> config.setSimpleUpload("http://127.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("valid host");

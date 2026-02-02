@@ -25,18 +25,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 企业级事件和处理器 API 综合测试
+ * Enterprise events and handler API comprehensive tests.
  */
 class EnterpriseEventTest {
 
     // ==================== EditorError Tests ====================
 
     @Nested
-    @DisplayName("EditorError 测试")
+    @DisplayName("EditorError Tests")
     class EditorErrorTests {
 
         @Test
-        @DisplayName("测试所有错误严重级别")
+        @DisplayName("Test all error severities")
         void testAllErrorSeverities() {
             assertEquals(3, ErrorSeverity.values().length);
             assertNotNull(ErrorSeverity.valueOf("WARNING"));
@@ -45,7 +45,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 EditorError 构造和 getter")
+        @DisplayName("Test EditorError construction and getters")
         void testEditorErrorConstruction() {
             EditorError error = new EditorError(
                 "TEST_ERROR",
@@ -63,7 +63,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 EditorError toString")
+        @DisplayName("Test EditorError toString")
         void testEditorErrorToString() {
             EditorError error = new EditorError("CODE", "msg", ErrorSeverity.WARNING, false, null);
             String str = error.toString();
@@ -73,7 +73,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试不可恢复的致命错误")
+        @DisplayName("Test non-recoverable fatal error")
         void testFatalNonRecoverableError() {
             EditorError error = new EditorError(
                 "FATAL_ERROR",
@@ -89,7 +89,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 null 堆栈跟踪")
+        @DisplayName("Test null stack trace")
         void testNullStackTrace() {
             EditorError error = new EditorError("E1", "msg", ErrorSeverity.ERROR, true, null);
             assertNull(error.getStackTrace());
@@ -99,11 +99,11 @@ class EnterpriseEventTest {
     // ==================== FallbackMode Tests ====================
 
     @Nested
-    @DisplayName("FallbackMode 测试")
+    @DisplayName("FallbackMode Tests")
     class FallbackModeTests {
 
         @Test
-        @DisplayName("测试所有 FallbackMode 值")
+        @DisplayName("Test all FallbackMode values")
         void testAllFallbackModes() {
             assertEquals(4, FallbackMode.values().length);
             assertEquals("textarea", FallbackMode.TEXTAREA.getJsName());
@@ -113,7 +113,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 fromJsName 正常解析")
+        @DisplayName("Test fromJsName valid parsing")
         void testFromJsNameValid() {
             assertEquals(FallbackMode.TEXTAREA, FallbackMode.fromJsName("textarea"));
             assertEquals(FallbackMode.READ_ONLY, FallbackMode.fromJsName("readonly"));
@@ -122,7 +122,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 fromJsName 未知值默认返回 ERROR_MESSAGE")
+        @DisplayName("Test fromJsName returns ERROR_MESSAGE for unknown values")
         void testFromJsNameUnknown() {
             assertEquals(FallbackMode.ERROR_MESSAGE, FallbackMode.fromJsName("unknown"));
             assertEquals(FallbackMode.ERROR_MESSAGE, FallbackMode.fromJsName(""));
@@ -133,11 +133,11 @@ class EnterpriseEventTest {
     // ==================== ChangeSource Tests ====================
 
     @Nested
-    @DisplayName("ChangeSource 测试")
+    @DisplayName("ChangeSource Tests")
     class ChangeSourceTests {
 
         @Test
-        @DisplayName("测试所有 ChangeSource 值")
+        @DisplayName("Test all ChangeSource values")
         void testAllChangeSources() {
             assertEquals(6, ChangeSource.values().length);
             assertNotNull(ChangeSource.valueOf("USER_INPUT"));
@@ -152,11 +152,11 @@ class EnterpriseEventTest {
     // ==================== ErrorHandler Tests ====================
 
     @Nested
-    @DisplayName("ErrorHandler 测试")
+    @DisplayName("ErrorHandler Tests")
     class ErrorHandlerTests {
 
         @Test
-        @DisplayName("测试日志处理器处理所有严重级别")
+        @DisplayName("Test logging handler handles all severities")
         void testLoggingHandlerAllSeverities() {
             java.util.logging.Logger logger = java.util.logging.Logger.getLogger("test");
             ErrorHandler handler = ErrorHandler.logging(logger);
@@ -172,11 +172,11 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试处理器组合 - 第一个处理")
+        @DisplayName("Test handler composition - first handles")
         void testComposeFirstHandles() {
-            ErrorHandler handler1 = error -> true; // 处理所有
+            ErrorHandler handler1 = error -> true; // Handle all
             ErrorHandler handler2 = error -> {
-                fail("不应该到达第二个处理器");
+                fail("Should not reach second handler");
                 return false;
             };
             ErrorHandler composed = ErrorHandler.compose(handler1, handler2);
@@ -186,7 +186,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试处理器组合 - 传递到第二个")
+        @DisplayName("Test handler composition - passes to second")
         void testComposeSecondHandles() {
             AtomicBoolean firstCalled = new AtomicBoolean(false);
             AtomicBoolean secondCalled = new AtomicBoolean(false);
@@ -208,7 +208,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试处理器组合 - 都不处理")
+        @DisplayName("Test handler composition - none handles")
         void testComposeNoneHandles() {
             ErrorHandler handler1 = error -> false;
             ErrorHandler handler2 = error -> false;
@@ -219,7 +219,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试空处理器数组")
+        @DisplayName("Test empty handler array")
         void testComposeEmpty() {
             ErrorHandler composed = ErrorHandler.compose();
             EditorError error = new EditorError("E1", "msg", ErrorSeverity.ERROR, true, null);
@@ -227,7 +227,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试函数式接口 lambda")
+        @DisplayName("Test functional interface lambda")
         void testFunctionalInterface() {
             AtomicInteger callCount = new AtomicInteger(0);
             ErrorHandler handler = error -> {
@@ -248,11 +248,11 @@ class EnterpriseEventTest {
     // ==================== HtmlSanitizer Tests ====================
 
     @Nested
-    @DisplayName("HtmlSanitizer 测试")
+    @DisplayName("HtmlSanitizer Tests")
     class HtmlSanitizerTests {
 
         @Test
-        @DisplayName("测试 NONE 策略 - 不清理")
+        @DisplayName("Test NONE policy - no sanitization")
         void testNonePolicy() {
             HtmlSanitizer none = HtmlSanitizer.withPolicy(SanitizationPolicy.NONE);
             String html = "<script>alert('xss')</script><p>text</p>";
@@ -260,7 +260,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 BASIC 策略 - 移除脚本")
+        @DisplayName("Test BASIC policy - removes scripts")
         void testBasicPolicy() {
             HtmlSanitizer basic = HtmlSanitizer.withPolicy(SanitizationPolicy.BASIC);
             String html = "<script>alert('xss')</script><p>text</p>";
@@ -270,7 +270,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 RELAXED 策略")
+        @DisplayName("Test RELAXED policy")
         void testRelaxedPolicy() {
             HtmlSanitizer relaxed = HtmlSanitizer.withPolicy(SanitizationPolicy.RELAXED);
             String html = "<table><tr><td>cell</td></tr></table><script>bad</script>";
@@ -280,31 +280,31 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 STRICT 策略 - 只保留基本格式")
+        @DisplayName("Test STRICT policy - only basic formatting")
         void testStrictPolicy() {
             HtmlSanitizer strict = HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT);
 
-            // 保留基本格式化标签
+            // Keep basic formatting tags
             String basic = "<p>paragraph</p><b>bold</b><i>italic</i>";
             String result = strict.sanitize(basic);
             assertTrue(result.contains("<p>"));
             assertTrue(result.contains("<b>"));
             assertTrue(result.contains("<i>"));
 
-            // 移除 div 和属性
+            // Remove div and attributes
             String withDiv = "<div class='test'><p>text</p></div>";
             result = strict.sanitize(withDiv);
             assertTrue(result.contains("<p>"));
             assertFalse(result.contains("<div"));
             assertFalse(result.contains("class"));
 
-            // 保留标题
+            // Keep headings
             String heading = "<h1>Title</h1><h2>Subtitle</h2>";
             result = strict.sanitize(heading);
             assertTrue(result.contains("<h1>"));
             assertTrue(result.contains("<h2>"));
 
-            // 保留列表
+            // Keep lists
             String list = "<ul><li>item</li></ul><ol><li>numbered</li></ol>";
             result = strict.sanitize(list);
             assertTrue(result.contains("<ul>"));
@@ -313,7 +313,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试空输入处理")
+        @DisplayName("Test empty input handling")
         void testEmptyInput() {
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT);
             assertEquals("", sanitizer.sanitize(null));
@@ -321,7 +321,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试清理器链式调用")
+        @DisplayName("Test sanitizer chaining")
         void testChaining() {
             HtmlSanitizer first = html -> html.replace("a", "b");
             HtmlSanitizer second = html -> html.toUpperCase();
@@ -331,7 +331,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 passthrough 清理器")
+        @DisplayName("Test passthrough sanitizer")
         void testPassthrough() {
             HtmlSanitizer passthrough = HtmlSanitizer.passthrough();
             String html = "<script>test</script><div onclick='bad'>text</div>";
@@ -339,7 +339,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试自定义 Safelist")
+        @DisplayName("Test custom Safelist")
         void testCustomSafelist() {
             Safelist custom = new Safelist().addTags("custom", "special");
             HtmlSanitizer sanitizer = HtmlSanitizer.withSafelist(custom);
@@ -351,7 +351,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试多次链式调用")
+        @DisplayName("Test multiple chaining")
         void testMultipleChaining() {
             HtmlSanitizer s1 = html -> html + "1";
             HtmlSanitizer s2 = html -> html + "2";
@@ -365,11 +365,11 @@ class EnterpriseEventTest {
     // ==================== UploadHandler Tests ====================
 
     @Nested
-    @DisplayName("UploadHandler 测试")
+    @DisplayName("UploadHandler Tests")
     class UploadHandlerTests {
 
         @Test
-        @DisplayName("测试 UploadContext 构造")
+        @DisplayName("Test UploadContext construction")
         void testUploadContext() {
             UploadContext context = new UploadContext("test.jpg", "image/jpeg", 1024);
 
@@ -380,7 +380,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 isImage 方法")
+        @DisplayName("Test isImage method")
         void testIsImage() {
             assertTrue(new UploadContext("a.jpg", "image/jpeg", 100).isImage());
             assertTrue(new UploadContext("b.png", "image/png", 100).isImage());
@@ -393,7 +393,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadResult 成功")
+        @DisplayName("Test UploadResult success")
         void testUploadResultSuccess() {
             UploadResult result = new UploadResult("/uploads/image.jpg");
 
@@ -403,7 +403,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadResult 失败")
+        @DisplayName("Test UploadResult failure")
         void testUploadResultFailure() {
             UploadResult result = UploadResult.failure("File too large");
 
@@ -413,7 +413,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadConfig 默认值")
+        @DisplayName("Test UploadConfig defaults")
         void testUploadConfigDefaults() {
             UploadConfig config = new UploadConfig();
 
@@ -425,7 +425,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadConfig 链式设置")
+        @DisplayName("Test UploadConfig chaining")
         void testUploadConfigChaining() {
             UploadConfig config = new UploadConfig()
                 .setMaxFileSize(5 * 1024 * 1024)
@@ -436,7 +436,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadConfig 验证 - 通过")
+        @DisplayName("Test UploadConfig validation - pass")
         void testUploadConfigValidatePass() {
             UploadConfig config = new UploadConfig();
             UploadContext context = new UploadContext("test.jpg", "image/jpeg", 1024);
@@ -445,7 +445,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadConfig 验证 - 文件过大")
+        @DisplayName("Test UploadConfig validation - file too large")
         void testUploadConfigValidateFileTooLarge() {
             UploadConfig config = new UploadConfig().setMaxFileSize(100);
             UploadContext context = new UploadContext("test.jpg", "image/jpeg", 1024);
@@ -457,7 +457,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadConfig 验证 - MIME 类型不允许")
+        @DisplayName("Test UploadConfig validation - MIME type not allowed")
         void testUploadConfigValidateMimeNotAllowed() {
             UploadConfig config = new UploadConfig();
             UploadContext context = new UploadContext("test.pdf", "application/pdf", 1024);
@@ -468,7 +468,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadHandler 函数式接口")
+        @DisplayName("Test UploadHandler functional interface")
         void testUploadHandlerFunctional() {
             UploadHandler handler = (context, stream) ->
                 CompletableFuture.completedFuture(new UploadResult("/uploaded/" + context.getFileName()));
@@ -484,7 +484,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 UploadHandler 异步失败")
+        @DisplayName("Test UploadHandler async failure")
         void testUploadHandlerAsyncFailure() {
             UploadHandler handler = (context, stream) ->
                 CompletableFuture.completedFuture(UploadResult.failure("Upload failed"));
@@ -501,11 +501,11 @@ class EnterpriseEventTest {
     // ==================== VaadinCKEditor Builder Tests ====================
 
     @Nested
-    @DisplayName("VaadinCKEditor Builder 企业级选项测试")
+    @DisplayName("VaadinCKEditor Builder Enterprise Options Tests")
     class BuilderEnterpriseTests {
 
         @Test
-        @DisplayName("测试 withFallbackMode")
+        @DisplayName("Test withFallbackMode")
         void testWithFallbackMode() {
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -516,7 +516,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 withErrorHandler")
+        @DisplayName("Test withErrorHandler")
         void testWithErrorHandler() {
             ErrorHandler handler = error -> true;
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -528,7 +528,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 withHtmlSanitizer")
+        @DisplayName("Test withHtmlSanitizer")
         void testWithHtmlSanitizer() {
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT);
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -540,7 +540,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 withUploadHandler")
+        @DisplayName("Test withUploadHandler")
         void testWithUploadHandler() {
             UploadHandler handler = (ctx, stream) -> CompletableFuture.completedFuture(new UploadResult("/test"));
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -552,7 +552,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试组合所有企业级选项")
+        @DisplayName("Test combining all enterprise options")
         void testAllEnterpriseOptions() {
             ErrorHandler errorHandler = error -> false;
             HtmlSanitizer sanitizer = HtmlSanitizer.passthrough();
@@ -573,13 +573,13 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 setter 方法")
+        @DisplayName("Test setter methods")
         void testSetters() {
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
                 .build();
 
-            // 测试 setter
+            // Test setters
             ErrorHandler handler = error -> true;
             editor.setErrorHandler(handler);
             assertSame(handler, editor.getErrorHandler());
@@ -597,7 +597,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试默认值")
+        @DisplayName("Test default values")
         void testDefaultValues() {
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -610,10 +610,10 @@ class EnterpriseEventTest {
         }
     }
 
-    // ==================== 测试辅助方法 ====================
+    // ==================== Test Helper Methods ====================
 
     /**
-     * 创建用于测试的 VaadinCKEditor 实例
+     * Creates a VaadinCKEditor instance for testing.
      */
     private static VaadinCKEditor createTestEditor() {
         return VaadinCKEditor.create()
@@ -624,20 +624,20 @@ class EnterpriseEventTest {
     // ==================== Safe Enum Parsing Tests ====================
 
     @Nested
-    @DisplayName("安全枚举解析测试")
+    @DisplayName("Safe Enum Parsing Tests")
     class SafeEnumParsingTests {
 
         @Test
-        @DisplayName("测试 ErrorSeverity 大小写不敏感")
+        @DisplayName("Test ErrorSeverity case insensitivity")
         void testErrorSeverityCaseInsensitive() {
-            // 测试各种大小写组合
+            // Test various case combinations
             assertEquals(ErrorSeverity.WARNING, ErrorSeverity.valueOf("WARNING"));
             assertEquals(ErrorSeverity.ERROR, ErrorSeverity.valueOf("ERROR"));
             assertEquals(ErrorSeverity.FATAL, ErrorSeverity.valueOf("FATAL"));
         }
 
         @Test
-        @DisplayName("测试 ChangeSource 所有有效值")
+        @DisplayName("Test all ChangeSource valid values")
         void testChangeSourceAllValues() {
             assertEquals(ChangeSource.USER_INPUT, ChangeSource.valueOf("USER_INPUT"));
             assertEquals(ChangeSource.API, ChangeSource.valueOf("API"));
@@ -648,7 +648,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试无效枚举值抛出异常")
+        @DisplayName("Test invalid enum value throws exception")
         void testInvalidEnumThrows() {
             assertThrows(IllegalArgumentException.class, () -> ErrorSeverity.valueOf("INVALID"));
             assertThrows(IllegalArgumentException.class, () -> ChangeSource.valueOf("INVALID"));
@@ -658,23 +658,23 @@ class EnterpriseEventTest {
     // ==================== HtmlSanitizer Integration Tests ====================
 
     @Nested
-    @DisplayName("HtmlSanitizer 集成测试")
+    @DisplayName("HtmlSanitizer Integration Tests")
     class HtmlSanitizerIntegrationTests {
 
         @Test
-        @DisplayName("测试 getSanitizedValue 无 sanitizer")
+        @DisplayName("Test getSanitizedValue without sanitizer")
         void testGetSanitizedValueWithoutSanitizer() {
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
                 .withValue("<script>alert('xss')</script><p>text</p>")
                 .build();
 
-            // 没有设置 sanitizer，返回原始值
+            // No sanitizer set, returns original value
             assertEquals("<script>alert('xss')</script><p>text</p>", editor.getSanitizedValue());
         }
 
         @Test
-        @DisplayName("测试 getSanitizedValue 有 sanitizer")
+        @DisplayName("Test getSanitizedValue with sanitizer")
         void testGetSanitizedValueWithSanitizer() {
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.BASIC);
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -689,7 +689,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 getSanitizedValue 空值")
+        @DisplayName("Test getSanitizedValue with null value")
         void testGetSanitizedValueNull() {
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT);
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -697,13 +697,13 @@ class EnterpriseEventTest {
                 .withHtmlSanitizer(sanitizer)
                 .build();
 
-            // 空值应返回空字符串或 null
+            // Null value should return empty string or null
             String result = editor.getSanitizedValue();
             assertTrue(result == null || result.isEmpty());
         }
 
         @Test
-        @DisplayName("测试 STRICT 策略移除危险标签")
+        @DisplayName("Test STRICT policy removes dangerous tags")
         void testStrictPolicyRemovesDangerousTags() {
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT);
             VaadinCKEditor editor = VaadinCKEditor.create()
@@ -724,11 +724,11 @@ class EnterpriseEventTest {
     // ==================== AutosaveEvent Tests ====================
 
     @Nested
-    @DisplayName("AutosaveEvent 测试")
+    @DisplayName("AutosaveEvent Tests")
     class AutosaveEventTests {
 
         @Test
-        @DisplayName("测试 AutosaveEvent 成功场景")
+        @DisplayName("Test AutosaveEvent success scenario")
         void testAutosaveEventSuccess() {
             VaadinCKEditor editor = createTestEditor();
             AutosaveEvent event = new AutosaveEvent(editor, false, "<p>content</p>");
@@ -740,7 +740,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 AutosaveEvent 失败场景")
+        @DisplayName("Test AutosaveEvent failure scenario")
         void testAutosaveEventFailure() {
             VaadinCKEditor editor = createTestEditor();
             AutosaveEvent event = new AutosaveEvent(editor, false, "<p>content</p>", false, "Save failed");
@@ -751,7 +751,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 AutosaveEvent 时间戳")
+        @DisplayName("Test AutosaveEvent timestamp")
         void testAutosaveEventTimestamp() {
             VaadinCKEditor editor = createTestEditor();
             long before = System.currentTimeMillis();
@@ -766,11 +766,11 @@ class EnterpriseEventTest {
     // ==================== ContentChangeEvent Tests ====================
 
     @Nested
-    @DisplayName("ContentChangeEvent 测试")
+    @DisplayName("ContentChangeEvent Tests")
     class ContentChangeEventTests {
 
         @Test
-        @DisplayName("测试 hasChanged 方法")
+        @DisplayName("Test hasChanged method")
         void testHasChanged() {
             VaadinCKEditor editor = createTestEditor();
 
@@ -791,7 +791,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 getLengthDelta 方法")
+        @DisplayName("Test getLengthDelta method")
         void testGetLengthDelta() {
             VaadinCKEditor editor = createTestEditor();
 
@@ -812,7 +812,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试所有 ChangeSource 值")
+        @DisplayName("Test all ChangeSource values")
         void testAllChangeSources() {
             VaadinCKEditor editor = createTestEditor();
             for (ChangeSource source : ChangeSource.values()) {
@@ -825,18 +825,18 @@ class EnterpriseEventTest {
     // ==================== Collaborative Preset Tests ====================
 
     @Nested
-    @DisplayName("COLLABORATIVE 预设测试")
+    @DisplayName("COLLABORATIVE Preset Tests")
     class CollaborativePresetTests {
 
         @Test
-        @DisplayName("测试 COLLABORATIVE 预设存在")
+        @DisplayName("Test COLLABORATIVE preset exists")
         void testCollaborativePresetExists() {
             assertNotNull(CKEditorPreset.COLLABORATIVE);
             assertEquals("Collaborative Editor", CKEditorPreset.COLLABORATIVE.getDisplayName());
         }
 
         @Test
-        @DisplayName("测试 COLLABORATIVE 预设包含基础插件")
+        @DisplayName("Test COLLABORATIVE preset contains base plugins")
         void testCollaborativePresetHasBasePlugins() {
             CKEditorPreset preset = CKEditorPreset.COLLABORATIVE;
 
@@ -856,7 +856,7 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 COLLABORATIVE 预设有工具栏")
+        @DisplayName("Test COLLABORATIVE preset has toolbar")
         void testCollaborativePresetHasToolbar() {
             String[] toolbar = CKEditorPreset.COLLABORATIVE.getDefaultToolbar();
             assertNotNull(toolbar);
@@ -864,14 +864,14 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 COLLABORATIVE 预设估计大小")
+        @DisplayName("Test COLLABORATIVE preset estimated size")
         void testCollaborativePresetSize() {
             int size = CKEditorPreset.COLLABORATIVE.getEstimatedSize();
             assertEquals(850, size);
         }
 
         @Test
-        @DisplayName("测试使用 COLLABORATIVE 预设创建编辑器")
+        @DisplayName("Test creating editor with COLLABORATIVE preset")
         void testCreateEditorWithCollaborativePreset() {
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.COLLABORATIVE)
@@ -881,9 +881,9 @@ class EnterpriseEventTest {
         }
 
         @Test
-        @DisplayName("测试 COLLABORATIVE 预设添加 Premium 插件")
+        @DisplayName("Test COLLABORATIVE preset with Premium plugins")
         void testCollaborativeWithPremiumPlugins() {
-            // 测试可以添加 Premium 协作插件
+            // Test adding Premium collaboration plugins
             VaadinCKEditor editor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.COLLABORATIVE)
                 .withLicenseKey("test-license-key")

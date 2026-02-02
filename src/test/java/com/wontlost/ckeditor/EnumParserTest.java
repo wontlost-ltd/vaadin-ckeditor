@@ -8,102 +8,102 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * EnumParser 工具类测试
+ * EnumParser utility class tests.
  */
 class EnumParserTest {
 
-    // 测试用枚举
+    // Test enum
     enum TestEnum {
         VALUE_ONE,
         VALUE_TWO,
         SPECIAL_CASE
     }
 
-    // ==================== parse() 方法测试 ====================
+    // ==================== parse() Method Tests ====================
 
     @Nested
-    @DisplayName("parse() 方法测试")
+    @DisplayName("parse() Method Tests")
     class ParseTests {
 
         @Test
-        @DisplayName("应正确解析大写值")
+        @DisplayName("Should correctly parse uppercase value")
         void shouldParseUppercaseValue() {
             TestEnum result = EnumParser.parse("VALUE_ONE", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("应正确解析小写值")
+        @DisplayName("Should correctly parse lowercase value")
         void shouldParseLowercaseValue() {
             TestEnum result = EnumParser.parse("value_one", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("应正确解析混合大小写值")
+        @DisplayName("Should correctly parse mixed case value")
         void shouldParseMixedCaseValue() {
             TestEnum result = EnumParser.parse("Value_One", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("null 值应返回默认值")
+        @DisplayName("Null value should return default")
         void nullValueShouldReturnDefault() {
             TestEnum result = EnumParser.parse(null, TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_TWO, result);
         }
 
         @Test
-        @DisplayName("空字符串应返回默认值")
+        @DisplayName("Empty string should return default")
         void emptyStringShouldReturnDefault() {
             TestEnum result = EnumParser.parse("", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_TWO, result);
         }
 
         @Test
-        @DisplayName("无效值应返回默认值")
+        @DisplayName("Invalid value should return default")
         void invalidValueShouldReturnDefault() {
             TestEnum result = EnumParser.parse("INVALID", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_TWO, result);
         }
 
         @Test
-        @DisplayName("带上下文的解析应正常工作")
+        @DisplayName("Parse with context should work")
         void parseWithContextShouldWork() {
             TestEnum result = EnumParser.parse("value_one", TestEnum.class, TestEnum.VALUE_TWO, "TestContext");
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("带上下文的无效值应返回默认值")
+        @DisplayName("Invalid value with context should return default")
         void parseWithContextInvalidShouldReturnDefault() {
             TestEnum result = EnumParser.parse("invalid", TestEnum.class, TestEnum.VALUE_TWO, "TestContext");
             assertEquals(TestEnum.VALUE_TWO, result);
         }
     }
 
-    // ==================== parseStrict() 方法测试 ====================
+    // ==================== parseStrict() Method Tests ====================
 
     @Nested
-    @DisplayName("parseStrict() 方法测试")
+    @DisplayName("parseStrict() Method Tests")
     class ParseStrictTests {
 
         @Test
-        @DisplayName("应正确解析有效值")
+        @DisplayName("Should correctly parse valid value")
         void shouldParseValidValue() {
             TestEnum result = EnumParser.parseStrict("VALUE_ONE", TestEnum.class);
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("应正确解析小写有效值")
+        @DisplayName("Should correctly parse lowercase valid value")
         void shouldParseLowercaseValidValue() {
             TestEnum result = EnumParser.parseStrict("special_case", TestEnum.class);
             assertEquals(TestEnum.SPECIAL_CASE, result);
         }
 
         @Test
-        @DisplayName("null 值应抛出异常")
+        @DisplayName("Null value should throw exception")
         void nullValueShouldThrowException() {
             IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -113,7 +113,7 @@ class EnumParserTest {
         }
 
         @Test
-        @DisplayName("空字符串应抛出异常")
+        @DisplayName("Empty string should throw exception")
         void emptyStringShouldThrowException() {
             IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -123,7 +123,7 @@ class EnumParserTest {
         }
 
         @Test
-        @DisplayName("无效值应抛出异常并包含有效值列表")
+        @DisplayName("Invalid value should throw exception with valid values list")
         void invalidValueShouldThrowExceptionWithValidValues() {
             IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -135,38 +135,38 @@ class EnumParserTest {
         }
     }
 
-    // ==================== Locale 安全测试 ====================
+    // ==================== Locale Safety Tests ====================
 
     @Nested
-    @DisplayName("Locale 安全测试")
+    @DisplayName("Locale Safety Tests")
     class LocaleSafetyTests {
 
         @Test
-        @DisplayName("土耳其语 'i' 应正确处理")
+        @DisplayName("Turkish 'i' should be handled correctly")
         void turkishIShouldBeHandledCorrectly() {
-            // 土耳其语中 'i' 的大写是 'İ'，不是 'I'
-            // 使用 Locale.ROOT 可以避免这个问题
+            // In Turkish, uppercase of 'i' is 'İ', not 'I'
+            // Using Locale.ROOT avoids this issue
             TestEnum result = EnumParser.parse("value_one", TestEnum.class, TestEnum.VALUE_TWO);
             assertEquals(TestEnum.VALUE_ONE, result);
         }
 
         @Test
-        @DisplayName("解析应使用 Locale.ROOT")
+        @DisplayName("Parse should use Locale.ROOT")
         void parseShouldUseLocaleRoot() {
-            // 即使系统 locale 是土耳其语，也应该正确解析
+            // Should parse correctly even if system locale is Turkish
             TestEnum result = EnumParser.parse("special_case", TestEnum.class, TestEnum.VALUE_ONE);
             assertEquals(TestEnum.SPECIAL_CASE, result);
         }
     }
 
-    // ==================== 实际枚举测试 ====================
+    // ==================== Real Enum Tests ====================
 
     @Nested
-    @DisplayName("实际枚举测试")
+    @DisplayName("Real Enum Tests")
     class RealEnumTests {
 
         @Test
-        @DisplayName("应正确解析 ErrorSeverity")
+        @DisplayName("Should correctly parse ErrorSeverity")
         void shouldParseErrorSeverity() {
             var result = EnumParser.parse(
                 "warning",
@@ -177,7 +177,7 @@ class EnumParserTest {
         }
 
         @Test
-        @DisplayName("应正确解析 ChangeSource")
+        @DisplayName("Should correctly parse ChangeSource")
         void shouldParseChangeSource() {
             var result = EnumParser.parse(
                 "user_input",
@@ -188,7 +188,7 @@ class EnumParserTest {
         }
 
         @Test
-        @DisplayName("无效 ChangeSource 应返回 UNKNOWN")
+        @DisplayName("Invalid ChangeSource should return UNKNOWN")
         void invalidChangeSourceShouldReturnUnknown() {
             var result = EnumParser.parse(
                 "invalid_source",

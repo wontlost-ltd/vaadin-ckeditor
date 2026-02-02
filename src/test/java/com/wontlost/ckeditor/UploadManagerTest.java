@@ -183,7 +183,7 @@ class UploadManagerTest {
     @Test
     @DisplayName("cancelUpload should cancel pending upload")
     void cancelUploadCancelsPending() throws Exception {
-        // 使用延迟的处理器
+        // Use delayed handler
         UploadHandler delayedHandler = (context, stream) -> {
             CompletableFuture<UploadHandler.UploadResult> future = new CompletableFuture<>();
             // 不立即完成，模拟长时间上传
@@ -226,7 +226,7 @@ class UploadManagerTest {
     @DisplayName("cleanup should cancel all active uploads")
     void cleanupCancelsAllUploads() {
         manager = new UploadManager(createSuccessHandler("url"), null, (id, url, err) -> {});
-        // 在没有活跃上传时调用 cleanup 不应抛出异常
+        // Calling cleanup with no active uploads should not throw exception
         assertDoesNotThrow(() -> manager.cleanup());
     }
 

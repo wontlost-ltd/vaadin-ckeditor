@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * VaadinCKEditor 集成测试。
- * 测试组件的完整生命周期、事件分发、状态管理等。
+ * VaadinCKEditor integration tests.
+ * Tests component lifecycle, event dispatching, state management, etc.
  */
 class VaadinCKEditorIntegrationTest {
 
@@ -35,14 +35,14 @@ class VaadinCKEditorIntegrationTest {
             .build();
     }
 
-    // ==================== 组件生命周期测试 ====================
+    // ==================== Component Lifecycle Tests ====================
 
     @Nested
-    @DisplayName("组件生命周期测试")
+    @DisplayName("Component Lifecycle Tests")
     class LifecycleTests {
 
         @Test
-        @DisplayName("创建编辑器后应有正确的初始状态")
+        @DisplayName("Editor should have correct initial state after creation")
         void testInitialState() {
             VaadinCKEditor newEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -58,7 +58,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("设置初始值后应正确返回")
+        @DisplayName("Should return correct value after setting initial value")
         void testInitialValue() {
             VaadinCKEditor newEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -69,7 +69,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("清理监听器后统计应为零")
+        @DisplayName("Listener stats should be zero after cleanup")
         void testCleanupListeners() {
             editor.addEditorReadyListener(event -> {});
             editor.addEditorErrorListener(event -> {});
@@ -85,14 +85,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 事件监听器注册测试 ====================
+    // ==================== Event Listener Registration Tests ====================
 
     @Nested
-    @DisplayName("事件监听器注册测试")
+    @DisplayName("Event Listener Registration Tests")
     class ListenerRegistrationTests {
 
         @Test
-        @DisplayName("注册监听器后统计应正确")
+        @DisplayName("Stats should be correct after registering listeners")
         void testListenerStats() {
             assertEquals(0, editor.getListenerStats().total());
 
@@ -118,7 +118,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("移除监听器后统计应减少")
+        @DisplayName("Stats should decrease after removing listeners")
         void testListenerRemoval() {
             var reg1 = editor.addEditorReadyListener(event -> {});
             var reg2 = editor.addEditorErrorListener(event -> {});
@@ -135,7 +135,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("多次注册同类型监听器应累加")
+        @DisplayName("Multiple registrations of same type should accumulate")
         void testMultipleListeners() {
             editor.addEditorReadyListener(event -> {});
             editor.addEditorReadyListener(event -> {});
@@ -146,21 +146,21 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 值操作测试 ====================
+    // ==================== Value Operations Tests ====================
 
     @Nested
-    @DisplayName("值操作测试")
+    @DisplayName("Value Operations Tests")
     class ValueOperationsTests {
 
         @Test
-        @DisplayName("setValue 应更新值")
+        @DisplayName("setValue should update value")
         void testSetValue() {
             editor.setValue("<p>New content</p>");
             assertEquals("<p>New content</p>", editor.getValue());
         }
 
         @Test
-        @DisplayName("setValue null 应转为空字符串")
+        @DisplayName("setValue null should convert to empty string")
         void testSetValueNull() {
             editor.setValue("<p>content</p>");
             editor.setValue(null);
@@ -168,7 +168,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("clear 应清空内容")
+        @DisplayName("clear should empty content")
         void testClear() {
             editor.setValue("<p>Some content</p>");
             editor.clear();
@@ -176,21 +176,21 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("getPlainText 应提取纯文本")
+        @DisplayName("getPlainText should extract plain text")
         void testGetPlainText() {
             editor.setValue("<p>Hello <b>World</b></p>");
             assertEquals("Hello World", editor.getPlainText());
         }
 
         @Test
-        @DisplayName("getPlainText 空值应返回空字符串")
+        @DisplayName("getPlainText should return empty string for empty value")
         void testGetPlainTextEmpty() {
             editor.setValue("");
             assertEquals("", editor.getPlainText());
         }
 
         @Test
-        @DisplayName("getSanitizedHtml 应清理危险标签")
+        @DisplayName("getSanitizedHtml should sanitize dangerous tags")
         void testGetSanitizedHtml() {
             editor.setValue("<p>Text</p><script>alert('xss')</script>");
             String sanitized = editor.getSanitizedHtml();
@@ -199,14 +199,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 内容统计测试 ====================
+    // ==================== Content Stats Tests ====================
 
     @Nested
-    @DisplayName("内容统计测试")
+    @DisplayName("Content Stats Tests")
     class ContentStatsTests {
 
         @Test
-        @DisplayName("getCharacterCount 应返回正确字符数")
+        @DisplayName("getCharacterCount should return correct character count")
         void testCharacterCount() {
             editor.setValue("<p>Hello</p>");
             assertEquals(5, editor.getCharacterCount());
@@ -216,7 +216,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("getWordCount 应返回正确单词数")
+        @DisplayName("getWordCount should return correct word count")
         void testWordCount() {
             editor.setValue("<p>Hello World</p>");
             assertEquals(2, editor.getWordCount());
@@ -226,14 +226,14 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("getWordCount 空内容应返回零")
+        @DisplayName("getWordCount should return zero for empty content")
         void testWordCountEmpty() {
             editor.setValue("");
             assertEquals(0, editor.getWordCount());
         }
 
         @Test
-        @DisplayName("isContentEmpty 应正确检测空内容")
+        @DisplayName("isContentEmpty should correctly detect empty content")
         void testIsContentEmpty() {
             editor.setValue("");
             assertTrue(editor.isContentEmpty());
@@ -249,14 +249,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== Handler 集成测试 ====================
+    // ==================== Handler Integration Tests ====================
 
     @Nested
-    @DisplayName("Handler 集成测试")
+    @DisplayName("Handler Integration Tests")
     class HandlerIntegrationTests {
 
         @Test
-        @DisplayName("ErrorHandler 应被正确设置和获取")
+        @DisplayName("ErrorHandler should be set and retrieved correctly")
         void testErrorHandler() {
             assertNull(editor.getErrorHandler());
 
@@ -271,7 +271,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("HtmlSanitizer 应被正确设置和获取")
+        @DisplayName("HtmlSanitizer should be set and retrieved correctly")
         void testHtmlSanitizer() {
             assertNull(editor.getHtmlSanitizer());
 
@@ -281,7 +281,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("getSanitizedValue 无 Sanitizer 应返回原值")
+        @DisplayName("getSanitizedValue without Sanitizer should return original value")
         void testGetSanitizedValueWithoutSanitizer() {
             String html = "<script>bad</script><p>good</p>";
             editor.setValue(html);
@@ -289,9 +289,9 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("getSanitizedValue 有 Sanitizer 应清理内容")
+        @DisplayName("getSanitizedValue with Sanitizer should sanitize content")
         void testGetSanitizedValueWithSanitizer() {
-            // Sanitizer 必须在 build 时设置，因为 ContentManager 在 initialize() 时创建
+            // Sanitizer must be set at build time because ContentManager is created in initialize()
             HtmlSanitizer sanitizer = HtmlSanitizer.withPolicy(SanitizationPolicy.BASIC);
             VaadinCKEditor editorWithSanitizer = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -306,14 +306,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 属性设置测试 ====================
+    // ==================== Property Tests ====================
 
     @Nested
-    @DisplayName("属性设置测试")
+    @DisplayName("Property Tests")
     class PropertyTests {
 
         @Test
-        @DisplayName("setReadOnly 应更新只读状态")
+        @DisplayName("setReadOnly should update read-only state")
         void testSetReadOnly() {
             assertFalse(editor.isReadOnly());
             editor.setReadOnly(true);
@@ -323,7 +323,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("setFallbackMode 应更新降级模式")
+        @DisplayName("setFallbackMode should update fallback mode")
         void testSetFallbackMode() {
             assertEquals(FallbackMode.TEXTAREA, editor.getFallbackMode());
 
@@ -338,14 +338,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== Builder 链式调用测试 ====================
+    // ==================== Builder Chaining Tests ====================
 
     @Nested
-    @DisplayName("Builder 链式调用测试")
+    @DisplayName("Builder Chaining Tests")
     class BuilderChainTests {
 
         @Test
-        @DisplayName("Builder 应支持完整链式调用")
+        @DisplayName("Builder should support full chaining")
         void testFullBuilderChain() {
             AtomicBoolean errorHandlerCalled = new AtomicBoolean(false);
             ErrorHandler errorHandler = error -> {
@@ -365,7 +365,7 @@ class VaadinCKEditorIntegrationTest {
                 .withHtmlSanitizer(sanitizer)
                 .build();
 
-            // 设置只读模式（通过 setter）
+            // Set read-only mode (via setter)
             fullEditor.setReadOnly(true);
 
             assertEquals("<p>Initial</p>", fullEditor.getValue());
@@ -376,7 +376,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("withPreset 应快速创建编辑器")
+        @DisplayName("withPreset should quickly create editor")
         void testWithPresetShortcut() {
             VaadinCKEditor basicEditor = VaadinCKEditor.withPreset(CKEditorPreset.BASIC);
             assertNotNull(basicEditor);
@@ -389,14 +389,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 插件配置测试 ====================
+    // ==================== Plugin Configuration Tests ====================
 
     @Nested
-    @DisplayName("插件配置测试")
+    @DisplayName("Plugin Configuration Tests")
     class PluginConfigTests {
 
         @Test
-        @DisplayName("addPlugin 应添加插件")
+        @DisplayName("addPlugin should add plugin")
         void testAddPlugin() {
             VaadinCKEditor customEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -408,7 +408,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("withPlugins 应设置插件集合")
+        @DisplayName("withPlugins should set plugin collection")
         void testWithPlugins() {
             VaadinCKEditor customEditor = VaadinCKEditor.create()
                 .withPlugins(
@@ -423,7 +423,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("依赖模式应正确设置")
+        @DisplayName("Dependency mode should be set correctly")
         void testDependencyMode() {
             VaadinCKEditor autoEditor = VaadinCKEditor.create()
                 .withPlugins(CKEditorPlugin.IMAGE_CAPTION)
@@ -434,7 +434,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("STRICT 模式缺少依赖应抛出异常")
+        @DisplayName("STRICT mode should throw exception when dependency missing")
         void testStrictModeThrowsOnMissingDependency() {
             assertThrows(IllegalStateException.class, () -> {
                 VaadinCKEditor.create()
@@ -445,14 +445,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 工具栏配置测试 ====================
+    // ==================== Toolbar Configuration Tests ====================
 
     @Nested
-    @DisplayName("工具栏配置测试")
+    @DisplayName("Toolbar Configuration Tests")
     class ToolbarConfigTests {
 
         @Test
-        @DisplayName("withToolbar 应设置自定义工具栏")
+        @DisplayName("withToolbar should set custom toolbar")
         void testCustomToolbar() {
             VaadinCKEditor customEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -463,7 +463,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("withToolbar 支持分隔符")
+        @DisplayName("withToolbar should support separators")
         void testToolbarWithSeparator() {
             VaadinCKEditor customEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -474,17 +474,17 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 配置对象测试 ====================
+    // ==================== Config Object Tests ====================
 
     @Nested
-    @DisplayName("配置对象测试")
+    @DisplayName("Config Object Tests")
     class ConfigTests {
 
         @Test
-        @DisplayName("withConfig 应应用配置")
+        @DisplayName("withConfig should apply config")
         void testWithConfig() {
             CKEditorConfig config = new CKEditorConfig();
-            config.setPlaceholder("请输入内容...");
+            config.setPlaceholder("Enter content...");
 
             VaadinCKEditor customEditor = VaadinCKEditor.create()
                 .withPreset(CKEditorPreset.BASIC)
@@ -495,7 +495,7 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("withConfig 应允许详细配置")
+        @DisplayName("withConfig should allow detailed configuration")
         void testWithConfigDetailed() {
             CKEditorConfig config = new CKEditorConfig();
             config.setPlaceholder("Type here...");
@@ -509,14 +509,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 版本信息测试 ====================
+    // ==================== Version Info Tests ====================
 
     @Nested
-    @DisplayName("版本信息测试")
+    @DisplayName("Version Info Tests")
     class VersionTests {
 
         @Test
-        @DisplayName("getVersion 应返回版本号")
+        @DisplayName("getVersion should return version number")
         void testGetVersion() {
             String version = VaadinCKEditor.getVersion();
             assertNotNull(version);
@@ -525,14 +525,14 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
-    // ==================== 并发安全测试 ====================
+    // ==================== Concurrency Safety Tests ====================
 
     @Nested
-    @DisplayName("并发安全测试")
+    @DisplayName("Concurrency Safety Tests")
     class ConcurrencyTests {
 
         @Test
-        @DisplayName("并发注册监听器应线程安全")
+        @DisplayName("Concurrent listener registration should be thread-safe")
         void testConcurrentListenerRegistration() throws InterruptedException {
             int threadCount = 10;
             int listenersPerThread = 100;
@@ -561,14 +561,14 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
-        @DisplayName("并发清理监听器应线程安全")
+        @DisplayName("Concurrent listener cleanup should be thread-safe")
         void testConcurrentCleanup() throws InterruptedException {
-            // 先注册一些监听器
+            // First register some listeners
             for (int i = 0; i < 100; i++) {
                 editor.addEditorReadyListener(event -> {});
             }
 
-            // 并发清理
+            // Concurrent cleanup
             Thread[] threads = new Thread[5];
             for (int i = 0; i < threads.length; i++) {
                 threads[i] = new Thread(() -> editor.cleanupListeners());
@@ -582,7 +582,7 @@ class VaadinCKEditorIntegrationTest {
                 thread.join();
             }
 
-            // 清理后应该为零
+            // Should be zero after cleanup
             assertEquals(0, editor.getListenerStats().total());
         }
     }

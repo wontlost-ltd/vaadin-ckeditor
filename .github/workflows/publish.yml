@@ -1,4 +1,4 @@
-name: Publish to Vaadin Directory
+name: Publish Release
 
 on:
   push:
@@ -10,11 +10,16 @@ on:
         description: "Version to publish (e.g. 5.0.2) - required for manual trigger"
         type: string
         required: true
-      publish:
-        description: "Automatically publish new version"
+      draft:
+        description: "Create as draft release"
         type: boolean
-        required: true
-        default: true
+        required: false
+        default: false
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        required: false
+        default: false
       releaseNotes:
         description: "Release notes for this version"
         type: string
@@ -22,7 +27,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -56,44 +61,26 @@ jobs:
               echo "::error::Invalid version format. Expected: X.Y.Z (e.g. 5.0.2)"
               exit 1
             fi
+            TAG_NAME="v${VERSION}"
           else
             # Tag trigger: extract from tag name
             if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
               echo "::error::This workflow must run on a tag ref (v*)."
               exit 1
             fi
-            RAW="${GITHUB_REF_NAME}"
-            if [[ ! "$RAW" =~ ^v[0-9] ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            if [[ ! "$TAG_NAME" =~ ^v[0-9] ]]; then
               echo "::error::Tag must start with v followed by version (e.g. v5.0.2)."
               exit 1
             fi
-            VERSION="${RAW#v}"
+            VERSION="${TAG_NAME#v}"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
           echo "Resolved version: $VERSION"
-
-      - name: Resolve publish parameters
-        id: params
-        env:
-          INPUT_PUBLISH: ${{ inputs.publish }}
-          INPUT_NOTES: ${{ inputs.releaseNotes }}
-        run: |
-          set -euo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            PUBLISH="${INPUT_PUBLISH}"
-            NOTES="${INPUT_NOTES}"
-          else
-            # Tag push defaults to publish=true
-            PUBLISH="true"
-            NOTES="Release ${VERSION}"
-          fi
-          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
-          printf "notes=%s\n" "$NOTES" >> "$GITHUB_OUTPUT"
-          echo "PUBLISH=$PUBLISH" >> "$GITHUB_ENV"
-          printf "NOTES=%s\n" "$NOTES" >> "$GITHUB_ENV"
-          echo "Publish: $PUBLISH"
-          echo "Release notes: $NOTES"
+          echo "Tag name: $TAG_NAME"
 
       - name: Build directory artifact
         run: mvn -B -ntp clean install -Pdirectory
@@ -111,64 +98,78 @@ jobs:
           echo "Artifact verified: $ARTIFACT"
           ls -lh "$ARTIFACT"
 
-      - name: Upload artifact to GitHub
+      - name: Generate release notes
+        id: notes
+        env:
+          INPUT_NOTES: ${{ inputs.releaseNotes }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_NOTES:-}" ]]; then
+            NOTES="${INPUT_NOTES}"
+          else
+            NOTES="## CKEditor for Vaadin ${VERSION}
+
+          ### Installation
+
+          Add to your \`pom.xml\`:
+          \`\`\`xml
+          <dependency>
+              <groupId>com.wontlost</groupId>
+              <artifactId>ckeditor-vaadin</artifactId>
+              <version>${VERSION}</version>
+          </dependency>
+          \`\`\`
+
+          ### Downloads
+          - **ckeditor-vaadin-${VERSION}.zip** - Complete distribution with sources and javadoc
+
+          See [CHANGELOG.md](https://github.com/wontlost-ltd/vaadin-ckeditor/blob/main/CHANGELOG.md) for details."
+          fi
+          # Use heredoc for multiline output
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: v${{ steps.version.outputs.version }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ inputs.prerelease || false }}
+          files: |
+            target/ckeditor-vaadin-${{ steps.version.outputs.version }}.zip
+            target/ckeditor-vaadin-${{ steps.version.outputs.version }}.jar
+            target/ckeditor-vaadin-${{ steps.version.outputs.version }}-sources.jar
+            target/ckeditor-vaadin-${{ steps.version.outputs.version }}-javadoc.jar
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ckeditor-vaadin-${{ steps.version.outputs.version }}
           path: target/ckeditor-vaadin-${{ steps.version.outputs.version }}.zip
           retention-days: 90
 
-      - name: Publish to Vaadin Directory
-        env:
-          VAADIN_AUTH_KEY: ${{ secrets.VAADIN_AUTH_KEY }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${VAADIN_AUTH_KEY:-}" ]]; then
-            echo "::error::VAADIN_AUTH_KEY secret is not configured."
-            exit 1
-          fi
-
-          # URL encode release notes
-          ENCODED_NOTES="$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ.get('NOTES', ''), safe=''))")"
-
-          echo "Uploading to Vaadin Directory..."
-          echo "  Version: ${VERSION}"
-          echo "  Publish: ${PUBLISH}"
-          echo "  Notes: ${NOTES}"
-
-          HTTP_CODE=$(curl -s -o response.txt -w "%{http_code}" \
-            --retry 3 --retry-all-errors \
-            -X POST "https://vaadin.com/vaadincom/directory-service/upload/ckeditorvaadin?authKey=${VAADIN_AUTH_KEY}&publish=${PUBLISH}&releaseNotes=${ENCODED_NOTES}" \
-            -H "accept: */*" \
-            -H "Content-Type: multipart/form-data" \
-            -F "file=@${ARTIFACT};type=application/zip")
-
-          echo "HTTP response code: $HTTP_CODE"
-
-          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
-            echo "Upload successful!"
-            cat response.txt || true
-          else
-            echo "::error::Upload failed with HTTP $HTTP_CODE"
-            cat response.txt || true
-            exit 1
-          fi
-
       - name: Job Summary
         if: always()
         run: |
           {
-            echo "## Publish Summary"
+            echo "## Release Summary"
             echo ""
             echo "| Parameter | Value |"
             echo "|-----------|-------|"
             echo "| Version | \`${VERSION:-n/a}\` |"
+            echo "| Tag | \`${TAG_NAME:-n/a}\` |"
             echo "| Artifact | \`${ARTIFACT:-n/a}\` |"
-            echo "| Publish | \`${PUBLISH:-n/a}\` |"
             echo "| Status | \`${{ job.status }}\` |"
             echo ""
             if [[ "${{ job.status }}" == "success" ]]; then
-              echo "Published to [Vaadin Directory](https://vaadin.com/directory/component/ckeditor-for-vaadin)"
+              echo "Released to [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME})"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

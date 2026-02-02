@@ -18,7 +18,7 @@ class ContentManagerTest {
 
     @BeforeEach
     void setUp() {
-        manager = new ContentManager(null); // 无清理器
+        manager = new ContentManager(null); // No sanitizer
     }
 
     @Test
