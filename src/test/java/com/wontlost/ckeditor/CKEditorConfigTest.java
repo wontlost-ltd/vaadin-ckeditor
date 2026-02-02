@@ -590,7 +590,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("CustomPlugin should accept valid npm package names")
     void customPluginShouldAcceptValidNpmPackageNames() {
-        // 普通包名
+        // Regular package name
         CustomPlugin plugin1 = CustomPlugin.builder("MyPlugin")
             .withImportPath("my-ckeditor-plugin")
             .build();
