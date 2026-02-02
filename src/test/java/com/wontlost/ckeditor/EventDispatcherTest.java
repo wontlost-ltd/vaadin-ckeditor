@@ -165,10 +165,10 @@ class EventDispatcherTest {
     @Test
     @DisplayName("ListenerStats.total should sum all listeners")
     void listenerStatsTotalSumsAll() {
-        // 初始状态
+        // Initial state
         assertEquals(0, dispatcher.getListenerStats().total());
 
-        // 添加监听器
+        // Add listeners
         dispatcher.addEditorReadyListener(event -> {});
         assertEquals(1, dispatcher.getListenerStats().total());
 
