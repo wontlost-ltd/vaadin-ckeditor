@@ -96,7 +96,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
-    private static final String VERSION = "5.0.2";
+    private static final String VERSION = "5.0.3";
 
     /**
      * 默认 autosave 等待时间（毫秒）

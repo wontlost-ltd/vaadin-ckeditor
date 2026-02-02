@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.3] - 2025-02-02
+
+### Added
+- GitHub Actions CI/CD workflows
+  - CI: Build and test on PR/push to main
+  - Publish: Automated release to Vaadin Directory on tag
+
 ## [5.0.2] - 2025-02-02
 
 ### Added
@@ -71,7 +78,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.2...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.3...HEAD
+[5.0.3]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/releases/tag/v5.0.0
