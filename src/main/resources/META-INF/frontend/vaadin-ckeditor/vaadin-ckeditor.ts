@@ -13,11 +13,8 @@ import { UploadAdapterManager } from './upload-adapter';
 import { FallbackRenderer, type FallbackMode } from './fallback-renderer';
 import {
     PluginResolver,
-    PLUGIN_REGISTRY,
     registerCKEditorPlugin,
-    getGlobalPluginRegistry,
     type PluginConfig,
-    type FilterOptions,
 } from './plugin-resolver';
 
 // Import sticky toolbar CSS (extracted for maintainability)

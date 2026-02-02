@@ -178,12 +178,6 @@ describe('ThemeManager CSS variable injection', () => {
 
         manager.initialize('dark', callback);
 
-        // Check if style element was created
-        const styleElements = document.querySelectorAll('style');
-        const hasThemeStyles = Array.from(styleElements).some(
-            (el) => el.textContent?.includes('--ck-color')
-        );
-
         // Theme manager injects CSS variables for dark mode
         expect(callback).toHaveBeenCalledWith('dark');
 

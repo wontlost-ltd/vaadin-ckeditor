@@ -32,11 +32,6 @@ describe('UploadAdapterManager', () => {
 
     describe('file size validation', () => {
         it('should use default max file size of 10MB', () => {
-            // Create a mock file loader
-            const file = new File(['x'.repeat(5 * 1024 * 1024)], 'small.jpg', {
-                type: 'image/jpeg',
-            });
-
             // File under 10MB should be accepted (we test via MIME type validation first)
             expect(manager.isMimeTypeAllowed('image/jpeg')).toBe(true);
         });
@@ -130,7 +125,6 @@ describe('UploadAdapterManager', () => {
         it('should resolve pending upload with URL', () => {
             // Simulate a pending upload
             const uploadId = 'test-upload-1';
-            let resolvedUrl: string | undefined;
 
             // We need to mock the internal pending uploads map
             // This tests the public resolveUpload method
