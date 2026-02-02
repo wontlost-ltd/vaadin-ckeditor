@@ -20,6 +20,11 @@ public class CKEditorConfig {
 
     private final Map<String, JsonNode> configs = new LinkedHashMap<>();
 
+    /**
+     * 是否允许私有/内网地址作为上传 URL（用于开发环境）
+     */
+    private boolean allowPrivateNetworks = false;
+
     public CKEditorConfig() {
         // Initialize defaults
         setPlaceholder("Type your content here...");
@@ -90,7 +95,7 @@ public class CKEditorConfig {
             ObjectNode headingObj = createObjectNode();
             ArrayNode optionsArr = createArrayNode();
             for (HeadingOption option : options) {
-                optionsArr.add(option.toJson(getMapper()));
+                optionsArr.add(option.toJson());
             }
             headingObj.set("options", optionsArr);
             configs.put("heading", headingObj);
@@ -205,7 +210,7 @@ public class CKEditorConfig {
         if (hasElements(languages)) {
             ArrayNode arr = createArrayNode();
             for (CodeBlockLanguage lang : languages) {
-                arr.add(lang.toJson(getMapper()));
+                arr.add(lang.toJson());
             }
             codeBlockObj.set("languages", arr);
         }
@@ -231,7 +236,7 @@ public class CKEditorConfig {
             ObjectNode mentionObj = createObjectNode();
             ArrayNode feedsArr = createArrayNode();
             for (MentionFeed feed : feeds) {
-                feedsArr.add(feed.toJson(getMapper()));
+                feedsArr.add(feed.toJson());
             }
             mentionObj.set("feeds", feedsArr);
             configs.put("mention", mentionObj);
@@ -389,6 +394,36 @@ public class CKEditorConfig {
     private static final Set<String> ALLOWED_URL_PROTOCOLS = Set.of("http", "https");
 
     /**
+     * 允许私有/内网地址作为上传 URL。
+     *
+     * <p>默认情况下，出于安全考虑，禁止使用 localhost、127.0.0.1、192.168.x.x、
+     * 10.x.x.x、172.16-31.x.x 等内网地址。在开发环境中，可以启用此选项：</p>
+     *
+     * <pre>{@code
+     * config.allowPrivateNetworks(true)
+     *       .setSimpleUpload("/api/upload");
+     * }</pre>
+     *
+     * <p><b>警告：</b>在生产环境中启用此选项可能导致 SSRF 攻击风险。</p>
+     *
+     * @param allow true 允许内网地址，false 禁止（默认）
+     * @return this
+     */
+    public CKEditorConfig allowPrivateNetworks(boolean allow) {
+        this.allowPrivateNetworks = allow;
+        return this;
+    }
+
+    /**
+     * 检查是否允许私有网络地址
+     *
+     * @return 是否允许私有网络
+     */
+    public boolean isAllowPrivateNetworks() {
+        return allowPrivateNetworks;
+    }
+
+    /**
      * 验证上传 URL 格式和协议安全性。
      * 防止 SSRF 攻击，仅允许 http/https 协议。
      *
@@ -411,23 +446,219 @@ public class CKEditorConfig {
                     ", got: " + protocol);
             }
 
-            // 禁止内网地址（可选的额外安全检查）
+            // 禁止内网地址（可选的额外安全检查，可通过 allowPrivateNetworks() 禁用）
             String host = uri.getHost();
             if (host == null) {
                 throw new IllegalArgumentException("Upload URL must have a valid host");
             }
 
-            host = host.toLowerCase(Locale.ROOT);
-            if (host.equals("localhost") || host.equals("127.0.0.1") ||
-                host.startsWith("192.168.") || host.startsWith("10.") ||
-                isPrivateClassBAddress(host) ||
-                host.endsWith(".local") || host.endsWith(".internal")) {
+            if (!allowPrivateNetworks && isPrivateNetworkAddress(host)) {
                 throw new IllegalArgumentException(
-                    "Upload URL must not point to internal/private network addresses: " + host);
+                    "Upload URL must not point to internal/private network addresses: " + host +
+                    ". Use allowPrivateNetworks(true) for development environments.");
             }
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid upload URL format: " + uploadUrl, e);
         }
+    }
+
+    /**
+     * 检查是否为私有/内网地址，包括 IPv4 和 IPv6 的各种表示形式。
+     * 防止 SSRF 绕过攻击。
+     *
+     * @param host 主机名或 IP 地址
+     * @return 是否为私有地址
+     */
+    private boolean isPrivateNetworkAddress(String host) {
+        String lowerHost = host.toLowerCase(Locale.ROOT);
+
+        // IPv4 localhost 和私有地址
+        if (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1") ||
+            lowerHost.startsWith("192.168.") || lowerHost.startsWith("10.") ||
+            isPrivateClassBAddress(lowerHost) ||
+            lowerHost.endsWith(".local") || lowerHost.endsWith(".internal")) {
+            return true;
+        }
+
+        // 0.0.0.0 - 通配地址
+        if (lowerHost.equals("0.0.0.0")) {
+            return true;
+        }
+
+        // 169.254.x.x - IPv4 链路本地地址
+        if (lowerHost.startsWith("169.254.")) {
+            return true;
+        }
+
+        // IPv6 localhost: ::1 或 [::1]
+        if (lowerHost.equals("::1") || lowerHost.equals("[::1]")) {
+            return true;
+        }
+
+        // IPv4-mapped IPv6 地址: ::ffff:127.0.0.1 或 [::ffff:127.0.0.1]
+        // 也包括其他私有 IPv4 地址的 IPv6 映射
+        if (isIPv4MappedIPv6PrivateAddress(lowerHost)) {
+            return true;
+        }
+
+        // IPv4 兼容 IPv6 地址: ::127.0.0.1 或 [::127.0.0.1]
+        // 注意：这与 ::ffff: 格式不同，是已弃用但仍需防护的格式
+        if (isIPv4CompatibleIPv6PrivateAddress(lowerHost)) {
+            return true;
+        }
+
+        // SIIT (Stateless IP/ICMP Translation) 格式: ::ffff:0:x.x.x.x
+        if (isSIITIPv6PrivateAddress(lowerHost)) {
+            return true;
+        }
+
+        // IPv6 链路本地地址: fe80::
+        if (lowerHost.startsWith("fe80:") || lowerHost.startsWith("[fe80:")) {
+            return true;
+        }
+
+        // IPv6 唯一本地地址 (ULA): fc00::/7 (fc00:: 到 fdff::)
+        if (lowerHost.startsWith("fc") || lowerHost.startsWith("fd") ||
+            lowerHost.startsWith("[fc") || lowerHost.startsWith("[fd")) {
+            return true;
+        }
+
+        // 八进制/十六进制 IP 绕过检查 (如 0177.0.0.1 = 127.0.0.1)
+        if (isObfuscatedPrivateIPv4(lowerHost)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查是否为 IPv4-mapped IPv6 私有地址。
+     * 格式: ::ffff:x.x.x.x 或 [::ffff:x.x.x.x]
+     */
+    private boolean isIPv4MappedIPv6PrivateAddress(String host) {
+        String cleanHost = host.replace("[", "").replace("]", "");
+        if (!cleanHost.startsWith("::ffff:")) {
+            return false;
+        }
+
+        String ipv4Part = cleanHost.substring(7); // 去掉 "::ffff:"
+        return isPrivateIPv4String(ipv4Part);
+    }
+
+    /**
+     * 检查是否为 IPv4 兼容 IPv6 私有地址。
+     * 格式: ::x.x.x.x 或 [::x.x.x.x]（已弃用但仍需防护）
+     * 注意：这与 ::ffff: 映射格式不同
+     */
+    private boolean isIPv4CompatibleIPv6PrivateAddress(String host) {
+        String cleanHost = host.replace("[", "").replace("]", "");
+        // 必须以 :: 开头，但不能是 ::ffff: 或 ::ffff:0: 格式
+        if (!cleanHost.startsWith("::") || cleanHost.startsWith("::ffff:")) {
+            return false;
+        }
+
+        // 提取 :: 后的部分
+        String remainder = cleanHost.substring(2);
+        // 检查是否为 IPv4 地址格式（包含点号）
+        if (!remainder.contains(".")) {
+            return false;
+        }
+
+        return isPrivateIPv4String(remainder);
+    }
+
+    /**
+     * 检查是否为 SIIT (Stateless IP/ICMP Translation) 格式的私有 IPv6 地址。
+     * 格式: ::ffff:0:x.x.x.x 或 [::ffff:0:x.x.x.x]
+     * RFC 6052 定义的 IPv4 嵌入式 IPv6 地址
+     */
+    private boolean isSIITIPv6PrivateAddress(String host) {
+        String cleanHost = host.replace("[", "").replace("]", "");
+        if (!cleanHost.startsWith("::ffff:0:")) {
+            return false;
+        }
+
+        String ipv4Part = cleanHost.substring(9); // 去掉 "::ffff:0:"
+        return isPrivateIPv4String(ipv4Part);
+    }
+
+    /**
+     * 检查 IPv4 字符串是否为私有地址。
+     * 提取公共逻辑，避免重复。
+     */
+    private boolean isPrivateIPv4String(String ipv4) {
+        return ipv4.equals("127.0.0.1") ||
+               ipv4.startsWith("192.168.") ||
+               ipv4.startsWith("10.") ||
+               isPrivateClassBAddress(ipv4) ||
+               ipv4.equals("0.0.0.0") ||
+               ipv4.startsWith("169.254.");
+    }
+
+    /**
+     * 八进制/十六进制 IP 绕过检测正则。
+     * 匹配以 0 开头的八进制表示（如 0177.0.0.1）或以 0x 开头的十六进制表示。
+     */
+    private static final Pattern OBFUSCATED_IP_PATTERN =
+        Pattern.compile("^(0[0-7]+|0x[0-9a-f]+)(\\.(0[0-7]+|0x[0-9a-f]+|\\d+)){0,3}$", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * 检查是否为混淆的私有 IPv4 地址（八进制/十六进制表示）。
+     * 例如：0177.0.0.1 (= 127.0.0.1), 0x7f.0.0.1 (= 127.0.0.1)
+     */
+    private boolean isObfuscatedPrivateIPv4(String host) {
+        if (!OBFUSCATED_IP_PATTERN.matcher(host).matches()) {
+            return false;
+        }
+
+        // 尝试解析为标准 IPv4 地址
+        try {
+            String[] parts = host.split("\\.");
+            int[] octets = new int[4];
+            int partIndex = 0;
+
+            for (String part : parts) {
+                if (partIndex >= 4) break;
+                int value;
+                if (part.startsWith("0x") || part.startsWith("0X")) {
+                    value = Integer.parseInt(part.substring(2), 16);
+                } else if (part.startsWith("0") && part.length() > 1) {
+                    value = Integer.parseInt(part, 8);
+                } else {
+                    value = Integer.parseInt(part);
+                }
+                octets[partIndex++] = value;
+            }
+
+            // 填充剩余部分为 0
+            while (partIndex < 4) {
+                octets[partIndex++] = 0;
+            }
+
+            // 检查是否为私有地址
+            return isPrivateIPv4Octets(octets);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 检查 IPv4 八位字节数组是否为私有地址。
+     */
+    private boolean isPrivateIPv4Octets(int[] octets) {
+        // 127.x.x.x (loopback)
+        if (octets[0] == 127) return true;
+        // 10.x.x.x (Class A private)
+        if (octets[0] == 10) return true;
+        // 192.168.x.x (Class C private)
+        if (octets[0] == 192 && octets[1] == 168) return true;
+        // 172.16-31.x.x (Class B private)
+        if (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+        // 0.0.0.0 (wildcard)
+        if (octets[0] == 0 && octets[1] == 0 && octets[2] == 0 && octets[3] == 0) return true;
+        // 169.254.x.x (link-local)
+        if (octets[0] == 169 && octets[1] == 254) return true;
+        return false;
     }
 
     /**
@@ -495,7 +726,7 @@ public class CKEditorConfig {
             ObjectNode styleObj = createObjectNode();
             ArrayNode definitionsArr = createArrayNode();
             for (StyleDefinition def : definitions) {
-                definitionsArr.add(def.toJson(getMapper()));
+                definitionsArr.add(def.toJson());
             }
             styleObj.set("definitions", definitionsArr);
             configs.put("style", styleObj);
@@ -1050,7 +1281,7 @@ public class CKEditorConfig {
             return new HeadingOption("heading" + level, "h" + level, title, className);
         }
 
-        public ObjectNode toJson(ObjectMapper mapper) {
+        public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             obj.put("model", model);
             if (view != null) {
@@ -1084,7 +1315,7 @@ public class CKEditorConfig {
             return new CodeBlockLanguage(language, label, className);
         }
 
-        public ObjectNode toJson(ObjectMapper mapper) {
+        public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             obj.put("language", language);
             obj.put("label", label);
@@ -1117,7 +1348,7 @@ public class CKEditorConfig {
             return new MentionFeed("#", tags, 0);
         }
 
-        public ObjectNode toJson(ObjectMapper mapper) {
+        public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             obj.put("marker", marker != null ? marker : "@");
             obj.put("minimumCharacters", minimumCharacters);
@@ -1222,12 +1453,69 @@ public class CKEditorConfig {
         /**
          * Convert to JSON for CKEditor configuration
          */
-        public ObjectNode toJson(ObjectMapper mapper) {
+        public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             obj.put("name", name);
             obj.put("element", element);
             obj.set("classes", toArrayNode(classes));
             return obj;
+        }
+    }
+
+    /**
+     * CSS 值验证正则表达式。
+     * 允许：颜色值（#hex, rgb, rgba, hsl, hsla, named colors）、尺寸值（px, em, rem, %）、transparent、inherit 等。
+     * 禁止：url()、expression()、javascript:、分号、花括号等可能导致注入的内容。
+     */
+    private static final Pattern SAFE_CSS_VALUE_PATTERN = Pattern.compile(
+        "^(" +
+        // 颜色值
+        "#[0-9a-fA-F]{3,8}|" +                                          // #RGB, #RRGGBB, #RRGGBBAA
+        "rgba?\\s*\\(\\s*[0-9.,\\s%]+\\s*\\)|" +                         // rgb(), rgba()
+        "hsla?\\s*\\(\\s*[0-9.,\\s%deg]+\\s*\\)|" +                      // hsl(), hsla()
+        // 命名颜色
+        "[a-zA-Z]+|" +                                                   // named colors like red, blue, transparent
+        // 尺寸值
+        "-?[0-9.]+(?:px|em|rem|%|pt|vh|vw|vmin|vmax|ch|ex)?|" +         // 10px, 1.5em, 50%
+        // 关键字
+        "transparent|inherit|initial|unset|none|auto" +
+        ")$",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    /**
+     * 验证 CSS 值是否安全（防止 CSS 注入攻击）。
+     *
+     * @param value CSS 值
+     * @param propertyName 属性名（用于错误消息）
+     * @throws IllegalArgumentException 如果值包含不安全内容
+     */
+    private static void validateCssValue(String value, String propertyName) {
+        if (value == null || value.isEmpty()) {
+            return; // null 和空值是允许的
+        }
+
+        // 检查危险模式
+        String lowerValue = value.toLowerCase(Locale.ROOT);
+        if (lowerValue.contains("url(") ||
+            lowerValue.contains("expression(") ||
+            lowerValue.contains("javascript:") ||
+            lowerValue.contains("data:") ||
+            value.contains(";") ||
+            value.contains("{") ||
+            value.contains("}") ||
+            value.contains("/*") ||
+            value.contains("*/") ||
+            value.contains("\\")) {
+            throw new IllegalArgumentException(
+                "CSS value for '" + propertyName + "' contains potentially dangerous content: " + value);
+        }
+
+        // 验证格式
+        if (!SAFE_CSS_VALUE_PATTERN.matcher(value.trim()).matches()) {
+            throw new IllegalArgumentException(
+                "CSS value for '" + propertyName + "' has invalid format: " + value +
+                ". Allowed: color values (#hex, rgb, rgba, named), sizes (px, em, %), keywords (transparent, inherit).");
         }
     }
 
@@ -1242,6 +1530,9 @@ public class CKEditorConfig {
      *   <li>Icon colors</li>
      *   <li>Individual button styles via buttonStyles map</li>
      * </ul>
+     *
+     * <p><b>Security:</b> All CSS values are validated to prevent CSS injection attacks.
+     * Only safe color values, sizes, and keywords are allowed.</p>
      *
      * <p>Usage example:</p>
      * <pre>
@@ -1425,6 +1716,16 @@ public class CKEditorConfig {
             }
 
             public ToolbarStyle build() {
+                // 验证所有 CSS 值
+                validateCssValue(background, "background");
+                validateCssValue(borderColor, "borderColor");
+                validateCssValue(borderRadius, "borderRadius");
+                validateCssValue(buttonBackground, "buttonBackground");
+                validateCssValue(buttonHoverBackground, "buttonHoverBackground");
+                validateCssValue(buttonActiveBackground, "buttonActiveBackground");
+                validateCssValue(buttonOnBackground, "buttonOnBackground");
+                validateCssValue(buttonOnColor, "buttonOnColor");
+                validateCssValue(iconColor, "iconColor");
                 return new ToolbarStyle(this);
             }
         }
@@ -1517,6 +1818,11 @@ public class CKEditorConfig {
             }
 
             public ButtonStyle build() {
+                // 验证所有 CSS 值
+                validateCssValue(background, "background");
+                validateCssValue(hoverBackground, "hoverBackground");
+                validateCssValue(activeBackground, "activeBackground");
+                validateCssValue(iconColor, "iconColor");
                 return new ButtonStyle(background, hoverBackground, activeBackground, iconColor);
             }
         }

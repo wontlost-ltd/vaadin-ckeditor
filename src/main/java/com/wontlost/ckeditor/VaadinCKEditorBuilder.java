@@ -333,6 +333,28 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Set upload configuration for file uploads.
+     * Configures file size limits and allowed MIME types.
+     *
+     * <p>Example:</p>
+     * <pre>
+     * VaadinCKEditor editor = VaadinCKEditor.create()
+     *     .withUploadHandler(myHandler)
+     *     .withUploadConfig(new UploadHandler.UploadConfig()
+     *         .setMaxFileSize(5 * 1024 * 1024) // 5MB
+     *         .setAllowedMimeTypes("image/jpeg", "image/png", "image/gif"))
+     *     .build();
+     * </pre>
+     *
+     * @param config 上传配置
+     * @return this builder for chaining
+     */
+    public VaadinCKEditorBuilder withUploadConfig(UploadHandler.UploadConfig config) {
+        editor.setUploadConfigInternal(config);
+        return this;
+    }
+
+    /**
      * Set initial content
      *
      * @param value the initial HTML content

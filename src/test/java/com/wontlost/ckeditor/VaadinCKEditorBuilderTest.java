@@ -642,4 +642,34 @@ class VaadinCKEditorBuilderTest {
 
         assertThat(boldCount).isEqualTo(1);
     }
+
+    // ==================== Upload Config Tests ====================
+
+    @Test
+    @DisplayName("withUploadConfig should configure upload settings")
+    void withUploadConfigShouldConfigureUploadSettings() {
+        com.wontlost.ckeditor.handler.UploadHandler.UploadConfig config =
+            new com.wontlost.ckeditor.handler.UploadHandler.UploadConfig()
+                .setMaxFileSize(5 * 1024 * 1024) // 5MB
+                .setAllowedMimeTypes("image/jpeg", "image/png");
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withUploadConfig(config)
+            .build();
+
+        assertThat(editor).isNotNull();
+    }
+
+    @Test
+    @DisplayName("withUploadConfig should support fluent chaining")
+    void withUploadConfigShouldSupportFluentChaining() {
+        VaadinCKEditorBuilder builder = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withUploadConfig(new com.wontlost.ckeditor.handler.UploadHandler.UploadConfig()
+                .setMaxFileSize(10 * 1024 * 1024))
+            .withValue("<p>Hello</p>");
+
+        assertThat(builder).isInstanceOf(VaadinCKEditorBuilder.class);
+    }
 }

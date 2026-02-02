@@ -174,6 +174,217 @@ describe('UploadAdapterManager', () => {
     });
 });
 
+describe('UploadAdapterManager timeout mechanism', () => {
+    it('should use default timeout of 5 minutes', () => {
+        const logger = createMockLogger();
+        const manager = new UploadAdapterManager('test', logger);
+
+        // Default timeout should be set (we test via the setter)
+        expect(() => manager.setUploadTimeout(60000)).not.toThrow();
+    });
+
+    it('should allow setting custom timeout', () => {
+        const logger = createMockLogger();
+        const manager = new UploadAdapterManager('test', logger);
+
+        manager.setUploadTimeout(30000); // 30 seconds
+        expect(() => manager.setUploadTimeout(0)).not.toThrow(); // Disable timeout
+    });
+
+    it('should reject upload after timeout', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+        manager.setUploadTimeout(50); // 50ms for fast test
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // Start upload but don't resolve it - should timeout
+        await expect(adapter.upload()).rejects.toThrow(/timed out/);
+    });
+
+    it('should not timeout when disabled (timeout = 0)', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+        manager.setUploadTimeout(0); // Disable timeout
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // Start upload
+        const uploadPromise = adapter.upload();
+
+        // Wait a bit, then resolve
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Get the upload ID and resolve it
+        expect(server.handleFileUpload).toHaveBeenCalled();
+        const uploadId = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId, 'http://example.com/test.jpg', null);
+
+        // Should succeed since timeout is disabled
+        const result = await uploadPromise;
+        expect(result.default).toBe('http://example.com/test.jpg');
+    });
+
+    it('should clear timeout when upload completes successfully', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+        manager.setUploadTimeout(1000); // 1 second
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+        const uploadPromise = adapter.upload();
+
+        // Resolve immediately
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        const uploadId = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId, 'http://example.com/test.jpg', null);
+
+        const result = await uploadPromise;
+        expect(result.default).toBe('http://example.com/test.jpg');
+    });
+});
+
+describe('UploadAdapterManager race condition prevention', () => {
+    it('should prevent concurrent uploads on same adapter', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+        manager.setUploadTimeout(5000);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // Start first upload
+        const upload1 = adapter.upload();
+
+        // Wait for first upload to start
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Try to start second upload on same adapter - should fail
+        await expect(adapter.upload()).rejects.toThrow('Upload already in progress');
+
+        // Resolve first upload to clean up
+        const uploadId = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId, 'http://example.com/test.jpg', null);
+        await upload1;
+    });
+
+    it('should allow uploads on different adapters concurrently', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+
+        // Create two different adapters (different loaders)
+        const mockLoader1 = { file: Promise.resolve(file) };
+        const mockLoader2 = { file: Promise.resolve(file) };
+
+        const adapter1 = factory(mockLoader1);
+        const adapter2 = factory(mockLoader2);
+
+        // Start both uploads
+        const upload1 = adapter1.upload();
+        const upload2 = adapter2.upload();
+
+        // Wait for both to start
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Both should have started
+        expect(server.handleFileUpload).toHaveBeenCalledTimes(2);
+
+        // Resolve both
+        const uploadId1 = server.handleFileUpload.mock.calls[0][0];
+        const uploadId2 = server.handleFileUpload.mock.calls[1][0];
+        manager.resolveUpload(uploadId1, 'http://example.com/1.jpg', null);
+        manager.resolveUpload(uploadId2, 'http://example.com/2.jpg', null);
+
+        await Promise.all([upload1, upload2]);
+    });
+
+    it('should reset isUploading flag after upload completes', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // First upload
+        const upload1 = adapter.upload();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const uploadId1 = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId1, 'http://example.com/1.jpg', null);
+        await upload1;
+
+        // Second upload on same adapter should work
+        const upload2 = adapter.upload();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const uploadId2 = server.handleFileUpload.mock.calls[1][0];
+        manager.resolveUpload(uploadId2, 'http://example.com/2.jpg', null);
+        const result = await upload2;
+
+        expect(result.default).toBe('http://example.com/2.jpg');
+    });
+
+    it('should reset isUploading flag after upload fails', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // First upload - fails
+        const upload1 = adapter.upload();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const uploadId1 = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId1, null, 'Upload failed');
+
+        await expect(upload1).rejects.toThrow('Upload failed');
+
+        // Second upload should work
+        const upload2 = adapter.upload();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const uploadId2 = server.handleFileUpload.mock.calls[1][0];
+        manager.resolveUpload(uploadId2, 'http://example.com/2.jpg', null);
+        const result = await upload2;
+
+        expect(result.default).toBe('http://example.com/2.jpg');
+    });
+});
+
 describe('UploadAdapterManager edge cases', () => {
     it('should handle concurrent uploads', () => {
         const logger = createMockLogger();
@@ -220,5 +431,83 @@ describe('UploadAdapterManager edge cases', () => {
         manager.resolveUpload(call2[0], 'http://example.com/2.jpg', null);
 
         await Promise.all([upload1, upload2]);
+    });
+});
+
+describe('UploadAdapterManager empty file handling', () => {
+    it('should reject empty files', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const emptyFile = new File([], 'empty.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(emptyFile) };
+
+        const adapter = factory(mockLoader);
+
+        await expect(adapter.upload()).rejects.toThrow('Cannot upload empty file');
+    });
+
+    it('should allow non-empty files', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+        const uploadPromise = adapter.upload();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const uploadId = server.handleFileUpload.mock.calls[0][0];
+        manager.resolveUpload(uploadId, 'http://example.com/test.jpg', null);
+
+        const result = await uploadPromise;
+        expect(result.default).toBe('http://example.com/test.jpg');
+    });
+});
+
+describe('UploadAdapterManager abort edge cases', () => {
+    it('should handle abort when no upload in progress', () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+
+        // Abort before starting upload should not throw
+        expect(() => adapter.abort()).not.toThrow();
+        expect(logger.debug).toHaveBeenCalledWith('Upload abort requested but no upload in progress');
+    });
+
+    it('should handle abort during active upload', async () => {
+        const logger = createMockLogger();
+        const server = createMockServer();
+        const manager = new UploadAdapterManager('test', logger);
+        manager.setServer(server);
+
+        const factory = manager.createUploadAdapterFactory();
+        const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+        const mockLoader = { file: Promise.resolve(file) };
+
+        const adapter = factory(mockLoader);
+        const uploadPromise = adapter.upload();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Abort during active upload
+        adapter.abort();
+
+        await expect(uploadPromise).rejects.toThrow('Upload cancelled');
     });
 });

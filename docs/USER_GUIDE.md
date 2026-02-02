@@ -564,6 +564,73 @@ editor.setUploadHandler((context, stream) -> {
 });
 ```
 
+### Upload Timeout Configuration
+
+上传超时机制用于防止上传操作无限挂起：
+
+- **前端超时**: 默认 5 分钟（300,000 毫秒）
+- **后端超时**: 默认 6 分钟（360 秒）
+
+后端超时比前端长 1 分钟，确保前端先触发超时错误，避免竞争条件。
+
+```java
+// 自定义后端超时（在 UploadManager 构造函数中）
+UploadManager manager = new UploadManager(
+    handler,
+    config,
+    callback,
+    180  // 3 分钟超时（秒）
+);
+```
+
+```typescript
+// 自定义前端超时
+uploadManager.setUploadTimeout(120000); // 2 分钟（毫秒）
+uploadManager.setUploadTimeout(0);      // 禁用超时
+```
+
+### SSRF Protection
+
+`setSimpleUpload()` 方法内置 SSRF（服务端请求伪造）防护：
+
+**防护范围：**
+- IPv4 私有地址：`127.x.x.x`, `10.x.x.x`, `192.168.x.x`, `172.16-31.x.x`
+- IPv6 私有地址：`::1`, `fe80::`, `fc00::/fd00::`
+- IPv4-mapped IPv6：`::ffff:127.0.0.1`
+- IPv4-compatible IPv6：`::127.0.0.1`
+- SIIT 格式：`::ffff:0:127.0.0.1`
+- 八进制/十六进制表示：`0177.0.0.1`, `0x7f.0.0.1`
+- 特殊域名：`localhost`, `*.local`, `*.internal`
+
+**已知限制：**
+- 十进制整数 IP（如 `2130706433`）：被 Java URI 解析器视为域名，不会触发 SSRF 检查。由于主流浏览器对此格式支持不一致，实际威胁较低。
+- DNS 重绑定：当前不防护。如需防护，建议在服务端实现请求级验证。
+
+**威胁模型说明：**
+`setSimpleUpload()` 配置的 URL 由浏览器发起请求，浏览器同源策略提供了额外保护层。
+此防护主要防止配置错误导致的意外内网访问，而非完整的 SSRF 防御。
+
+**开发环境配置：**
+```java
+CKEditorConfig config = new CKEditorConfig();
+config.allowPrivateNetworks(true);  // 允许内网地址（仅用于开发环境）
+config.setSimpleUpload("http://localhost:8080/api/upload");
+```
+
+### CSS Value Restrictions
+
+工具栏样式自定义支持以下 CSS 值类型：
+- 颜色值：`#fff`, `rgb()`, `hsl()`, 颜色名称
+- 尺寸值：`10px`, `1em`, `50%`
+- 关键字：`none`, `inherit`, `transparent`
+
+**不支持的 CSS 函数（出于安全考虑）：**
+- `url()` - 可能导致数据泄露
+- `calc()` - 复杂度较高，暂不支持
+- `var()` - CSS 变量暂不支持
+
+如需使用高级 CSS 特性，建议通过自定义 CSS 文件实现。
+
 ---
 
 ## Error Handling

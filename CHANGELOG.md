@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Empty file upload validation - rejects zero-byte files with clear error message
+- Upload abort race condition protection - prevents cancellation of wrong upload
+- SSRF protection documentation with known limitations (decimal integer IP, DNS rebinding)
+
+### Fixed
+- Upload adapter abort() now safely handles edge case when no upload is in progress
+- Debug logging added for empty file rejection and abort edge cases
+
 ## [5.0.3] - 2025-02-02
 
 ### Added

@@ -236,9 +236,6 @@ class EventDispatcherTest {
     @Test
     @DisplayName("Multiple registrations should be independent")
     void multipleRegistrationsIndependent() {
-        AtomicBoolean listener1Removed = new AtomicBoolean(false);
-        AtomicBoolean listener2Removed = new AtomicBoolean(false);
-
         var reg1 = dispatcher.addEditorReadyListener(event -> {});
         var reg2 = dispatcher.addEditorReadyListener(event -> {});
 

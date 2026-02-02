@@ -18,7 +18,6 @@ import com.wontlost.ckeditor.event.ContentChangeEvent.ChangeSource;
 import com.wontlost.ckeditor.handler.ErrorHandler;
 import com.wontlost.ckeditor.handler.HtmlSanitizer;
 import com.wontlost.ckeditor.handler.UploadHandler;
-import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 import com.wontlost.ckeditor.internal.ContentManager;
@@ -129,6 +128,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private ErrorHandler errorHandler;
     private HtmlSanitizer htmlSanitizer;
     private UploadHandler uploadHandler;
+    private UploadHandler.UploadConfig uploadConfig;
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
 
     // 内部管理器
@@ -143,6 +143,8 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         this.editorData = "";
         this.config = new CKEditorConfig();
         this.eventDispatcher = new EventDispatcher(this);
+        // 初始化 contentManager，保证永不为 null（空对象模式）
+        this.contentManager = new ContentManager(null);
     }
 
     /**
@@ -198,8 +200,11 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * 初始化内部管理器
      */
     private void initializeManagers() {
-        // 初始化内容管理器
-        this.contentManager = new ContentManager(htmlSanitizer);
+        // 如果设置了 HtmlSanitizer，重新创建 contentManager
+        // （构造函数中已创建无 sanitizer 的默认实例）
+        if (htmlSanitizer != null) {
+            this.contentManager = new ContentManager(htmlSanitizer);
+        }
 
         // 初始化上传管理器（如果有上传处理器）
         if (uploadHandler != null) {
@@ -210,7 +215,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
             this.uploadManager = new UploadManager(
                 uploadHandler,
-                null, // 使用默认配置
+                uploadConfig, // 使用配置的上传参数（为 null 时使用默认配置）
                 (uploadId, url, error) -> {
                     // 通过 WeakReference 获取编辑器实例
                     VaadinCKEditor editor = editorRef.get();
@@ -286,10 +291,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * @return 清理后的 HTML 内容
      */
     public String getSanitizedValue() {
-        if (contentManager != null) {
-            return contentManager.getSanitizedValue(editorData);
-        }
-        return editorData;
+        return contentManager.getSanitizedValue(editorData);
     }
 
     @Override
@@ -467,33 +469,21 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * Get plain text content (strip HTML tags)
      */
     public String getPlainText() {
-        if (contentManager != null) {
-            return contentManager.getPlainText(editorData);
-        }
-        return Jsoup.parse(editorData).text();
+        return contentManager.getPlainText(editorData);
     }
 
     /**
      * Get sanitized HTML (remove dangerous tags)
      */
     public String getSanitizedHtml() {
-        if (contentManager != null) {
-            return contentManager.getSanitizedHtml(editorData);
-        }
-        return sanitizeHtml(editorData, Safelist.relaxed());
+        return contentManager.getSanitizedHtml(editorData);
     }
 
     /**
      * Sanitize HTML with specified rules
      */
     public String sanitizeHtml(String html, Safelist safelist) {
-        if (contentManager != null) {
-            return contentManager.sanitizeHtml(html, safelist);
-        }
-        if (html == null) {
-            return "";
-        }
-        return Jsoup.clean(html, safelist);
+        return contentManager.sanitizeHtml(html, safelist);
     }
 
     /**
@@ -502,10 +492,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * @return 字符数
      */
     public int getCharacterCount() {
-        if (contentManager != null) {
-            return contentManager.getCharacterCount(editorData);
-        }
-        return getPlainText().length();
+        return contentManager.getCharacterCount(editorData);
     }
 
     /**
@@ -514,12 +501,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * @return 单词数
      */
     public int getWordCount() {
-        if (contentManager != null) {
-            return contentManager.getWordCount(editorData);
-        }
-        String text = getPlainText();
-        if (text.isEmpty()) return 0;
-        return text.trim().split("\\s+").length;
+        return contentManager.getWordCount(editorData);
     }
 
     /**
@@ -528,10 +510,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * @return 如果内容为空或只包含空白则返回 true
      */
     public boolean isContentEmpty() {
-        if (contentManager != null) {
-            return contentManager.isContentEmpty(editorData);
-        }
-        return getPlainText().trim().isEmpty();
+        return contentManager.isContentEmpty(editorData);
     }
 
     // ==================== Static Info ====================
@@ -803,197 +782,47 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         return uploadManager != null && uploadManager.cancelUpload(uploadId);
     }
 
-    // ==================== Internal Methods for Builder ====================
-
     /**
-     * Clear all plugins. Package-private for Builder access.
+     * 从客户端取消上传任务。
+     * 由前端 upload adapter 的 abort() 方法调用。
+     *
+     * @param uploadId 上传 ID
      */
-    void clearPlugins() {
-        plugins.clear();
+    @ClientCallable
+    private void cancelUploadFromClient(String uploadId) {
+        cancelUpload(uploadId);
     }
 
-    /**
-     * Add plugins from collection. Package-private for Builder access.
-     */
-    void addPluginsInternal(Collection<CKEditorPlugin> pluginsToAdd) {
-        plugins.addAll(pluginsToAdd);
-    }
+    // ==================== Package-Private Methods for Builder ====================
+    // These methods are used by VaadinCKEditorBuilder to configure the editor
 
-    /**
-     * Add custom plugins from collection. Package-private for Builder access.
-     */
-    void addCustomPluginsInternal(Collection<CustomPlugin> pluginsToAdd) {
-        customPlugins.addAll(pluginsToAdd);
-    }
+    void clearPlugins() { plugins.clear(); }
+    void addPluginsInternal(Collection<CKEditorPlugin> p) { plugins.addAll(p); }
+    void addCustomPluginsInternal(Collection<CustomPlugin> p) { customPlugins.addAll(p); }
+    boolean hasPlugins() { return !plugins.isEmpty(); }
+    Set<CKEditorPlugin> getPluginsInternal() { return new LinkedHashSet<>(plugins); }
 
-    /**
-     * Check if has plugins. Package-private for Builder access.
-     */
-    boolean hasPlugins() {
-        return !plugins.isEmpty();
-    }
+    void setEditorTypeInternal(CKEditorType type) { this.editorType = type; }
+    void setThemeInternal(CKEditorTheme theme) { this.theme = theme; }
+    void setLanguageInternal(String language) { this.language = language; }
+    String getLanguageInternal() { return this.language; }
+    void setFallbackModeInternal(FallbackMode mode) { this.fallbackMode = mode; }
 
-    /**
-     * Get plugins. Package-private for Builder access.
-     */
-    Set<CKEditorPlugin> getPluginsInternal() {
-        return new LinkedHashSet<>(plugins);
-    }
+    void setErrorHandlerInternal(ErrorHandler handler) { this.errorHandler = handler; }
+    void setHtmlSanitizerInternal(HtmlSanitizer sanitizer) { this.htmlSanitizer = sanitizer; }
+    void setUploadHandlerInternal(UploadHandler handler) { this.uploadHandler = handler; }
+    void setUploadConfigInternal(UploadHandler.UploadConfig config) { this.uploadConfig = config; }
 
-    /**
-     * Set editor type. Package-private for Builder access.
-     */
-    void setEditorTypeInternal(CKEditorType type) {
-        this.editorType = type;
-    }
+    void setEditorDataInternal(String data) { this.editorData = data != null ? data : ""; }
+    void setReadOnlyInternal(boolean readOnly) { this.readOnly = readOnly; }
+    void setLicenseKeyInternal(String licenseKey) { this.licenseKey = licenseKey; }
+    void setToolbarInternal(String[] toolbar) { this.toolbar = toolbar; }
+    void setConfigInternal(CKEditorConfig config) { this.config = config; }
+    CKEditorConfig getConfigInternal() { return this.config; }
 
-    /**
-     * Set theme. Package-private for Builder access.
-     */
-    void setThemeInternal(CKEditorTheme theme) {
-        this.theme = theme;
-    }
-
-    /**
-     * Set language. Package-private for Builder access.
-     */
-    void setLanguageInternal(String language) {
-        this.language = language;
-    }
-
-    /**
-     * Get language. Package-private for Builder access.
-     */
-    String getLanguageInternal() {
-        return this.language;
-    }
-
-    /**
-     * Set fallback mode. Package-private for Builder access.
-     */
-    void setFallbackModeInternal(FallbackMode mode) {
-        this.fallbackMode = mode;
-    }
-
-    /**
-     * Set error handler. Package-private for Builder access.
-     */
-    void setErrorHandlerInternal(ErrorHandler handler) {
-        this.errorHandler = handler;
-    }
-
-    /**
-     * Set HTML sanitizer. Package-private for Builder access.
-     */
-    void setHtmlSanitizerInternal(HtmlSanitizer sanitizer) {
-        this.htmlSanitizer = sanitizer;
-    }
-
-    /**
-     * Set upload handler. Package-private for Builder access.
-     */
-    void setUploadHandlerInternal(UploadHandler handler) {
-        this.uploadHandler = handler;
-    }
-
-    /**
-     * Set editor data. Package-private for Builder access.
-     */
-    void setEditorDataInternal(String data) {
-        this.editorData = data != null ? data : "";
-    }
-
-    /**
-     * Set read-only. Package-private for Builder access.
-     */
-    void setReadOnlyInternal(boolean readOnly) {
-        this.readOnly = readOnly;
-    }
-
-    /**
-     * Set autosave. Package-private for Builder access.
-     */
     void setAutosaveInternal(boolean enabled, int waitingTime, Consumer<String> callback) {
         this.autosave = enabled;
         this.autosaveWaitingTime = waitingTime;
         this.autosaveCallback = callback;
-    }
-
-    /**
-     * Set license key. Package-private for Builder access.
-     */
-    void setLicenseKeyInternal(String licenseKey) {
-        this.licenseKey = licenseKey;
-    }
-
-    /**
-     * Set toolbar. Package-private for Builder access.
-     */
-    void setToolbarInternal(String[] toolbar) {
-        this.toolbar = toolbar;
-    }
-
-    /**
-     * Set config. Package-private for Builder access.
-     */
-    void setConfigInternal(CKEditorConfig config) {
-        this.config = config;
-    }
-
-    /**
-     * Get config. Package-private for Builder access.
-     */
-    CKEditorConfig getConfigInternal() {
-        return this.config;
-    }
-
-    // ==================== Backward Compatibility ====================
-
-    /**
-     * Dependency resolution mode for plugins.
-     *
-     * @deprecated Use {@link VaadinCKEditorBuilder.DependencyMode} instead.
-     *             This alias is kept for backward compatibility.
-     */
-    @Deprecated
-    public static class DependencyMode {
-        /** @deprecated Use {@link VaadinCKEditorBuilder.DependencyMode#AUTO_RESOLVE} */
-        @Deprecated
-        public static final VaadinCKEditorBuilder.DependencyMode AUTO_RESOLVE =
-            VaadinCKEditorBuilder.DependencyMode.AUTO_RESOLVE;
-
-        /** @deprecated Use {@link VaadinCKEditorBuilder.DependencyMode#AUTO_RESOLVE_WITH_RECOMMENDED} */
-        @Deprecated
-        public static final VaadinCKEditorBuilder.DependencyMode AUTO_RESOLVE_WITH_RECOMMENDED =
-            VaadinCKEditorBuilder.DependencyMode.AUTO_RESOLVE_WITH_RECOMMENDED;
-
-        /** @deprecated Use {@link VaadinCKEditorBuilder.DependencyMode#STRICT} */
-        @Deprecated
-        public static final VaadinCKEditorBuilder.DependencyMode STRICT =
-            VaadinCKEditorBuilder.DependencyMode.STRICT;
-
-        /** @deprecated Use {@link VaadinCKEditorBuilder.DependencyMode#MANUAL} */
-        @Deprecated
-        public static final VaadinCKEditorBuilder.DependencyMode MANUAL =
-            VaadinCKEditorBuilder.DependencyMode.MANUAL;
-
-        private DependencyMode() {}
-    }
-
-    /**
-     * Builder for VaadinCKEditor.
-     *
-     * @deprecated Use {@link VaadinCKEditorBuilder} directly instead.
-     *             This alias is kept for backward compatibility.
-     */
-    @Deprecated
-    public static class Builder extends VaadinCKEditorBuilder {
-        /**
-         * @deprecated Use {@link VaadinCKEditorBuilder#create()} instead.
-         */
-        @Deprecated
-        public Builder() {
-            super();
-        }
     }
 }

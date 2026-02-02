@@ -789,4 +789,483 @@ class CKEditorConfigTest {
         config.setSimpleUpload("https://example.com/upload?token=abc");
         assertThat(config.getSimpleUploadUrl()).isEqualTo("https://example.com/upload?token=abc");
     }
+
+    // ==================== allowPrivateNetworks Tests ====================
+
+    @Test
+    @DisplayName("allowPrivateNetworks should default to false")
+    void allowPrivateNetworksShouldDefaultToFalse() {
+        assertThat(config.isAllowPrivateNetworks()).isFalse();
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow localhost when enabled")
+    void allowPrivateNetworksShouldAllowLocalhostWhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://localhost/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://localhost/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow 127.0.0.1 when enabled")
+    void allowPrivateNetworksShouldAllow127001WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://127.0.0.1:8080/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://127.0.0.1:8080/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow 192.168.x.x when enabled")
+    void allowPrivateNetworksShouldAllow192168WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://192.168.1.100/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://192.168.1.100/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow 10.x.x.x when enabled")
+    void allowPrivateNetworksShouldAllow10WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://10.0.0.50/api/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://10.0.0.50/api/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow 172.16-31.x.x when enabled")
+    void allowPrivateNetworksShouldAllow172WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://172.20.10.5/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://172.20.10.5/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow .local domains when enabled")
+    void allowPrivateNetworksShouldAllowLocalDomainsWhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://myserver.local/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://myserver.local/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow .internal domains when enabled")
+    void allowPrivateNetworksShouldAllowInternalDomainsWhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://api.internal/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://api.internal/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should support fluent chaining")
+    void allowPrivateNetworksShouldSupportFluentChaining() {
+        CKEditorConfig result = config
+            .allowPrivateNetworks(true)
+            .setSimpleUpload("http://localhost/upload")
+            .setPlaceholder("Type here...");
+
+        assertThat(result).isSameAs(config);
+        assertThat(config.isAllowPrivateNetworks()).isTrue();
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://localhost/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks can be toggled")
+    void allowPrivateNetworksCanBeToggled() {
+        // 启用
+        config.allowPrivateNetworks(true);
+        assertThat(config.isAllowPrivateNetworks()).isTrue();
+
+        // 禁用
+        config.allowPrivateNetworks(false);
+        assertThat(config.isAllowPrivateNetworks()).isFalse();
+
+        // 禁用后应该拒绝私有地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://localhost/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks error message should guide developer")
+    void allowPrivateNetworksErrorMessageShouldGuideDeveloper() {
+        assertThatThrownBy(() -> config.setSimpleUpload("http://localhost/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("allowPrivateNetworks(true)");
+    }
+
+    // ==================== IPv6 SSRF Bypass Prevention Tests ====================
+
+    @Test
+    @DisplayName("setSimpleUpload should reject IPv6 localhost ::1")
+    void setSimpleUploadShouldRejectIPv6Localhost() {
+        // IPv6 localhost 无方括号 (URI 解析可能会失败，但应该被拒绝)
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject IPv4-mapped IPv6 addresses")
+    void setSimpleUploadShouldRejectIPv4MappedIPv6() {
+        // ::ffff:127.0.0.1 是 127.0.0.1 的 IPv6 映射
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:127.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::ffff:192.168.1.1 是 192.168.1.1 的 IPv6 映射
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:192.168.1.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::ffff:10.0.0.1 是 10.0.0.1 的 IPv6 映射
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:10.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject 0.0.0.0 wildcard address")
+    void setSimpleUploadShouldRejectWildcardAddress() {
+        assertThatThrownBy(() -> config.setSimpleUpload("http://0.0.0.0/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject octal IP representation")
+    void setSimpleUploadShouldRejectOctalIP() {
+        // 0177.0.0.1 = 127.0.0.1 (八进制表示)
+        // Java URI 会解析此地址，然后被 isObfuscatedPrivateIPv4 函数检测到
+        assertThatThrownBy(() -> config.setSimpleUpload("http://0177.0.0.1/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject single-segment octal IP")
+    void setSimpleUploadShouldRejectSingleSegmentOctalIP() {
+        // 单段八进制 IP 0177 = 127（十进制）
+        // Java URI 解析器可以处理单段 IP，我们的代码会检测并拒绝为私有地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://0177/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // 双段八进制 IP: 0177.1 - Java URI 解析器返回 null host
+        assertThatThrownBy(() -> config.setSimpleUpload("http://0177.1/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid host");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject hexadecimal IP representation")
+    void setSimpleUploadShouldRejectHexIP() {
+        // 0x7f.0.0.1 = 127.0.0.1 (十六进制表示)
+        // 注意：Java URI 解析器不支持十六进制 IP，会返回 null host，
+        // 因此抛出 "must have a valid host" 错误而非 "internal/private"
+        assertThatThrownBy(() -> config.setSimpleUpload("http://0x7f.0.0.1/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid host");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject IPv6 link-local addresses")
+    void setSimpleUploadShouldRejectIPv6LinkLocal() {
+        // fe80:: 是 IPv6 链路本地地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[fe80::1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject IPv6 unique local addresses (ULA)")
+    void setSimpleUploadShouldRejectIPv6ULA() {
+        // fc00::/7 是 IPv6 唯一本地地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[fc00::1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[fd00::1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow IPv6 localhost when enabled")
+    void allowPrivateNetworksShouldAllowIPv6LocalhostWhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://[::1]/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::1]/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow IPv4-mapped IPv6 when enabled")
+    void allowPrivateNetworksShouldAllowIPv4MappedIPv6WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://[::ffff:127.0.0.1]/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::ffff:127.0.0.1]/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow 0.0.0.0 when enabled")
+    void allowPrivateNetworksShouldAllowWildcardWhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://0.0.0.0/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://0.0.0.0/upload");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject 169.254.x.x link-local addresses")
+    void setSimpleUploadShouldRejectLinkLocal169254() {
+        // 169.254.x.x 是 IPv4 链路本地地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://169.254.1.1/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    // ==================== IPv4-Compatible IPv6 SSRF Bypass Prevention Tests ====================
+
+    @Test
+    @DisplayName("setSimpleUpload should reject IPv4-compatible IPv6 addresses (::x.x.x.x)")
+    void setSimpleUploadShouldRejectIPv4CompatibleIPv6() {
+        // ::127.0.0.1 是 IPv4 兼容 IPv6 地址（已弃用但仍需防护）
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::127.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::192.168.1.1 是 192.168.1.1 的 IPv4 兼容格式
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::192.168.1.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::10.0.0.1 是 10.0.0.1 的 IPv4 兼容格式
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::10.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::0.0.0.0 是 0.0.0.0 的 IPv4 兼容格式
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::0.0.0.0]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject SIIT format IPv6 addresses (::ffff:0:x.x.x.x)")
+    void setSimpleUploadShouldRejectSIITIPv6() {
+        // ::ffff:0:127.0.0.1 是 SIIT 格式的 IPv6 地址
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:127.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::ffff:0:192.168.1.1 是 192.168.1.1 的 SIIT 格式
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:192.168.1.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+
+        // ::ffff:0:10.0.0.1 是 10.0.0.1 的 SIIT 格式
+        assertThatThrownBy(() -> config.setSimpleUpload("http://[::ffff:0:10.0.0.1]/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("internal/private");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow IPv4-compatible IPv6 when enabled")
+    void allowPrivateNetworksShouldAllowIPv4CompatibleIPv6WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://[::127.0.0.1]/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::127.0.0.1]/upload");
+    }
+
+    @Test
+    @DisplayName("allowPrivateNetworks should allow SIIT format IPv6 when enabled")
+    void allowPrivateNetworksShouldAllowSIITIPv6WhenEnabled() {
+        config.allowPrivateNetworks(true);
+        config.setSimpleUpload("http://[::ffff:0:127.0.0.1]/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::ffff:0:127.0.0.1]/upload");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should allow public IPv4-compatible IPv6 addresses")
+    void setSimpleUploadShouldAllowPublicIPv4CompatibleIPv6() {
+        // ::8.8.8.8 是公网地址的 IPv4 兼容格式，应该允许
+        config.setSimpleUpload("http://[::8.8.8.8]/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://[::8.8.8.8]/upload");
+    }
+
+    // ==================== Decimal Integer IP Format Tests ====================
+
+    @Test
+    @DisplayName("setSimpleUpload should allow decimal integer IP representation")
+    void setSimpleUploadShouldAllowDecimalIntegerIP() {
+        // 2130706433 是 127.0.0.1 的十进制整数表示
+        // Java URI 解析器将其作为普通域名处理（host 不为 null）
+        // 由于看起来像域名而非 IP 地址，SSRF 检查不会拦截
+        // 注意：浏览器对这种格式的支持不一致
+        config.setSimpleUpload("http://2130706433/upload");
+        assertThat(config.getSimpleUploadUrl()).isEqualTo("http://2130706433/upload");
+
+        // 3232235777 是 192.168.1.1 的十进制整数表示
+        CKEditorConfig config2 = new CKEditorConfig();
+        config2.setSimpleUpload("http://3232235777/upload");
+        assertThat(config2.getSimpleUploadUrl()).isEqualTo("http://3232235777/upload");
+    }
+
+    @Test
+    @DisplayName("setSimpleUpload should reject mixed decimal notation")
+    void setSimpleUploadShouldRejectMixedDecimalNotation() {
+        // 127.1 是 127.0.0.1 的简写形式
+        // Java URI 解析器返回 null host，因此被拒绝
+        assertThatThrownBy(() -> config.setSimpleUpload("http://127.1/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid host");
+    }
+
+    // ==================== CSS Injection Prevention Tests ====================
+
+    @Test
+    @DisplayName("ToolbarStyle should reject url() in CSS values")
+    void toolbarStyleShouldRejectUrlInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("url('http://evil.com/track.png')")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject expression() in CSS values")
+    void toolbarStyleShouldRejectExpressionInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("expression(alert('xss'))")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject javascript: in CSS values")
+    void toolbarStyleShouldRejectJavascriptInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .iconColor("javascript:alert('xss')")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject semicolons in CSS values")
+    void toolbarStyleShouldRejectSemicolonsInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("#fff; background-image: url('evil.png')")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject curly braces in CSS values")
+    void toolbarStyleShouldRejectCurlyBracesInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("#fff} .evil { background: red")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should accept valid hex colors")
+    void toolbarStyleShouldAcceptValidHexColors() {
+        CKEditorConfig.ToolbarStyle style = CKEditorConfig.ToolbarStyle.builder()
+            .background("#fff")
+            .borderColor("#ffffff")
+            .buttonOnColor("#1976d2")
+            .iconColor("#424242")
+            .build();
+
+        assertThat(style.getBackground()).isEqualTo("#fff");
+        assertThat(style.getBorderColor()).isEqualTo("#ffffff");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should accept valid rgba colors")
+    void toolbarStyleShouldAcceptValidRgbaColors() {
+        CKEditorConfig.ToolbarStyle style = CKEditorConfig.ToolbarStyle.builder()
+            .buttonHoverBackground("rgba(0, 0, 0, 0.05)")
+            .buttonActiveBackground("rgba(255, 255, 255, 0.1)")
+            .build();
+
+        assertThat(style.getButtonHoverBackground()).isEqualTo("rgba(0, 0, 0, 0.05)");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should accept valid size values")
+    void toolbarStyleShouldAcceptValidSizeValues() {
+        CKEditorConfig.ToolbarStyle style = CKEditorConfig.ToolbarStyle.builder()
+            .borderRadius("4px")
+            .build();
+
+        assertThat(style.getBorderRadius()).isEqualTo("4px");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should accept transparent and inherit keywords")
+    void toolbarStyleShouldAcceptKeywords() {
+        CKEditorConfig.ToolbarStyle style = CKEditorConfig.ToolbarStyle.builder()
+            .buttonBackground("transparent")
+            .iconColor("inherit")
+            .build();
+
+        assertThat(style.getButtonBackground()).isEqualTo("transparent");
+        assertThat(style.getIconColor()).isEqualTo("inherit");
+    }
+
+    @Test
+    @DisplayName("ButtonStyle should reject url() in CSS values")
+    void buttonStyleShouldRejectUrlInCssValues() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ButtonStyle.builder()
+                .background("url('http://evil.com/image.png')")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ButtonStyle should accept valid CSS values")
+    void buttonStyleShouldAcceptValidCssValues() {
+        CKEditorConfig.ButtonStyle style = CKEditorConfig.ButtonStyle.builder()
+            .background("#fff3e0")
+            .hoverBackground("rgba(0, 0, 0, 0.1)")
+            .activeBackground("#ffcc80")
+            .iconColor("#e65100")
+            .build();
+
+        assertThat(style.getBackground()).isEqualTo("#fff3e0");
+        assertThat(style.getHoverBackground()).isEqualTo("rgba(0, 0, 0, 0.1)");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject data: URLs in CSS values")
+    void toolbarStyleShouldRejectDataUrls() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("data:text/css,body{background:red}")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle should reject CSS comments")
+    void toolbarStyleShouldRejectCssComments() {
+        assertThatThrownBy(() ->
+            CKEditorConfig.ToolbarStyle.builder()
+                .background("#fff /* comment */")
+                .build()
+        ).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("dangerous");
+    }
 }
