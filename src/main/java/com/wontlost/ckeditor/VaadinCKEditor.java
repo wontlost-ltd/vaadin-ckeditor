@@ -98,17 +98,17 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private static final String VERSION = "5.0.3";
 
     /**
-     * 默认 autosave 等待时间（毫秒）
+     * Default autosave waiting time in milliseconds.
      */
     private static final int DEFAULT_AUTOSAVE_WAITING_TIME = 2000;
 
     /**
-     * 默认语言
+     * Default language.
      */
     private static final String DEFAULT_LANGUAGE = "en";
 
     /**
-     * 默认 license key (GPL 开源协议)
+     * Default license key (GPL open source license).
      */
     private static final String DEFAULT_LICENSE_KEY = "GPL";
 
@@ -131,7 +131,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private UploadHandler.UploadConfig uploadConfig;
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
 
-    // 内部管理器
+    // Internal managers
     private UploadManager uploadManager;
     private ContentManager contentManager;
     private EventDispatcher eventDispatcher;
@@ -143,7 +143,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         this.editorData = "";
         this.config = new CKEditorConfig();
         this.eventDispatcher = new EventDispatcher(this);
-        // 初始化 contentManager，保证永不为 null（空对象模式）
+        // Initialize contentManager to ensure it's never null (null object pattern)
         this.contentManager = new ContentManager(null);
     }
 
@@ -197,35 +197,35 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 初始化内部管理器
+     * Initialize internal managers.
      */
     private void initializeManagers() {
-        // 如果设置了 HtmlSanitizer，重新创建 contentManager
-        // （构造函数中已创建无 sanitizer 的默认实例）
+        // If HtmlSanitizer is set, recreate contentManager
+        // (constructor already created a default instance without sanitizer)
         if (htmlSanitizer != null) {
             this.contentManager = new ContentManager(htmlSanitizer);
         }
 
-        // 初始化上传管理器（如果有上传处理器）
+        // Initialize upload manager if upload handler is configured
         if (uploadHandler != null) {
-            // 使用 WeakReference 避免内存泄漏
-            // Lambda 表达式隐式捕获 this，如果 UploadManager 的生命周期长于 VaadinCKEditor，
-            // 会导致 VaadinCKEditor 无法被垃圾回收
+            // Use WeakReference to avoid memory leaks
+            // Lambda implicitly captures 'this', if UploadManager outlives VaadinCKEditor,
+            // it would prevent VaadinCKEditor from being garbage collected
             final WeakReference<VaadinCKEditor> editorRef = new WeakReference<>(this);
 
             this.uploadManager = new UploadManager(
                 uploadHandler,
-                uploadConfig, // 使用配置的上传参数（为 null 时使用默认配置）
+                uploadConfig, // Use configured upload params (defaults if null)
                 (uploadId, url, error) -> {
-                    // 通过 WeakReference 获取编辑器实例
+                    // Get editor instance through WeakReference
                     VaadinCKEditor editor = editorRef.get();
                     if (editor == null) {
-                        // 编辑器已被垃圾回收，忽略回调
+                        // Editor has been garbage collected, ignore callback
                         logger.fine("Upload callback ignored: editor has been garbage collected");
                         return;
                     }
 
-                    // 在 UI 线程中执行回调
+                    // Execute callback in UI thread
                     editor.getUI().ifPresent(ui -> ui.access(() -> {
                         if (url != null) {
                             editor.getElement().executeJs("this._resolveUpload($0, $1, null)", uploadId, url);
@@ -285,10 +285,10 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 获取经过清理的内容。
-     * 如果设置了 HtmlSanitizer，则应用清理；否则返回原始内容。
+     * Get sanitized content.
+     * If HtmlSanitizer is set, applies sanitization; otherwise returns original content.
      *
-     * @return 清理后的 HTML 内容
+     * @return sanitized HTML content
      */
     public String getSanitizedValue() {
         return contentManager.getSanitizedValue(editorData);
@@ -306,7 +306,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     protected void setModelValue(String value, boolean fromClient) {
         String oldValue = this.editorData;
         String newValue = value != null ? value : "";
-        // 只有值真正发生变化时才触发事件
+        // Only fire event when value actually changes
         if (java.util.Objects.equals(oldValue, newValue)) {
             return;
         }
@@ -331,7 +331,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "Error in autosave callback", e);
                 success = false;
-                // 确保错误消息不为 null
+                // Ensure error message is not null
                 errorMessage = e.getMessage();
                 if (errorMessage == null || errorMessage.isEmpty()) {
                     errorMessage = e.getClass().getSimpleName() + " occurred during autosave";
@@ -341,7 +341,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
             logger.log(Level.WARNING, "Autosave triggered but no callback registered");
         }
 
-        // 委托给 EventDispatcher 触发 AutosaveEvent
+        // Delegate to EventDispatcher to fire AutosaveEvent
         eventDispatcher.fireAutosave(data, success, errorMessage);
     }
 
@@ -487,27 +487,27 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 获取内容字符数（不包含 HTML 标签）
+     * Get character count of content (excluding HTML tags).
      *
-     * @return 字符数
+     * @return character count
      */
     public int getCharacterCount() {
         return contentManager.getCharacterCount(editorData);
     }
 
     /**
-     * 获取内容单词数
+     * Get word count of content.
      *
-     * @return 单词数
+     * @return word count
      */
     public int getWordCount() {
         return contentManager.getWordCount(editorData);
     }
 
     /**
-     * 检查内容是否为空
+     * Check if content is empty.
      *
-     * @return 如果内容为空或只包含空白则返回 true
+     * @return true if content is empty or contains only whitespace
      */
     public boolean isContentEmpty() {
         return contentManager.isContentEmpty(editorData);
@@ -525,10 +525,10 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     // ==================== Enterprise Event Listeners ====================
 
     /**
-     * 添加编辑器就绪事件监听器。
-     * 当编辑器完全初始化并准备好接受用户输入时触发。
+     * Add editor ready event listener.
+     * Fired when the editor is fully initialized and ready to accept user input.
      *
-     * <p>使用示例：</p>
+     * <p>Usage example:</p>
      * <pre>
      * editor.addEditorReadyListener(event -&gt; {
      *     logger.info("Editor ready in {} ms", event.getInitializationTimeMs());
@@ -536,63 +536,63 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * });
      * </pre>
      *
-     * @param listener 事件监听器
-     * @return 用于移除监听器的注册对象
+     * @param listener the event listener
+     * @return registration object for removing the listener
      */
     public Registration addEditorReadyListener(ComponentEventListener<EditorReadyEvent> listener) {
         return eventDispatcher.addEditorReadyListener(listener);
     }
 
     /**
-     * 添加编辑器错误事件监听器。
-     * 当编辑器遇到错误时触发。
+     * Add editor error event listener.
+     * Fired when the editor encounters an error.
      *
-     * <p>使用示例：</p>
+     * <p>Usage example:</p>
      * <pre>
      * editor.addEditorErrorListener(event -&gt; {
      *     EditorError error = event.getError();
      *     if (error.getSeverity() == ErrorSeverity.FATAL) {
-     *         Notification.show("编辑器错误: " + error.getMessage(),
+     *         Notification.show("Editor error: " + error.getMessage(),
      *             Notification.Type.ERROR_MESSAGE);
      *     }
      * });
      * </pre>
      *
-     * @param listener 事件监听器
-     * @return 用于移除监听器的注册对象
+     * @param listener the event listener
+     * @return registration object for removing the listener
      */
     public Registration addEditorErrorListener(ComponentEventListener<EditorErrorEvent> listener) {
         return eventDispatcher.addEditorErrorListener(listener);
     }
 
     /**
-     * 添加自动保存事件监听器。
-     * 当编辑器内容自动保存时触发。
+     * Add autosave event listener.
+     * Fired when editor content is auto-saved.
      *
-     * @param listener 事件监听器
-     * @return 用于移除监听器的注册对象
+     * @param listener the event listener
+     * @return registration object for removing the listener
      */
     public Registration addAutosaveListener(ComponentEventListener<AutosaveEvent> listener) {
         return eventDispatcher.addAutosaveListener(listener);
     }
 
     /**
-     * 添加内容变更事件监听器。
-     * 当编辑器内容发生变化时触发。
+     * Add content change event listener.
+     * Fired when editor content changes.
      *
-     * @param listener 事件监听器
-     * @return 用于移除监听器的注册对象
+     * @param listener the event listener
+     * @return registration object for removing the listener
      */
     public Registration addContentChangeListener(ComponentEventListener<ContentChangeEvent> listener) {
         return eventDispatcher.addContentChangeListener(listener);
     }
 
     /**
-     * 添加降级事件监听器。
-     * 当编辑器因错误触发降级模式时触发。
+     * Add fallback event listener.
+     * Fired when the editor triggers fallback mode due to an error.
      *
-     * @param listener 事件监听器
-     * @return 用于移除监听器的注册对象
+     * @param listener the event listener
+     * @return registration object for removing the listener
      */
     public Registration addFallbackListener(ComponentEventListener<FallbackEvent> listener) {
         return eventDispatcher.addFallbackListener(listener);
@@ -601,9 +601,9 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     // ==================== Enterprise Handlers ====================
 
     /**
-     * 设置错误处理器。
+     * Set error handler.
      *
-     * @param handler 错误处理器
+     * @param handler the error handler
      */
     public void setErrorHandler(ErrorHandler handler) {
         this.errorHandler = handler;
@@ -611,54 +611,54 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 获取错误处理器。
+     * Get error handler.
      *
-     * @return 错误处理器，可能为 null
+     * @return the error handler, may be null
      */
     public ErrorHandler getErrorHandler() {
         return errorHandler;
     }
 
     /**
-     * 设置 HTML 清理器。
+     * Set HTML sanitizer.
      *
-     * @param sanitizer HTML 清理器
+     * @param sanitizer the HTML sanitizer
      */
     public void setHtmlSanitizer(HtmlSanitizer sanitizer) {
         this.htmlSanitizer = sanitizer;
     }
 
     /**
-     * 获取 HTML 清理器。
+     * Get HTML sanitizer.
      *
-     * @return HTML 清理器，可能为 null
+     * @return the HTML sanitizer, may be null
      */
     public HtmlSanitizer getHtmlSanitizer() {
         return htmlSanitizer;
     }
 
     /**
-     * 设置上传处理器。
+     * Set upload handler.
      *
-     * @param handler 上传处理器
+     * @param handler the upload handler
      */
     public void setUploadHandler(UploadHandler handler) {
         this.uploadHandler = handler;
     }
 
     /**
-     * 获取上传处理器。
+     * Get upload handler.
      *
-     * @return 上传处理器，可能为 null
+     * @return the upload handler, may be null
      */
     public UploadHandler getUploadHandler() {
         return uploadHandler;
     }
 
     /**
-     * 设置降级模式。
+     * Set fallback mode.
      *
-     * @param mode 降级模式
+     * @param mode the fallback mode
      */
     public void setFallbackMode(FallbackMode mode) {
         this.fallbackMode = mode;
@@ -666,27 +666,27 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 获取降级模式。
+     * Get fallback mode.
      *
-     * @return 当前降级模式
+     * @return the current fallback mode
      */
     public FallbackMode getFallbackMode() {
         return fallbackMode;
     }
 
     /**
-     * 获取已注册监听器的统计信息。
-     * 用于调试和监控。
+     * Get statistics of registered listeners.
+     * Used for debugging and monitoring.
      *
-     * @return 监听器统计信息
+     * @return listener statistics
      */
     public EventDispatcher.ListenerStats getListenerStats() {
         return eventDispatcher.getListenerStats();
     }
 
     /**
-     * 清理所有事件监听器。
-     * 通常在组件销毁前调用。
+     * Clean up all event listeners.
+     * Usually called before component destruction.
      */
     public void cleanupListeners() {
         eventDispatcher.cleanup();
@@ -702,7 +702,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     @ClientCallable
     private void fireEditorError(String code, String message, String severity,
                                   boolean recoverable, String stackTrace) {
-        // 使用 EnumParser 安全解析 severity
+        // Use EnumParser to safely parse severity
         ErrorSeverity errorSeverity = EnumParser.parse(
             severity, ErrorSeverity.class, ErrorSeverity.ERROR, "fireEditorError");
 
@@ -712,13 +712,13 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
             recoverable, stackTrace
         );
 
-        // 委托给 EventDispatcher 处理（包括错误处理器和事件分发）
+        // Delegate to EventDispatcher for handling (including error handler and event dispatch)
         eventDispatcher.fireEditorError(error);
     }
 
     @ClientCallable
     private void fireContentChange(String oldContent, String newContent, String source) {
-        // 使用 EnumParser 安全解析 source
+        // Use EnumParser to safely parse source
         ChangeSource changeSource = EnumParser.parse(
             source, ChangeSource.class, ChangeSource.UNKNOWN, "fireContentChange");
 
@@ -732,61 +732,61 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
-     * 处理来自客户端的文件上传请求。
-     * 文件内容以 Base64 编码传输。
-     * 使用 UploadManager 确保线程安全和正确的回调顺序。
+     * Handle file upload request from client.
+     * File content is transferred as Base64 encoded string.
+     * Uses UploadManager to ensure thread safety and correct callback order.
      *
-     * @param uploadId 上传标识符，用于回调
-     * @param fileName 文件名
-     * @param mimeType MIME 类型
-     * @param base64Data Base64 编码的文件内容
+     * @param uploadId upload identifier for callback
+     * @param fileName file name
+     * @param mimeType MIME type
+     * @param base64Data Base64 encoded file content
      */
     @ClientCallable
     private void handleFileUpload(String uploadId, String fileName, String mimeType, String base64Data) {
         if (uploadManager == null) {
-            // 没有设置上传处理器，返回错误
+            // No upload handler configured, return error
             getElement().executeJs("this._resolveUpload($0, null, $1)",
                 uploadId, "No upload handler configured");
             return;
         }
 
-        // 使用 UploadManager 处理上传（线程安全）
+        // Use UploadManager to handle upload (thread-safe)
         uploadManager.handleUpload(uploadId, fileName, mimeType, base64Data);
     }
 
     /**
-     * 检查是否有正在进行的上传
+     * Check if there are uploads in progress.
      *
-     * @return 是否有活跃上传
+     * @return true if there are active uploads
      */
     public boolean hasActiveUploads() {
         return uploadManager != null && uploadManager.hasActiveUploads();
     }
 
     /**
-     * 获取活跃上传数量
+     * Get the number of active uploads.
      *
-     * @return 活跃上传数
+     * @return active upload count
      */
     public int getActiveUploadCount() {
         return uploadManager != null ? uploadManager.getActiveUploadCount() : 0;
     }
 
     /**
-     * 取消指定的上传任务
+     * Cancel the specified upload task.
      *
-     * @param uploadId 上传 ID
-     * @return 是否成功取消
+     * @param uploadId the upload ID
+     * @return true if successfully cancelled
      */
     public boolean cancelUpload(String uploadId) {
         return uploadManager != null && uploadManager.cancelUpload(uploadId);
     }
 
     /**
-     * 从客户端取消上传任务。
-     * 由前端 upload adapter 的 abort() 方法调用。
+     * Cancel upload task from client.
+     * Called by frontend upload adapter's abort() method.
      *
-     * @param uploadId 上传 ID
+     * @param uploadId the upload ID
      */
     @ClientCallable
     private void cancelUploadFromClient(String uploadId) {

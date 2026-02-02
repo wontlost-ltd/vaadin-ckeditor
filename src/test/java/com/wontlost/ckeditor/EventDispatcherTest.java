@@ -12,9 +12,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for EventDispatcher.
- * 注意：由于 ComponentEvent 需要非空的源组件，
- * 而创建 VaadinCKEditor 实例需要 Vaadin 测试环境，
- * 此测试类仅测试不依赖事件触发的功能。
+ * Note: Since ComponentEvent requires a non-null source component,
+ * and creating VaadinCKEditor instances requires Vaadin test environment,
+ * this test class only tests features that don't depend on event firing.
  */
 class EventDispatcherTest {
 
@@ -22,12 +22,12 @@ class EventDispatcherTest {
 
     @BeforeEach
     void setUp() {
-        // 使用 null 作为 source
-        // 注意：事件触发测试需要在集成测试中进行
+        // Use null as source
+        // Note: Event firing tests should be done in integration tests
         dispatcher = new EventDispatcher(null);
     }
 
-    // ==================== ErrorHandler 测试 ====================
+    // ==================== ErrorHandler Tests ====================
 
     @Test
     @DisplayName("setErrorHandler and getErrorHandler should work")
@@ -51,7 +51,7 @@ class EventDispatcherTest {
         assertNull(dispatcher.getErrorHandler());
     }
 
-    // ==================== 监听器注册测试 ====================
+    // ==================== Listener Registration Tests ====================
 
     @Test
     @DisplayName("addEditorReadyListener should register and return registration")
@@ -113,7 +113,7 @@ class EventDispatcherTest {
         assertEquals(0, dispatcher.getListenerStats().fallback);
     }
 
-    // ==================== 多监听器测试 ====================
+    // ==================== Multiple Listeners Tests ====================
 
     @Test
     @DisplayName("Multiple listeners of same type should be tracked")
@@ -140,7 +140,7 @@ class EventDispatcherTest {
         assertEquals(0, stats.fallback);
     }
 
-    // ==================== 统计信息测试 ====================
+    // ==================== Statistics Tests ====================
 
     @Test
     @DisplayName("getListenerStats should return correct totals")
@@ -176,7 +176,7 @@ class EventDispatcherTest {
         assertEquals(2, dispatcher.getListenerStats().total());
     }
 
-    // ==================== 清理测试 ====================
+    // ==================== Cleanup Tests ====================
 
     @Test
     @DisplayName("cleanup should remove all listeners")
@@ -217,7 +217,7 @@ class EventDispatcherTest {
         assertDoesNotThrow(() -> dispatcher.cleanup());
     }
 
-    // ==================== Registration 测试 ====================
+    // ==================== Registration Tests ====================
 
     @Test
     @DisplayName("Registration.remove should be idempotent")
@@ -228,7 +228,7 @@ class EventDispatcherTest {
         registration.remove();
         assertEquals(0, dispatcher.getListenerStats().ready);
 
-        // 多次调用不应抛出异常
+        // Multiple calls should not throw exception
         assertDoesNotThrow(() -> registration.remove());
         assertEquals(0, dispatcher.getListenerStats().ready);
     }

@@ -291,7 +291,7 @@ public class VaadinCKEditorBuilder {
     /**
      * Set fallback mode for graceful degradation.
      *
-     * @param mode 降级模式
+     * @param mode the fallback mode
      * @return this builder for chaining
      */
     public VaadinCKEditorBuilder withFallbackMode(FallbackMode mode) {
@@ -302,7 +302,7 @@ public class VaadinCKEditorBuilder {
     /**
      * Set error handler for custom error handling.
      *
-     * @param handler 错误处理器
+     * @param handler the error handler
      * @return this builder for chaining
      */
     public VaadinCKEditorBuilder withErrorHandler(ErrorHandler handler) {
@@ -313,7 +313,7 @@ public class VaadinCKEditorBuilder {
     /**
      * Set HTML sanitizer for content cleaning.
      *
-     * @param sanitizer HTML 清理器
+     * @param sanitizer the HTML sanitizer
      * @return this builder for chaining
      */
     public VaadinCKEditorBuilder withHtmlSanitizer(HtmlSanitizer sanitizer) {
@@ -324,7 +324,7 @@ public class VaadinCKEditorBuilder {
     /**
      * Set upload handler for file uploads.
      *
-     * @param handler 上传处理器
+     * @param handler the upload handler
      * @return this builder for chaining
      */
     public VaadinCKEditorBuilder withUploadHandler(UploadHandler handler) {
@@ -346,7 +346,7 @@ public class VaadinCKEditorBuilder {
      *     .build();
      * </pre>
      *
-     * @param config 上传配置
+     * @param config the upload configuration
      * @return this builder for chaining
      */
     public VaadinCKEditorBuilder withUploadConfig(UploadHandler.UploadConfig config) {
@@ -428,7 +428,7 @@ public class VaadinCKEditorBuilder {
      * @throws IllegalArgumentException if waitingTime is out of range
      */
     public VaadinCKEditorBuilder withAutosave(Consumer<String> callback, int waitingTime) {
-        // 使用与 CKEditorConfig.setAutosave 相同的校验逻辑
+        // Use same validation logic as CKEditorConfig.setAutosave
         if (waitingTime < 100 || waitingTime > 60000) {
             throw new IllegalArgumentException(
                 "Autosave waiting time must be between 100 and 60000 milliseconds, got: " + waitingTime);
