@@ -97,6 +97,7 @@ public class VaadinCKEditorBuilder {
     private static final String TOOLBAR_SEPARATOR = "|";
 
     private final VaadinCKEditor editor;
+    private boolean built = false;
     private CKEditorPreset preset;
     private final Set<CKEditorPlugin> additionalPlugins = new LinkedHashSet<>();
     private final Set<CKEditorPlugin> removedPlugins = new HashSet<>();
@@ -539,6 +540,11 @@ public class VaadinCKEditorBuilder {
      *         and plugin dependencies are not satisfied
      */
     public VaadinCKEditor build() {
+        if (built) {
+            throw new IllegalStateException("Builder has already been used. Create a new builder for additional editors.");
+        }
+        built = true;
+
         // Collect initial plugins
         Set<CKEditorPlugin> initialPlugins = new LinkedHashSet<>();
         if (preset != null && !editor.hasPlugins()) {

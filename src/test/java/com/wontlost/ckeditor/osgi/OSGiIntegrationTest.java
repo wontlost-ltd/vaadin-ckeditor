@@ -42,7 +42,7 @@ import static org.ops4j.pax.exam.Constants.START_LEVEL_TEST_BUNDLE;
 public class OSGiIntegrationTest {
 
     private static final String BUNDLE_SYMBOLIC_NAME = "com.wontlost.vaadin-ckeditor";
-    private static final String EXPECTED_VERSION = "5.0.3";
+    private static final String EXPECTED_VERSION = System.getProperty("project.version", "5.0.4");
 
     @Inject
     private BundleContext bundleContext;

@@ -183,11 +183,13 @@ class UploadManagerTest {
     @Test
     @DisplayName("cancelUpload should cancel pending upload")
     void cancelUploadCancelsPending() throws Exception {
-        // Use delayed handler
+        // Use a latch to signal when the handler has started processing
+        CountDownLatch handlerStarted = new CountDownLatch(1);
+
         UploadHandler delayedHandler = (context, stream) -> {
             CompletableFuture<UploadHandler.UploadResult> future = new CompletableFuture<>();
-            // Don't complete immediately — simulate a long-running upload
             new Thread(() -> {
+                handlerStarted.countDown();
                 try {
                     Thread.sleep(5000);
                     future.complete(new UploadHandler.UploadResult("url"));
@@ -201,8 +203,8 @@ class UploadManagerTest {
         manager = new UploadManager(delayedHandler, null, createCallback());
         manager.handleUpload("upload-7", "test.jpg", "image/jpeg", createBase64Data("test"));
 
-        // Wait briefly for the upload to start
-        Thread.sleep(100);
+        // Wait for the handler to start (instead of arbitrary sleep)
+        assertTrue(handlerStarted.await(2, TimeUnit.SECONDS), "Handler should start within 2 seconds");
 
         // Cancel the upload
         boolean cancelled = manager.cancelUpload("upload-7");

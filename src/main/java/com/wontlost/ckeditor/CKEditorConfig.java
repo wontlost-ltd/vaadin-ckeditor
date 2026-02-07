@@ -436,8 +436,9 @@ public class CKEditorConfig {
             URI uri = new URI(uploadUrl);
             String scheme = uri.getScheme();
 
+            // Allow relative URLs (no scheme) - common in Vaadin apps (e.g. "/api/upload")
             if (scheme == null) {
-                throw new IllegalArgumentException("Upload URL must have a protocol scheme");
+                return;
             }
 
             String protocol = scheme.toLowerCase(Locale.ROOT);
@@ -474,7 +475,7 @@ public class CKEditorConfig {
         String lowerHost = host.toLowerCase(Locale.ROOT);
 
         // IPv4 localhost and private addresses
-        if (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1") ||
+        if (lowerHost.equals("localhost") || lowerHost.startsWith("127.") ||
             lowerHost.startsWith("192.168.") || lowerHost.startsWith("10.") ||
             isPrivateClassBAddress(lowerHost) ||
             lowerHost.endsWith(".local") || lowerHost.endsWith(".internal")) {
@@ -588,7 +589,7 @@ public class CKEditorConfig {
      * Extracts common logic to avoid duplication.
      */
     private boolean isPrivateIPv4String(String ipv4) {
-        return ipv4.equals("127.0.0.1") ||
+        return ipv4.startsWith("127.") ||
                ipv4.startsWith("192.168.") ||
                ipv4.startsWith("10.") ||
                isPrivateClassBAddress(ipv4) ||
@@ -1337,7 +1338,7 @@ public class CKEditorConfig {
 
         public MentionFeed(String marker, String[] feed, int minimumCharacters) {
             this.marker = marker;
-            this.feed = feed;
+            this.feed = java.util.Objects.requireNonNull(feed, "Mention feed items must not be null");
             this.minimumCharacters = minimumCharacters;
         }
 
@@ -1448,7 +1449,7 @@ public class CKEditorConfig {
          * Get the CSS classes
          */
         public String[] getClasses() {
-            return classes;
+            return classes != null ? classes.clone() : null;
         }
 
         /**
@@ -1575,7 +1576,9 @@ public class CKEditorConfig {
             this.buttonOnBackground = builder.buttonOnBackground;
             this.buttonOnColor = builder.buttonOnColor;
             this.iconColor = builder.iconColor;
-            this.buttonStyles = builder.buttonStyles;
+            this.buttonStyles = builder.buttonStyles != null
+                ? java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(builder.buttonStyles))
+                : null;
         }
 
         public static Builder builder() {
@@ -1619,7 +1622,7 @@ public class CKEditorConfig {
         }
 
         public Map<String, ButtonStyle> getButtonStyles() {
-            return buttonStyles;
+            return buttonStyles != null ? buttonStyles : java.util.Collections.emptyMap();
         }
 
         /**

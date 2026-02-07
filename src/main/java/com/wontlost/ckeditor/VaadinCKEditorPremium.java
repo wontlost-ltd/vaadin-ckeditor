@@ -249,7 +249,7 @@ public final class VaadinCKEditorPremium {
 
         PremiumPlugin(String pluginName, String... toolbarItems) {
             this.pluginName = pluginName;
-            this.toolbarItems = toolbarItems != null ? toolbarItems : new String[0];
+            this.toolbarItems = toolbarItems;
         }
 
         /**

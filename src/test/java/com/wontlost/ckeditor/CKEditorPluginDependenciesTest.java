@@ -350,4 +350,80 @@ class CKEditorPluginDependenciesTest {
                 .doesNotContain(plugin);
         }
     }
+
+    // ==================== Premium Dependency Tests ====================
+
+    @Test
+    @DisplayName("getPremiumDependencies should return dependencies for known premium plugin")
+    void getPremiumDependenciesShouldReturnDependencies() {
+        Set<CKEditorPlugin> deps = CKEditorPluginDependencies.getPremiumDependencies("ExportPdf");
+        assertThat(deps).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getPremiumDependencies should return empty for unknown plugin")
+    void getPremiumDependenciesShouldReturnEmptyForUnknown() {
+        Set<CKEditorPlugin> deps = CKEditorPluginDependencies.getPremiumDependencies("NonExistentPlugin");
+        assertThat(deps).isEmpty();
+    }
+
+    @Test
+    @DisplayName("requiresCloudServices should return true for export/import plugins")
+    void requiresCloudServicesShouldReturnTrueForExportImport() {
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportPdf")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportWord")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("ImportWord")).isTrue();
+    }
+
+    @Test
+    @DisplayName("requiresCloudServices should return false for non-cloud-services plugins")
+    void requiresCloudServicesShouldReturnFalseForNonCloudServices() {
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIAssistant")).isFalse();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("UnknownPlugin")).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasPremiumDependencies should detect known premium plugins")
+    void hasPremiumDependenciesShouldDetectKnown() {
+        assertThat(CKEditorPluginDependencies.hasPremiumDependencies("ExportPdf")).isTrue();
+        assertThat(CKEditorPluginDependencies.hasPremiumDependencies("UnknownPlugin")).isFalse();
+    }
+
+    @Test
+    @DisplayName("getKnownPremiumPlugins should return non-empty set")
+    void getKnownPremiumPluginsShouldReturnNonEmptySet() {
+        Set<String> known = CKEditorPluginDependencies.getKnownPremiumPlugins();
+        assertThat(known).isNotEmpty();
+        assertThat(known).contains("ExportPdf", "ExportWord", "ImportWord");
+    }
+
+    @Test
+    @DisplayName("getCloudServicesRequiredPlugins should return collaboration plugins")
+    void getCloudServicesRequiredPluginsShouldReturnCollaborationPlugins() {
+        Set<String> csPlugins = CKEditorPluginDependencies.getCloudServicesRequiredPlugins();
+        assertThat(csPlugins).isNotEmpty();
+        assertThat(csPlugins).contains("ExportPdf", "ExportWord", "ImportWord");
+    }
+
+    @Test
+    @DisplayName("resolveWithPremium should include premium dependencies")
+    void resolveWithPremiumShouldIncludeDependencies() {
+        Set<CKEditorPlugin> base = EnumSet.of(CKEditorPlugin.ESSENTIALS, CKEditorPlugin.PARAGRAPH);
+        List<CustomPlugin> premiumPlugins = List.of(CustomPlugin.fromPremium("ExportPdf"));
+
+        Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolveWithPremium(base, premiumPlugins);
+        assertThat(resolved).isNotEmpty();
+        assertThat(resolved).containsAll(base);
+    }
+
+    @Test
+    @DisplayName("validatePremiumDependencies should return empty for satisfied dependencies")
+    void validatePremiumDependenciesShouldReturnEmptyWhenSatisfied() {
+        Set<CKEditorPlugin> allPlugins = EnumSet.allOf(CKEditorPlugin.class);
+        List<CustomPlugin> premiumPlugins = List.of(CustomPlugin.fromPremium("ExportPdf"));
+
+        Map<String, Set<CKEditorPlugin>> missing =
+            CKEditorPluginDependencies.validatePremiumDependencies(allPlugins, premiumPlugins);
+        assertThat(missing).isEmpty();
+    }
 }

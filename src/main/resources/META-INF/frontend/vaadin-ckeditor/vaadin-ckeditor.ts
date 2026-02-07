@@ -239,8 +239,8 @@ export class VaadinCKEditor extends LitElement {
     // Track change source for ContentChangeEvent
     // Possible values: 'API', 'USER_INPUT', 'UNDO_REDO', 'PASTE', 'UNKNOWN'
     private changeSource: string = 'USER_INPUT';
-    // Track if current change is from API (programmatic) vs user input
-    private isApiChange = false;
+    // Counter for API changes - resilient to rapid sequential updateData calls
+    private apiChangeDepth = 0;
 
     // Destroy state management
     private isDestroying = false;
@@ -256,11 +256,18 @@ export class VaadinCKEditor extends LitElement {
     private redoExecuteListener?: { off: () => void };
     private clipboardInputListener?: { off: () => void };
 
+    // Collaboration tracking listener references for cleanup
+    private applyOperationListener?: { off: () => void };
+    private cloudServicesSyncListener?: { off: () => void };
+
     // Timer tracking for cleanup
     private toolbarRepaintTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // requestAnimationFrame tracking for minimap style injection
     private minimapInjectRafId: number | null = null;
+
+    // requestAnimationFrame tracking for repaint methods
+    private repaintRafIds: number[] = [];
 
     // Custom CSS link reference for cleanup
     private customCssLink?: HTMLLinkElement;
@@ -395,9 +402,11 @@ export class VaadinCKEditor extends LitElement {
         const originalOpacity = editorContainer.style.opacity;
         editorContainer.style.opacity = REPAINT_OPACITY;
         void editorContainer.offsetHeight; // Force reflow
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
+            if (this.isDisconnected) return;
             editorContainer.style.opacity = originalOpacity || '';
         });
+        this.repaintRafIds.push(rafId);
     }
 
     /**
@@ -407,7 +416,8 @@ export class VaadinCKEditor extends LitElement {
         const editable = this.querySelector('.ck.ck-editor__editable') as HTMLElement;
         if (!editable) return;
 
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
+            if (this.isDisconnected) return;
             const shouldFocusCycle = document.activeElement !== editable;
 
             if (shouldFocusCycle) {
@@ -416,6 +426,7 @@ export class VaadinCKEditor extends LitElement {
                 this.dispatchThemeChangedEvent();
             }
         });
+        this.repaintRafIds.push(rafId);
     }
 
     /**
@@ -425,13 +436,15 @@ export class VaadinCKEditor extends LitElement {
         const activeElement = document.activeElement as HTMLElement;
         editable.focus();
 
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
+            if (this.isDisconnected) return;
             editable.blur();
             if (activeElement?.focus) {
                 activeElement.focus();
             }
             this.dispatchThemeChangedEvent();
         });
+        this.repaintRafIds.push(rafId);
     }
 
     /**
@@ -614,7 +627,7 @@ export class VaadinCKEditor extends LitElement {
         this.isCreating = true;
 
         // Validate editor element exists
-        const editorElement = this.querySelector(`#${this.editorId}`) as HTMLElement;
+        const editorElement = this.querySelector(`[id="${CSS.escape(this.editorId)}"]`) as HTMLElement;
         if (!editorElement) {
             logger.error(`Editor element not found: #${this.editorId}`);
             this.isCreating = false;
@@ -912,7 +925,7 @@ export class VaadinCKEditor extends LitElement {
             // Fire content change event if content actually changed
             if (this.$server && newContent !== this.lastKnownContent) {
                 // Use tracked change source, defaulting to USER_INPUT
-                const source = this.isApiChange ? 'API' : this.changeSource;
+                const source = this.apiChangeDepth > 0 ? 'API' : this.changeSource;
                 this.$server.fireContentChange(this.lastKnownContent, newContent, source);
                 this.lastKnownContent = newContent;
                 // Reset change source after firing event
@@ -986,7 +999,7 @@ export class VaadinCKEditor extends LitElement {
 
                 // Listen to the model's applyOperation event to detect remote operations
                 // Remote operations from collaboration have a specific baseVersion pattern
-                editor.model.on('applyOperation', (_evt, args) => {
+                this.applyOperationListener = editor.model.on('applyOperation', (_evt, args) => {
                     const operation = args[0] as { baseVersion?: number; isLocal?: boolean };
 
                     // Check if this is a remote operation (from collaboration)
@@ -995,15 +1008,15 @@ export class VaadinCKEditor extends LitElement {
                     if (operation && operation.isLocal === false) {
                         this.changeSource = 'COLLABORATION';
                     }
-                }, { priority: 'highest' });
+                }, { priority: 'highest' }) as unknown as { off: () => void };
 
                 // Alternative: Listen to the collaboration channel directly if available
                 try {
                     const cloudServices = editor.plugins.get('CloudServices') as {
-                        on?: (event: string, callback: () => void) => void;
+                        on?: (event: string, callback: () => void) => { off: () => void };
                     };
                     if (cloudServices && cloudServices.on) {
-                        cloudServices.on('change:syncInProgress', () => {
+                        this.cloudServicesSyncListener = cloudServices.on('change:syncInProgress', () => {
                             // When sync is in progress, next changes might be from collaboration
                             this.changeSource = 'COLLABORATION';
                         });
@@ -1156,7 +1169,7 @@ export class VaadinCKEditor extends LitElement {
         }
 
         // Initialize fallback renderer if needed
-        const container = this.querySelector(`#${this.editorId}`) as HTMLElement;
+        const container = this.querySelector(`[id="${CSS.escape(this.editorId)}"]`) as HTMLElement;
         if (!container) return;
 
         if (!this.fallbackRenderer) {
@@ -1195,8 +1208,9 @@ export class VaadinCKEditor extends LitElement {
     private loadCustomCss(): void {
         if (!this.overrideCssUrl) return;
 
-        // Validate URL: only allow http(s) and relative paths
-        if (this.overrideCssUrl.includes('javascript:') || this.overrideCssUrl.includes('data:')) {
+        // Validate URL: only allow http(s) and relative paths (case-insensitive check)
+        const normalizedUrl = this.overrideCssUrl.trim().toLowerCase();
+        if (normalizedUrl.includes('javascript:') || normalizedUrl.includes('data:')) {
             logger.warn('Rejected overrideCssUrl with unsafe protocol:', this.overrideCssUrl);
             return;
         }
@@ -1228,13 +1242,13 @@ export class VaadinCKEditor extends LitElement {
      */
     public updateData(value: string): void {
         if (this.editor) {
-            this.isApiChange = true;
+            this.apiChangeDepth++;
             try {
                 this.editor.setData(value || '');
             } finally {
-                // Reset flag after a microtask to ensure change event fires first
+                // Decrement after a microtask to ensure change event fires first
                 queueMicrotask(() => {
-                    this.isApiChange = false;
+                    this.apiChangeDepth--;
                 });
             }
         }
@@ -1366,6 +1380,19 @@ export class VaadinCKEditor extends LitElement {
                     }
                 } catch (e) { /* ignore */ }
 
+                // Remove collaboration tracking listeners
+                try {
+                    if (this.applyOperationListener) {
+                        this.applyOperationListener.off();
+                    }
+                } catch (e) { /* ignore */ }
+
+                try {
+                    if (this.cloudServicesSyncListener) {
+                        this.cloudServicesSyncListener.off();
+                    }
+                } catch (e) { /* ignore */ }
+
                 // Clear listener references
                 this.selectionChangeListener = undefined;
                 this.dataChangeListener = undefined;
@@ -1374,6 +1401,8 @@ export class VaadinCKEditor extends LitElement {
                 this.undoExecuteListener = undefined;
                 this.redoExecuteListener = undefined;
                 this.clipboardInputListener = undefined;
+                this.applyOperationListener = undefined;
+                this.cloudServicesSyncListener = undefined;
 
                 // Step 3: For decoupled editor, remove toolbar from DOM
                 if (this.editorType === 'decoupled') {
@@ -1496,6 +1525,14 @@ export class VaadinCKEditor extends LitElement {
     }
 
     /**
+     * Validate a CSS property value to prevent CSS injection.
+     * Rejects values containing characters that could break out of a CSS rule.
+     */
+    private static isSafeCssValue(value: string): boolean {
+        return !/[{};]/.test(value);
+    }
+
+    /**
      * Inject custom toolbar styles based on toolbarStyle configuration.
      * Uses scoped CSS selectors to ensure multi-instance isolation.
      */
@@ -1508,35 +1545,42 @@ export class VaadinCKEditor extends LitElement {
         this.removeToolbarStyles();
 
         const style = this.toolbarStyle;
-        const scope = `vaadin-ckeditor[editor-id="${this.editorId}"]`;
+        // Escape editorId for safe use in CSS attribute selector
+        const safeEditorId = this.editorId.replace(/[\\"]/g, '');
+        const scope = `vaadin-ckeditor[editor-id="${safeEditorId}"]`;
         const rules: string[] = [];
+
+        // Helper to safely add a CSS value (rejects values with injection characters)
+        const safe = VaadinCKEditor.isSafeCssValue;
 
         // Global toolbar styles
         if (style.background || style.borderColor || style.borderRadius) {
             const toolbarProps: string[] = [];
-            if (style.background) toolbarProps.push(`background: ${style.background} !important`);
-            if (style.borderColor) toolbarProps.push(`border-color: ${style.borderColor} !important`);
-            if (style.borderRadius) toolbarProps.push(`border-radius: ${style.borderRadius} !important`);
-            rules.push(`${scope} .ck.ck-toolbar { ${toolbarProps.join('; ')}; }`);
+            if (style.background && safe(style.background)) toolbarProps.push(`background: ${style.background} !important`);
+            if (style.borderColor && safe(style.borderColor)) toolbarProps.push(`border-color: ${style.borderColor} !important`);
+            if (style.borderRadius && safe(style.borderRadius)) toolbarProps.push(`border-radius: ${style.borderRadius} !important`);
+            if (toolbarProps.length > 0) {
+                rules.push(`${scope} .ck.ck-toolbar { ${toolbarProps.join('; ')}; }`);
+            }
         }
 
         // Global button styles
-        if (style.buttonBackground) {
+        if (style.buttonBackground && safe(style.buttonBackground)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-button { background: ${style.buttonBackground} !important; }`);
         }
-        if (style.buttonHoverBackground) {
+        if (style.buttonHoverBackground && safe(style.buttonHoverBackground)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-button:hover:not(.ck-disabled) { background: ${style.buttonHoverBackground} !important; }`);
         }
-        if (style.buttonActiveBackground) {
+        if (style.buttonActiveBackground && safe(style.buttonActiveBackground)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-button:active:not(.ck-disabled) { background: ${style.buttonActiveBackground} !important; }`);
         }
-        if (style.buttonOnBackground) {
+        if (style.buttonOnBackground && safe(style.buttonOnBackground)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-button.ck-on { background: ${style.buttonOnBackground} !important; }`);
         }
-        if (style.buttonOnColor) {
+        if (style.buttonOnColor && safe(style.buttonOnColor)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-button.ck-on { color: ${style.buttonOnColor} !important; }`);
         }
-        if (style.iconColor) {
+        if (style.iconColor && safe(style.iconColor)) {
             rules.push(`${scope} .ck.ck-toolbar .ck-icon { color: ${style.iconColor} !important; }`);
         }
 
@@ -1547,16 +1591,16 @@ export class VaadinCKEditor extends LitElement {
                 const safeName = buttonName.replace(/[\\"\]]/g, '');
                 if (!safeName) continue;
                 const btnSelector = `${scope} .ck.ck-toolbar .ck-button[data-cke-tooltip-text*="${safeName}"]`;
-                if (buttonStyle.background) {
+                if (buttonStyle.background && safe(buttonStyle.background)) {
                     rules.push(`${btnSelector} { background: ${buttonStyle.background} !important; }`);
                 }
-                if (buttonStyle.hoverBackground) {
+                if (buttonStyle.hoverBackground && safe(buttonStyle.hoverBackground)) {
                     rules.push(`${btnSelector}:hover:not(.ck-disabled) { background: ${buttonStyle.hoverBackground} !important; }`);
                 }
-                if (buttonStyle.activeBackground) {
+                if (buttonStyle.activeBackground && safe(buttonStyle.activeBackground)) {
                     rules.push(`${btnSelector}:active:not(.ck-disabled) { background: ${buttonStyle.activeBackground} !important; }`);
                 }
-                if (buttonStyle.iconColor) {
+                if (buttonStyle.iconColor && safe(buttonStyle.iconColor)) {
                     rules.push(`${btnSelector} .ck-icon { color: ${buttonStyle.iconColor} !important; }`);
                 }
             }
@@ -1737,6 +1781,12 @@ export class VaadinCKEditor extends LitElement {
             cancelAnimationFrame(this.minimapInjectRafId);
             this.minimapInjectRafId = null;
         }
+
+        // Clean up repaint rAF IDs
+        for (const rafId of this.repaintRafIds) {
+            cancelAnimationFrame(rafId);
+        }
+        this.repaintRafIds = [];
 
         // Clean up custom CSS
         this.removeCustomCss();

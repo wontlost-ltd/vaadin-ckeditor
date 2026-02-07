@@ -681,4 +681,60 @@ class VaadinCKEditorBuilderTest {
 
         assertThat(builder).isInstanceOf(VaadinCKEditorBuilder.class);
     }
+
+    // ==================== Autosave Boundary Tests ====================
+
+    @Test
+    @DisplayName("withAutosave should reject waitingTime below 100")
+    void withAutosaveShouldRejectWaitingTimeBelow100() {
+        assertThatThrownBy(() ->
+            VaadinCKEditor.create()
+                .withPreset(CKEditorPreset.BASIC)
+                .withAutosave(data -> {}, 99)
+        ).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("withAutosave should accept waitingTime at lower boundary 100")
+    void withAutosaveShouldAcceptWaitingTimeAt100() {
+        assertThatCode(() ->
+            VaadinCKEditor.create()
+                .withPreset(CKEditorPreset.BASIC)
+                .withAutosave(data -> {}, 100)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("withAutosave should accept waitingTime at upper boundary 60000")
+    void withAutosaveShouldAcceptWaitingTimeAt60000() {
+        assertThatCode(() ->
+            VaadinCKEditor.create()
+                .withPreset(CKEditorPreset.BASIC)
+                .withAutosave(data -> {}, 60000)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("withAutosave should reject waitingTime above 60000")
+    void withAutosaveShouldRejectWaitingTimeAbove60000() {
+        assertThatThrownBy(() ->
+            VaadinCKEditor.create()
+                .withPreset(CKEditorPreset.BASIC)
+                .withAutosave(data -> {}, 60001)
+        ).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // ==================== Builder Build-Once Guard ====================
+
+    @Test
+    @DisplayName("build should throw IllegalStateException on second call")
+    void buildShouldThrowOnSecondCall() {
+        VaadinCKEditorBuilder builder = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC);
+        builder.build();
+
+        assertThatThrownBy(builder::build)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("already been used");
+    }
 }

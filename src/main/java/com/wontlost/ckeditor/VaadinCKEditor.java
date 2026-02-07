@@ -307,13 +307,14 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     protected void setModelValue(String value, boolean fromClient) {
         String oldValue = this.editorData;
         String newValue = value != null ? value : "";
-        // Only fire event when value actually changes
+        // Only update when value actually changes
         if (java.util.Objects.equals(oldValue, newValue)) {
             return;
         }
+        // super.setModelValue already fires ValueChangeEvent via Vaadin's AbstractField,
+        // so we must not call fireEvent again to avoid duplicate events
         super.setModelValue(newValue, fromClient);
         this.editorData = newValue;
-        fireEvent(new ComponentValueChangeEvent<>(this, this, oldValue, fromClient));
     }
 
     @ClientCallable
@@ -657,6 +658,8 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void setHtmlSanitizer(HtmlSanitizer sanitizer) {
         this.htmlSanitizer = sanitizer;
+        // Update ContentManager so getSanitizedValue() uses the new sanitizer
+        this.contentManager = new com.wontlost.ckeditor.internal.ContentManager(sanitizer);
     }
 
     /**
@@ -850,7 +853,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     void setEditorDataInternal(String data) { this.editorData = data != null ? data : ""; }
     void setReadOnlyInternal(boolean readOnly) { this.readOnly = readOnly; }
     void setLicenseKeyInternal(String licenseKey) { this.licenseKey = licenseKey; }
-    void setToolbarInternal(String[] toolbar) { this.toolbar = toolbar; }
+    void setToolbarInternal(String[] toolbar) { this.toolbar = toolbar != null ? toolbar.clone() : null; }
     void setConfigInternal(CKEditorConfig config) { this.config = config; }
     CKEditorConfig getConfigInternal() { return this.config; }
 

@@ -127,6 +127,22 @@ class ContentManagerTest {
     }
 
     @Test
+    @DisplayName("getWordCount should count mixed CJK and Latin correctly")
+    void getWordCountMixedCjkAndLatin() {
+        // "Hello 你好 World" should count as: "Hello"=1, "你好"=2 CJK chars, "World"=1 = 4
+        String html = "<p>Hello 你好 World</p>";
+        assertEquals(4, manager.getWordCount(html));
+    }
+
+    @Test
+    @DisplayName("getWordCount should count mixed token with CJK and non-CJK parts")
+    void getWordCountMixedToken() {
+        // "test中文test" (no spaces) should count CJK chars (2) + 1 for non-CJK = 3
+        String html = "<p>test中文test</p>";
+        assertEquals(3, manager.getWordCount(html));
+    }
+
+    @Test
     @DisplayName("normalizeForComparison should remove extra whitespace")
     void normalizeForComparisonRemovesWhitespace() {
         String html = "<p>Hello  World</p>  <p>Test</p>";

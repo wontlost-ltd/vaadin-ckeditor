@@ -2,6 +2,7 @@ package com.wontlost.ckeditor;
 
 import com.wontlost.ckeditor.VaadinCKEditorPremium.PremiumPlugin;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,6 +18,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("enable() should enable premium features and be idempotent")
     void testEnable() {
         assertFalse(VaadinCKEditorPremium.isEnabled());
         // First call should return true (enabling)
@@ -27,6 +29,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("getVersion() should return valid semver version string")
     void testGetVersion() {
         String version = VaadinCKEditorPremium.getVersion();
         assertNotNull(version);
@@ -35,6 +38,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("ExportPdf plugin should have correct name and toolbar items")
     void testPremiumPluginExportPdf() {
         PremiumPlugin plugin = PremiumPlugin.EXPORT_PDF;
         assertEquals("ExportPdf", plugin.getPluginName());
@@ -47,6 +51,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("ExportWord plugin should have correct name and toolbar items")
     void testPremiumPluginExportWord() {
         PremiumPlugin plugin = PremiumPlugin.EXPORT_WORD;
         assertEquals("ExportWord", plugin.getPluginName());
@@ -54,6 +59,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("FormatPainter plugin should have correct name and be premium")
     void testPremiumPluginFormatPainter() {
         PremiumPlugin plugin = PremiumPlugin.FORMAT_PAINTER;
         assertEquals("FormatPainter", plugin.getPluginName());
@@ -64,6 +70,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("CaseChange plugin should have correct name and toolbar items")
     void testPremiumPluginCaseChange() {
         PremiumPlugin plugin = PremiumPlugin.CASE_CHANGE;
         assertEquals("CaseChange", plugin.getPluginName());
@@ -71,6 +78,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("SlashCommand plugin should have no toolbar items")
     void testPremiumPluginSlashCommand() {
         PremiumPlugin plugin = PremiumPlugin.SLASH_COMMAND;
         assertEquals("SlashCommand", plugin.getPluginName());
@@ -79,6 +87,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("AIAssistant plugin should have multiple toolbar items")
     void testPremiumPluginAIAssistant() {
         PremiumPlugin plugin = PremiumPlugin.AI_ASSISTANT;
         assertEquals("AIAssistant", plugin.getPluginName());
@@ -87,6 +96,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("TrackChanges plugin should have correct toolbar items")
     void testPremiumPluginTrackChanges() {
         PremiumPlugin plugin = PremiumPlugin.TRACK_CHANGES;
         assertEquals("TrackChanges", plugin.getPluginName());
@@ -94,6 +104,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("Comments plugin should have correct toolbar items")
     void testPremiumPluginComments() {
         PremiumPlugin plugin = PremiumPlugin.COMMENTS;
         assertEquals("Comments", plugin.getPluginName());
@@ -101,6 +112,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("All premium plugins should create valid CustomPlugin instances")
     void testAllPremiumPluginsCreateValidCustomPlugins() {
         for (PremiumPlugin plugin : PremiumPlugin.values()) {
             CustomPlugin customPlugin = plugin.toCustomPlugin();
@@ -111,6 +123,7 @@ class VaadinCKEditorPremiumTest {
     }
 
     @Test
+    @DisplayName("getToolbarItems() should return defensive copy")
     void testToolbarItemsDefensiveCopy() {
         PremiumPlugin plugin = PremiumPlugin.EXPORT_PDF;
         String[] items1 = plugin.getToolbarItems();

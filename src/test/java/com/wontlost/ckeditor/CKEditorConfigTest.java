@@ -1268,4 +1268,153 @@ class CKEditorConfigTest {
         ).isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("dangerous");
     }
+
+    // ==================== Getter Round-Trip Tests ====================
+
+    @Test
+    @DisplayName("getPlaceholder should return set placeholder")
+    void getPlaceholderRoundTrip() {
+        config.setPlaceholder("Type here...");
+        assertThat(config.getPlaceholder()).isEqualTo("Type here...");
+    }
+
+    @Test
+    @DisplayName("getPlaceholder should return empty string by default")
+    void getPlaceholderDefaultsToEmpty() {
+        assertThat(config.getPlaceholder()).isEqualTo("");
+    }
+
+    @Test
+    @DisplayName("getLanguage should return simple language string")
+    void getLanguageSimpleString() {
+        config.setLanguage("de");
+        assertThat(config.getLanguage()).isEqualTo("de");
+    }
+
+    @Test
+    @DisplayName("getLanguage should return UI language from complex config")
+    void getLanguageComplexConfig() {
+        config.setLanguage("de", "en", null);
+        assertThat(config.getLanguage()).isEqualTo("de");
+    }
+
+    @Test
+    @DisplayName("getLanguage should return 'en' by default")
+    void getLanguageDefaultsToEn() {
+        assertThat(config.getLanguage()).isEqualTo("en");
+    }
+
+    @Test
+    @DisplayName("getToolbar should return toolbar items array")
+    void getToolbarArrayRoundTrip() {
+        config.setToolbar(new String[]{"bold", "italic", "link"});
+        assertThat(config.getToolbar()).containsExactly("bold", "italic", "link");
+    }
+
+    @Test
+    @DisplayName("getToolbar with shouldNotGroupWhenFull should return items")
+    void getToolbarObjectRoundTrip() {
+        config.setToolbar(new String[]{"bold", "italic"}, true);
+        assertThat(config.getToolbar()).containsExactly("bold", "italic");
+    }
+
+    @Test
+    @DisplayName("getToolbar should return null when not set")
+    void getToolbarNullWhenNotSet() {
+        assertThat(config.getToolbar()).isNull();
+    }
+
+    @Test
+    @DisplayName("hasConfig should detect set config keys")
+    void hasConfigShouldDetectKeys() {
+        // placeholder is set by default in constructor
+        assertThat(config.hasConfig("placeholder")).isTrue();
+        // unknown key should be absent
+        assertThat(config.hasConfig("nonExistentKey")).isFalse();
+    }
+
+    @Test
+    @DisplayName("getString should return set string values")
+    void getStringRoundTrip() {
+        config.setPlaceholder("test");
+        assertThat(config.getString("placeholder")).isEqualTo("test");
+    }
+
+    @Test
+    @DisplayName("getBoolean should return set boolean or default")
+    void getBooleanRoundTrip() {
+        assertThat(config.getBoolean("unknownKey", true)).isTrue();
+        assertThat(config.getBoolean("unknownKey", false)).isFalse();
+    }
+
+    @Test
+    @DisplayName("getInt should return default for missing key")
+    void getIntDefault() {
+        assertThat(config.getInt("unknownKey", 42)).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("getAutosaveWaitingTime should return -1 when not set")
+    void getAutosaveWaitingTimeNotSet() {
+        assertThat(config.getAutosaveWaitingTime()).isEqualTo(-1);
+    }
+
+    @Test
+    @DisplayName("hasAutosave should return false when not set")
+    void hasAutosaveNotSet() {
+        assertThat(config.hasAutosave()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getSimpleUploadUrl should return null when not set")
+    void getSimpleUploadUrlNotSet() {
+        assertThat(config.getSimpleUploadUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("Relative upload URL should be accepted")
+    void relativeUploadUrlShouldBeAccepted() {
+        assertThatCode(() -> config.setSimpleUpload("/api/upload"))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("ToolbarStyle getButtonStyles should return unmodifiable map")
+    void toolbarStyleButtonStylesShouldBeUnmodifiable() {
+        CKEditorConfig.ToolbarStyle style = CKEditorConfig.ToolbarStyle.builder()
+            .buttonStyle("bold", CKEditorConfig.ButtonStyle.builder().background("#fff").build())
+            .build();
+
+        assertThatThrownBy(() -> style.getButtonStyles().put("new", null))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("StyleDefinition getClasses should return defensive copy")
+    void styleDefinitionClassesShouldBeDefensiveCopy() {
+        CKEditorConfig.StyleDefinition style = new CKEditorConfig.StyleDefinition(
+            "Highlight", "span", new String[]{"highlight"}
+        );
+        String[] classes1 = style.getClasses();
+        String[] classes2 = style.getClasses();
+        assertThat(classes1).isNotSameAs(classes2);
+        assertThat(classes1).containsExactly("highlight");
+    }
+
+    @Test
+    @DisplayName("MentionFeed should reject null feed array")
+    void mentionFeedShouldRejectNullFeed() {
+        assertThatThrownBy(() -> new CKEditorConfig.MentionFeed("@", null, 0))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining("null");
+    }
+
+    @Test
+    @DisplayName("SSRF check should block full loopback range 127.x.x.x")
+    void ssrfShouldBlockFullLoopbackRange() {
+        config.allowPrivateNetworks(false);
+        assertThatThrownBy(() -> config.setSimpleUpload("http://127.0.0.2/upload"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("private");
+    }
 }

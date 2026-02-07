@@ -247,4 +247,10 @@ class EventDispatcherTest {
         reg2.remove();
         assertEquals(0, dispatcher.getListenerStats().ready);
     }
+
+    // ==================== Error Handler Tests (without event firing) ====================
+    // Note: fireEditorError tests require a non-null VaadinCKEditor source
+    // since ComponentEvent constructor rejects null. These tests belong in
+    // integration tests with a proper Vaadin test environment.
+    // The error handler isolation behavior is tested in EnterpriseEventTest.
 }

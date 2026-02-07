@@ -531,15 +531,16 @@ export class PluginResolver {
             this.logger.debug(`Removed ${removed.length} conflicting/unavailable plugins:`, removed);
         }
 
-        // Separate plugins by type
+        // Separate plugins by type (use Set for O(1) lookup)
+        const filteredSet = new Set(filtered);
         const standardPluginsToLoad = pluginConfigs.filter(
-            p => filtered.includes(p.name) && !p.premium && !p.importPath
+            p => filteredSet.has(p.name) && !p.premium && !p.importPath
         );
         const premiumPluginsToLoad = pluginConfigs.filter(
-            p => filtered.includes(p.name) && p.premium && !p.importPath
+            p => filteredSet.has(p.name) && p.premium && !p.importPath
         );
         const customPluginsToLoad = pluginConfigs.filter(
-            p => filtered.includes(p.name) && p.importPath
+            p => filteredSet.has(p.name) && p.importPath
         );
 
         // Load standard plugins from registry

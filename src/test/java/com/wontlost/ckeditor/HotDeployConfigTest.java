@@ -1,5 +1,6 @@
 package com.wontlost.ckeditor;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
@@ -9,6 +10,14 @@ import static org.assertj.core.api.Assertions.*;
  * Unit tests for HotDeployConfig class.
  */
 class HotDeployConfigTest {
+
+    @AfterEach
+    void cleanUpSystemProperties() {
+        System.clearProperty(HotDeployConfig.HOT_DEPLOY_DEBUG_PROPERTY);
+        System.clearProperty(HotDeployConfig.HOT_DEPLOY_DISABLED_PROPERTY);
+        System.clearProperty("vaadin.productionMode");
+        System.clearProperty("spring.profiles.active");
+    }
 
     @Test
     @DisplayName("System property names should be defined")

@@ -143,7 +143,13 @@ public class ContentManager {
                         cjkChars++;
                     }
                 }
-                count += cjkChars > 0 ? cjkChars : 1;
+                if (cjkChars > 0) {
+                    // CJK chars each count as 1 word, plus 1 for any non-CJK portion
+                    boolean hasNonCjk = word.length() > cjkChars;
+                    count += cjkChars + (hasNonCjk ? 1 : 0);
+                } else {
+                    count += 1;
+                }
             }
         }
         return count;
