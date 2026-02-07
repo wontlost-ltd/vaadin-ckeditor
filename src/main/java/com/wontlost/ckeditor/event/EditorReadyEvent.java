@@ -4,13 +4,13 @@ import com.vaadin.flow.component.ComponentEvent;
 import com.wontlost.ckeditor.VaadinCKEditor;
 
 /**
- * 编辑器就绪事件。
- * 当 CKEditor 实例完全初始化并准备好接受用户输入时触发。
+ * Editor ready event.
+ * Fired when the CKEditor instance is fully initialized and ready to accept user input.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
  * editor.addEditorReadyListener(event -&gt; {
- *     // 编辑器已就绪，可以安全执行操作
+ *     // Editor is ready, safe to perform operations
  *     event.getSource().focus();
  * });
  * </pre>
@@ -20,11 +20,11 @@ public class EditorReadyEvent extends ComponentEvent<VaadinCKEditor> {
     private final long initializationTimeMs;
 
     /**
-     * 创建编辑器就绪事件
+     * Create an editor ready event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param initializationTimeMs 编辑器初始化耗时（毫秒）
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param initializationTimeMs editor initialization time in milliseconds
      */
     public EditorReadyEvent(VaadinCKEditor source, boolean fromClient, long initializationTimeMs) {
         super(source, fromClient);
@@ -32,9 +32,9 @@ public class EditorReadyEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取编辑器初始化耗时
+     * Get the editor initialization time.
      *
-     * @return 初始化耗时（毫秒）
+     * @return initialization time in milliseconds
      */
     public long getInitializationTimeMs() {
         return initializationTimeMs;

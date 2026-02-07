@@ -4,17 +4,17 @@ import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 /**
- * HTML 内容清理器。
- * 用于在保存或显示内容前清理危险的 HTML 标签和属性。
+ * HTML content sanitizer.
+ * Used to clean dangerous HTML tags and attributes before saving or displaying content.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
- * // 使用预定义策略
+ * // Use a predefined policy
  * editor.setHtmlSanitizer(HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT));
  *
- * // 自定义清理逻辑
+ * // Custom sanitization logic
  * editor.setHtmlSanitizer(html -&gt; {
- *     // 移除所有 script 标签
+ *     // Remove all script tags
  *     return html.replaceAll("&lt;script[^&gt;]*&gt;.*?&lt;/script&gt;", "");
  * });
  * </pre>
@@ -25,43 +25,43 @@ import org.jsoup.safety.Safelist;
 public interface HtmlSanitizer {
 
     /**
-     * 清理 HTML 内容
+     * Sanitize HTML content.
      *
-     * @param html 原始 HTML 内容
-     * @return 清理后的安全 HTML
+     * @param html the raw HTML content
+     * @return the sanitized safe HTML
      */
     String sanitize(String html);
 
     /**
-     * 清理策略
+     * Sanitization policy.
      */
     enum SanitizationPolicy {
         /**
-         * 不清理，保留原始内容
+         * No sanitization, retain original content.
          */
         NONE,
 
         /**
-         * 基础清理：移除脚本和危险标签
+         * Basic sanitization: remove scripts and dangerous tags.
          */
         BASIC,
 
         /**
-         * 宽松清理：允许大多数格式化标签
+         * Relaxed sanitization: allow most formatting tags.
          */
         RELAXED,
 
         /**
-         * 严格清理：只保留基本文本格式
+         * Strict sanitization: keep only basic text formatting.
          */
         STRICT
     }
 
     /**
-     * 创建基于策略的清理器
+     * Create a policy-based sanitizer.
      *
-     * @param policy 清理策略
-     * @return 清理器实例
+     * @param policy the sanitization policy
+     * @return a sanitizer instance
      */
     static HtmlSanitizer withPolicy(SanitizationPolicy policy) {
         return html -> {
@@ -80,7 +80,7 @@ public interface HtmlSanitizer {
                     return Jsoup.clean(html, Safelist.relaxed());
 
                 case STRICT:
-                    // 只允许基本格式化
+                    // Allow only basic formatting
                     Safelist strict = new Safelist()
                         .addTags("p", "br", "b", "i", "u", "strong", "em")
                         .addTags("h1", "h2", "h3", "h4", "h5", "h6")
@@ -95,10 +95,10 @@ public interface HtmlSanitizer {
     }
 
     /**
-     * 创建自定义白名单的清理器
+     * Create a sanitizer with a custom safelist.
      *
-     * @param safelist Jsoup 白名单配置
-     * @return 清理器实例
+     * @param safelist the Jsoup safelist configuration
+     * @return a sanitizer instance
      */
     static HtmlSanitizer withSafelist(Safelist safelist) {
         return html -> {
@@ -110,19 +110,19 @@ public interface HtmlSanitizer {
     }
 
     /**
-     * 组合清理器（链式执行）
+     * Compose sanitizers (chain execution).
      *
-     * @param other 另一个清理器
-     * @return 组合后的清理器
+     * @param other another sanitizer
+     * @return a composed sanitizer
      */
     default HtmlSanitizer andThen(HtmlSanitizer other) {
         return html -> other.sanitize(this.sanitize(html));
     }
 
     /**
-     * 不进行任何清理的清理器
+     * A no-op sanitizer that passes content through unchanged.
      *
-     * @return 透传清理器
+     * @return a passthrough sanitizer
      */
     static HtmlSanitizer passthrough() {
         return html -> html;

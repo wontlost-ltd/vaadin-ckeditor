@@ -4,16 +4,16 @@ import com.vaadin.flow.component.ComponentEvent;
 import com.wontlost.ckeditor.VaadinCKEditor;
 
 /**
- * 编辑器错误事件。
- * 当编辑器遇到错误时触发，包括初始化错误、运行时错误等。
+ * Editor error event.
+ * Fired when the editor encounters an error, including initialization errors, runtime errors, etc.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
  * editor.addEditorErrorListener(event -&gt; {
  *     EditorError error = event.getError();
  *     logger.error("Editor error [{}]: {}", error.getCode(), error.getMessage());
  *     if (error.isRecoverable()) {
- *         // 尝试恢复
+ *         // Attempt recovery
  *     }
  * });
  * </pre>
@@ -23,11 +23,11 @@ public class EditorErrorEvent extends ComponentEvent<VaadinCKEditor> {
     private final EditorError error;
 
     /**
-     * 创建编辑器错误事件
+     * Create an editor error event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param error 错误详情
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param error the error details
      */
     public EditorErrorEvent(VaadinCKEditor source, boolean fromClient, EditorError error) {
         super(source, fromClient);
@@ -35,16 +35,16 @@ public class EditorErrorEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取错误详情
+     * Get the error details.
      *
-     * @return 错误对象
+     * @return the error object
      */
     public EditorError getError() {
         return error;
     }
 
     /**
-     * 编辑器错误详情
+     * Editor error details.
      */
     public static class EditorError {
         private final String code;
@@ -54,13 +54,13 @@ public class EditorErrorEvent extends ComponentEvent<VaadinCKEditor> {
         private final String stackTrace;
 
         /**
-         * 创建错误详情
+         * Create error details.
          *
-         * @param code 错误代码
-         * @param message 错误消息
-         * @param severity 严重程度
-         * @param recoverable 是否可恢复
-         * @param stackTrace 堆栈跟踪（可选）
+         * @param code the error code
+         * @param message the error message
+         * @param severity the severity level
+         * @param recoverable whether the error is recoverable
+         * @param stackTrace the stack trace (optional)
          */
         public EditorError(String code, String message, ErrorSeverity severity,
                           boolean recoverable, String stackTrace) {
@@ -99,14 +99,14 @@ public class EditorErrorEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 错误严重程度
+     * Error severity level.
      */
     public enum ErrorSeverity {
-        /** 警告级别，不影响编辑器功能 */
+        /** Warning level, does not affect editor functionality */
         WARNING,
-        /** 错误级别，部分功能受影响 */
+        /** Error level, some functionality may be affected */
         ERROR,
-        /** 致命级别，编辑器无法正常工作 */
+        /** Fatal level, editor cannot function properly */
         FATAL
     }
 }

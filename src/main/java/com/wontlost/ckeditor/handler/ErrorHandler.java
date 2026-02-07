@@ -3,39 +3,39 @@ package com.wontlost.ckeditor.handler;
 import com.wontlost.ckeditor.event.EditorErrorEvent.EditorError;
 
 /**
- * 编辑器错误处理器。
- * 用于自定义错误处理逻辑，如记录日志、发送告警等。
+ * Editor error handler.
+ * Used to customize error handling logic such as logging, sending alerts, etc.
  *
- * <h2>返回值语义</h2>
- * <p>{@link #handleError(EditorError)} 方法的返回值决定错误的传播行为：</p>
+ * <h2>Return Value Semantics</h2>
+ * <p>The return value of {@link #handleError(EditorError)} determines error propagation behavior:</p>
  * <ul>
- *   <li>{@code true} - 错误已完全处理，<b>停止传播</b>，不会触发 {@code EditorErrorEvent}</li>
- *   <li>{@code false} - 错误未完全处理，<b>继续传播</b>，将触发 {@code EditorErrorEvent}</li>
+ *   <li>{@code true} - Error fully handled, <b>stop propagation</b>, {@code EditorErrorEvent} will not be fired</li>
+ *   <li>{@code false} - Error not fully handled, <b>continue propagation</b>, {@code EditorErrorEvent} will be fired</li>
  * </ul>
  *
- * <h2>使用示例</h2>
+ * <h2>Usage Examples</h2>
  *
- * <h3>基础用法 - 记录日志但不阻止传播</h3>
+ * <h3>Basic usage - log but don't block propagation</h3>
  * <pre>
  * editor.setErrorHandler(error -&gt; {
  *     logger.error("CKEditor error [{}]: {}", error.getCode(), error.getMessage());
- *     return false; // 继续传播，允许其他监听器处理
+ *     return false; // Continue propagation, allow other listeners to handle
  * });
  * </pre>
  *
- * <h3>条件处理 - 只拦截特定错误</h3>
+ * <h3>Conditional handling - only intercept specific errors</h3>
  * <pre>
  * editor.setErrorHandler(error -&gt; {
  *     if ("NETWORK_ERROR".equals(error.getCode())) {
- *         // 网络错误自动重试，不传播给用户
+ *         // Auto-retry network errors, don't propagate to user
  *         retryService.scheduleRetry();
- *         return true; // 已处理，停止传播
+ *         return true; // Handled, stop propagation
  *     }
- *     return false; // 其他错误继续传播
+ *     return false; // Continue propagation for other errors
  * });
  * </pre>
  *
- * <h3>链式处理 - 组合多个处理器</h3>
+ * <h3>Chained handling - compose multiple handlers</h3>
  * <pre>
  * ErrorHandler logger = ErrorHandler.logging(log);
  * ErrorHandler alerter = error -&gt; {
@@ -45,16 +45,16 @@ import com.wontlost.ckeditor.event.EditorErrorEvent.EditorError;
  *     }
  *     return false;
  * };
- * // 先记录日志，再发送告警
+ * // Log first, then send alert
  * editor.setErrorHandler(ErrorHandler.compose(logger, alerter));
  * </pre>
  *
- * <h2>最佳实践</h2>
+ * <h2>Best Practices</h2>
  * <ul>
- *   <li>日志记录器通常应返回 {@code false}，允许其他处理器继续处理</li>
- *   <li>只有在错误被完全解决（如自动重试成功）时才返回 {@code true}</li>
- *   <li>对于致命错误 ({@code FATAL})，通常应让其传播以便 UI 能够响应</li>
- *   <li>使用 {@link #compose(ErrorHandler...)} 组合多个处理器时，顺序很重要</li>
+ *   <li>Loggers should usually return {@code false} to allow other handlers to continue processing</li>
+ *   <li>Only return {@code true} when the error is completely resolved (e.g., auto-retry succeeded)</li>
+ *   <li>For fatal errors ({@code FATAL}), usually let them propagate so the UI can respond</li>
+ *   <li>When using {@link #compose(ErrorHandler...)}, the order of handlers matters</li>
  * </ul>
  *
  * @see EditorError
@@ -64,22 +64,22 @@ import com.wontlost.ckeditor.event.EditorErrorEvent.EditorError;
 public interface ErrorHandler {
 
     /**
-     * 处理编辑器错误。
+     * Handle an editor error.
      *
-     * <p>此方法在 {@code EditorErrorEvent} 触发<b>之前</b>被调用，
-     * 提供了拦截和处理错误的机会。</p>
+     * <p>This method is called <b>before</b> {@code EditorErrorEvent} is fired,
+     * providing an opportunity to intercept and handle the error.</p>
      *
-     * @param error 错误详情，包含错误代码、消息、严重程度等信息
-     * @return {@code true} 表示错误已处理完毕，停止传播（不触发事件）；
-     *         {@code false} 表示错误未处理或需要继续传播（触发 {@code EditorErrorEvent}）
+     * @param error error details including error code, message, severity, etc.
+     * @return {@code true} if the error is fully handled, stopping propagation (event not fired);
+     *         {@code false} if the error is not handled or needs to continue propagating (fires {@code EditorErrorEvent})
      */
     boolean handleError(EditorError error);
 
     /**
-     * 创建记录日志的错误处理器
+     * Create a logging error handler.
      *
-     * @param logger 日志记录器
-     * @return 错误处理器实例
+     * @param logger the logger instance
+     * @return an error handler instance
      */
     static ErrorHandler logging(java.util.logging.Logger logger) {
         return error -> {
@@ -95,21 +95,21 @@ public interface ErrorHandler {
                         error.getCode(), error.getMessage(), error.getStackTrace()));
                     break;
             }
-            return false; // 继续传播
+            return false; // Continue propagation
         };
     }
 
     /**
-     * 组合多个错误处理器
+     * Compose multiple error handlers.
      *
-     * @param handlers 处理器列表
-     * @return 组合后的处理器
+     * @param handlers the handler list
+     * @return a composed handler
      */
     static ErrorHandler compose(ErrorHandler... handlers) {
         return error -> {
             for (ErrorHandler handler : handlers) {
                 if (handler.handleError(error)) {
-                    return true; // 错误已处理
+                    return true; // Error handled
                 }
             }
             return false;

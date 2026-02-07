@@ -1,6 +1,9 @@
 package com.wontlost.ckeditor;
 
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Plugin dependencies management for CKEditor 5.
@@ -24,6 +27,8 @@ import java.util.*;
  */
 public final class CKEditorPluginDependencies {
 
+    private static final Logger logger = Logger.getLogger(CKEditorPluginDependencies.class.getName());
+
     /**
      * Dependency graph: maps each plugin to its required dependencies.
      * Key = plugin that has dependencies, Value = set of plugins it depends on.
@@ -35,6 +40,18 @@ public final class CKEditorPluginDependencies {
      * These are not strictly required but provide better user experience.
      */
     private static final Map<CKEditorPlugin, Set<CKEditorPlugin>> RECOMMENDED;
+
+    /**
+     * Premium plugin dependencies: maps premium plugin names to required CKEditorPlugin dependencies.
+     * These are soft-required dependencies that must be included when using premium plugins.
+     * Key = premium plugin JS name (e.g., "ExportPdf"), Value = set of required plugins.
+     */
+    private static final Map<String, Set<CKEditorPlugin>> PREMIUM_DEPENDENCIES;
+
+    /**
+     * Premium plugin names that require CloudServices for cloud-based conversion.
+     */
+    private static final Set<String> CLOUD_SERVICES_REQUIRED_PLUGINS;
 
     static {
         // Initialize dependency map
@@ -99,8 +116,9 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.BASE64_UPLOAD_ADAPTER, Set.of(CKEditorPlugin.IMAGE_UPLOAD));
 
         // ==================== Premium Feature Dependencies ====================
+        // Note: Premium plugins like ExportPdf, ExportWord, ImportWord require CloudServices
+        // as a soft dependency. These are handled in PREMIUM_DEPENDENCIES map below.
         // Minimap requires DecoupledEditor (handled at editor type level)
-        // ExportPdf, ExportWord, ImportWord are standalone premium features
 
         // ==================== Restricted Editing Dependencies ====================
         deps.put(CKEditorPlugin.STANDARD_EDITING_MODE, Set.of(CKEditorPlugin.RESTRICTED_EDITING_MODE));
@@ -196,6 +214,45 @@ public final class CKEditorPluginDependencies {
         ));
 
         RECOMMENDED = Collections.unmodifiableMap(rec);
+
+        // ==================== Premium Plugin Dependencies ====================
+        // These premium plugins require CloudServices for cloud-based document conversion
+        CLOUD_SERVICES_REQUIRED_PLUGINS = Set.of(
+            "ExportPdf",
+            "ExportWord",
+            "ImportWord"
+        );
+
+        // Initialize premium plugin dependency map
+        Map<String, Set<CKEditorPlugin>> premDeps = new HashMap<>();
+
+        // CloudServices dependencies for export/import features
+        // These plugins use CKEditor Cloud Services for document conversion
+        Set<CKEditorPlugin> cloudServicesDeps = Set.of(
+            CKEditorPlugin.CLOUD_SERVICES
+        );
+
+        premDeps.put("ExportPdf", cloudServicesDeps);
+        premDeps.put("ExportWord", cloudServicesDeps);
+        premDeps.put("ImportWord", cloudServicesDeps);
+
+        // AI Assistant requires CloudServices for AI features
+        premDeps.put("AIAssistant", cloudServicesDeps);
+
+        // Collaboration features that require CloudServices
+        premDeps.put("RealTimeCollaboration", cloudServicesDeps);
+        premDeps.put("PresenceList", Set.of(
+            CKEditorPlugin.CLOUD_SERVICES
+        ));
+
+        // Comments and TrackChanges can work standalone but benefit from CloudServices
+        // for real-time sync - we don't add hard dependency here
+
+        // CKBox requires CloudServices
+        premDeps.put("CKBox", cloudServicesDeps);
+        premDeps.put("CKBoxImageEdit", Set.of(CKEditorPlugin.CLOUD_SERVICES));
+
+        PREMIUM_DEPENDENCIES = Collections.unmodifiableMap(premDeps);
     }
 
     private CKEditorPluginDependencies() {
@@ -404,7 +461,8 @@ public final class CKEditorPluginDependencies {
             List<CKEditorPlugin> sorted) {
 
         if (visiting.contains(plugin)) {
-            // Cycle detected - shouldn't happen with proper dependency graph
+            // Cycle detected - log a warning as this indicates a dependency graph issue
+            logger.log(Level.WARNING, "Circular dependency detected involving plugin: {0}", plugin.getJsName());
             return;
         }
         if (visited.contains(plugin)) {
@@ -481,5 +539,152 @@ public final class CKEditorPluginDependencies {
     public static List<CKEditorPlugin> getLoadOrder(Set<CKEditorPlugin> plugins) {
         Set<CKEditorPlugin> resolved = resolve(plugins);
         return topologicalSort(resolved);
+    }
+
+    // ==================== Premium Plugin Dependency Methods ====================
+
+    /**
+     * Get the dependencies for a premium plugin by its JS name.
+     *
+     * @param premiumPluginName the JavaScript name of the premium plugin (e.g., "ExportPdf")
+     * @return set of required CKEditorPlugin dependencies (never null, may be empty)
+     */
+    public static Set<CKEditorPlugin> getPremiumDependencies(String premiumPluginName) {
+        return PREMIUM_DEPENDENCIES.getOrDefault(premiumPluginName, Collections.emptySet());
+    }
+
+    /**
+     * Check if a premium plugin requires CloudServices.
+     *
+     * @param premiumPluginName the JavaScript name of the premium plugin
+     * @return true if the plugin requires CloudServices
+     */
+    public static boolean requiresCloudServices(String premiumPluginName) {
+        return CLOUD_SERVICES_REQUIRED_PLUGINS.contains(premiumPluginName);
+    }
+
+    /**
+     * Check if a premium plugin has dependencies.
+     *
+     * @param premiumPluginName the JavaScript name of the premium plugin
+     * @return true if the plugin has dependencies
+     */
+    public static boolean hasPremiumDependencies(String premiumPluginName) {
+        Set<CKEditorPlugin> deps = PREMIUM_DEPENDENCIES.get(premiumPluginName);
+        return deps != null && !deps.isEmpty();
+    }
+
+    /**
+     * Resolve all dependencies for a set of plugins, including premium plugin dependencies.
+     * This method handles both CKEditorPlugin enum members and CustomPlugin instances.
+     *
+     * @param plugins the initial set of CKEditorPlugin plugins
+     * @param customPlugins collection of custom plugins (including premium)
+     * @return a new set containing all plugins with their dependencies resolved
+     */
+    public static Set<CKEditorPlugin> resolveWithPremium(
+            Set<CKEditorPlugin> plugins,
+            Collection<CustomPlugin> customPlugins) {
+        return resolveWithPremium(plugins, customPlugins, true);
+    }
+
+    /**
+     * Resolve all dependencies for a set of plugins, including premium plugin dependencies.
+     *
+     * @param plugins the initial set of CKEditorPlugin plugins
+     * @param customPlugins collection of custom plugins (including premium)
+     * @param includeCorePlugins whether to automatically include ESSENTIALS and PARAGRAPH
+     * @return a new set containing all plugins with their dependencies resolved
+     */
+    public static Set<CKEditorPlugin> resolveWithPremium(
+            Set<CKEditorPlugin> plugins,
+            Collection<CustomPlugin> customPlugins,
+            boolean includeCorePlugins) {
+
+        // Start with the standard plugin resolution
+        Set<CKEditorPlugin> resolved = resolve(plugins, includeCorePlugins);
+
+        // Add dependencies for each premium/custom plugin
+        if (customPlugins != null) {
+            for (CustomPlugin customPlugin : customPlugins) {
+                Set<CKEditorPlugin> premiumDeps = getPremiumDependencies(customPlugin.getJsName());
+                for (CKEditorPlugin dep : premiumDeps) {
+                    resolveTransitive(dep, resolved);
+                }
+            }
+        }
+
+        return resolved;
+    }
+
+    /**
+     * Get all premium plugins that would be affected if a base plugin is removed.
+     *
+     * @param plugin the base plugin to check
+     * @param premiumPluginNames names of premium plugins currently in use
+     * @return set of premium plugin names that depend on the given plugin
+     */
+    public static Set<String> getPremiumDependents(CKEditorPlugin plugin, Set<String> premiumPluginNames) {
+        Set<String> dependents = new HashSet<>();
+        for (String premiumName : premiumPluginNames) {
+            Set<CKEditorPlugin> deps = PREMIUM_DEPENDENCIES.get(premiumName);
+            if (deps != null && deps.contains(plugin)) {
+                dependents.add(premiumName);
+            }
+        }
+        return dependents;
+    }
+
+    /**
+     * Validate that all premium plugin dependencies are satisfied.
+     *
+     * @param plugins the current set of CKEditorPlugin plugins
+     * @param customPlugins collection of custom plugins to validate
+     * @return map of premium plugin names to their missing dependencies (empty if all satisfied)
+     */
+    public static Map<String, Set<CKEditorPlugin>> validatePremiumDependencies(
+            Set<CKEditorPlugin> plugins,
+            Collection<CustomPlugin> customPlugins) {
+
+        Map<String, Set<CKEditorPlugin>> missing = new HashMap<>();
+
+        if (customPlugins == null) {
+            return missing;
+        }
+
+        for (CustomPlugin customPlugin : customPlugins) {
+            Set<CKEditorPlugin> deps = PREMIUM_DEPENDENCIES.get(customPlugin.getJsName());
+            if (deps != null) {
+                Set<CKEditorPlugin> missingDeps = EnumSet.noneOf(CKEditorPlugin.class);
+                for (CKEditorPlugin dep : deps) {
+                    if (!plugins.contains(dep)) {
+                        missingDeps.add(dep);
+                    }
+                }
+                if (!missingDeps.isEmpty()) {
+                    missing.put(customPlugin.getJsName(), missingDeps);
+                }
+            }
+        }
+
+        return missing;
+    }
+
+    /**
+     * Get all known premium plugin names that have dependencies defined.
+     *
+     * @return unmodifiable set of premium plugin names
+     */
+    public static Set<String> getKnownPremiumPlugins() {
+        return Collections.unmodifiableSet(PREMIUM_DEPENDENCIES.keySet());
+    }
+
+    /**
+     * Get all premium plugins that require CloudServices.
+     *
+     * @return unmodifiable set of premium plugin names requiring CloudServices
+     */
+    public static Set<String> getCloudServicesRequiredPlugins() {
+        return CLOUD_SERVICES_REQUIRED_PLUGINS;
     }
 }

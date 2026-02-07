@@ -418,6 +418,8 @@ export function filterConflictingPlugins(
     const removed: string[] = [];
     const filtered: string[] = [];
     const satisfiedGroups = new Set<readonly string[]>();
+    // Track first plugin kept per group for O(1) conflict message lookup
+    const firstPluginInGroup = new Map<readonly string[], string>();
 
     for (const name of pluginNames) {
         // O(1) check for unavailable plugins (always filter these)
@@ -438,12 +440,13 @@ export function filterConflictingPlugins(
         const group = PLUGIN_TO_GROUP_MAP.get(name);
         if (group) {
             if (satisfiedGroups.has(group)) {
-                const firstKept = filtered.find(p => group.includes(p));
+                const firstKept = firstPluginInGroup.get(group);
                 removed.push(name);
                 logger.warn(`Plugin '${name}' conflicts with '${firstKept}' - removing '${name}'`);
                 continue;
             }
             satisfiedGroups.add(group);
+            firstPluginInGroup.set(group, name);
         }
 
         filtered.push(name);
@@ -461,17 +464,19 @@ function filterMutuallyExclusiveOnly(pluginNames: string[], logger: Logger): Fil
     const removed: string[] = [];
     const filtered: string[] = [];
     const satisfiedGroups = new Set<readonly string[]>();
+    const firstPluginInGroup = new Map<readonly string[], string>();
 
     for (const name of pluginNames) {
         const group = PLUGIN_TO_GROUP_MAP.get(name);
         if (group) {
             if (satisfiedGroups.has(group)) {
-                const firstKept = filtered.find(p => group.includes(p));
+                const firstKept = firstPluginInGroup.get(group);
                 removed.push(name);
                 logger.warn(`Plugin '${name}' conflicts with '${firstKept}' - removing '${name}'`);
                 continue;
             }
             satisfiedGroups.add(group);
+            firstPluginInGroup.set(group, name);
         }
         filtered.push(name);
     }
@@ -485,6 +490,8 @@ function filterMutuallyExclusiveOnly(pluginNames: string[], logger: Logger): Fil
 export class PluginResolver {
     private readonly logger: Logger;
     private filterOptions: FilterOptions = {};
+    /** Errors encountered during plugin loading (non-fatal) */
+    readonly loadErrors: string[] = [];
 
     constructor(logger: Logger) {
         this.logger = logger;
@@ -577,7 +584,10 @@ export class PluginResolver {
                 }
             }
         } catch (error) {
-            this.logger.error('Failed to load premium plugins. Make sure ckeditor5-premium-features is installed:', error);
+            const errorMsg = `Failed to load premium plugins (${plugins.map(p => p.name).join(', ')}). ` +
+                `Make sure ckeditor5-premium-features is installed.`;
+            this.logger.error(errorMsg, error);
+            this.loadErrors.push(errorMsg);
         }
     }
 
@@ -609,7 +619,9 @@ export class PluginResolver {
                 this.logger.warn(`Custom plugin not found: ${pluginConfig.name} in module ${pluginConfig.importPath}`);
             }
         } catch (error) {
-            this.logger.error(`Failed to load custom plugin ${pluginConfig.name} from ${pluginConfig.importPath}:`, error);
+            const errorMsg = `Failed to load custom plugin ${pluginConfig.name} from ${pluginConfig.importPath}`;
+            this.logger.error(errorMsg + ':', error);
+            this.loadErrors.push(errorMsg);
         }
     }
 

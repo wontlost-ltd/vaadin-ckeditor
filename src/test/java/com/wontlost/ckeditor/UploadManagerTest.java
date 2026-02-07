@@ -186,7 +186,7 @@ class UploadManagerTest {
         // Use delayed handler
         UploadHandler delayedHandler = (context, stream) -> {
             CompletableFuture<UploadHandler.UploadResult> future = new CompletableFuture<>();
-            // 不立即完成，模拟长时间上传
+            // Don't complete immediately — simulate a long-running upload
             new Thread(() -> {
                 try {
                     Thread.sleep(5000);
@@ -201,14 +201,14 @@ class UploadManagerTest {
         manager = new UploadManager(delayedHandler, null, createCallback());
         manager.handleUpload("upload-7", "test.jpg", "image/jpeg", createBase64Data("test"));
 
-        // 等待一小段时间让上传开始
+        // Wait briefly for the upload to start
         Thread.sleep(100);
 
-        // 取消上传
+        // Cancel the upload
         boolean cancelled = manager.cancelUpload("upload-7");
         assertTrue(cancelled);
 
-        // 等待回调
+        // Wait for callback
         assertTrue(latch.await(2, TimeUnit.SECONDS));
         assertEquals("upload-7", lastUploadId.get());
         assertNull(lastUrl.get());
@@ -235,5 +235,80 @@ class UploadManagerTest {
     void getUploadTaskReturnsNullForNonExistent() {
         manager = new UploadManager(createSuccessHandler("url"), null, (id, url, err) -> {});
         assertNull(manager.getUploadTask("non-existent"));
+    }
+
+    // ==================== Upload Timeout Tests ====================
+
+    @Test
+    @DisplayName("Upload should time out when handler exceeds timeout")
+    void uploadShouldTimeOutWhenExceedingTimeout() throws Exception {
+        // Use a handler that never completes
+        UploadHandler neverCompleteHandler = (context, stream) -> new CompletableFuture<>();
+
+        // Set a very short timeout (1 second) for testing
+        manager = new UploadManager(neverCompleteHandler, null, createCallback(), 1);
+
+        manager.handleUpload("timeout-1", "test.jpg", "image/jpeg", createBase64Data("test"));
+
+        // Wait for the timeout to fire (1 second timeout + buffer)
+        assertTrue(latch.await(5, TimeUnit.SECONDS), "Callback should be invoked after timeout");
+        assertEquals("timeout-1", lastUploadId.get());
+        assertNull(lastUrl.get());
+        assertNotNull(lastError.get());
+        assertTrue(lastError.get().contains("timed out"), "Error should mention timeout: " + lastError.get());
+    }
+
+    @Test
+    @DisplayName("Upload should succeed within timeout period")
+    void uploadShouldSucceedWithinTimeout() throws Exception {
+        // Use a handler that completes quickly
+        manager = new UploadManager(
+            createSuccessHandler("https://example.com/ok.jpg"),
+            null, createCallback(), 30
+        );
+
+        manager.handleUpload("timeout-2", "test.jpg", "image/jpeg", createBase64Data("test"));
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals("timeout-2", lastUploadId.get());
+        assertEquals("https://example.com/ok.jpg", lastUrl.get());
+        assertNull(lastError.get());
+    }
+
+    @Test
+    @DisplayName("Upload with zero timeout should have no timeout")
+    void uploadWithZeroTimeoutShouldNotTimeout() throws Exception {
+        // Use a handler that completes after a short delay
+        UploadHandler delayedHandler = (context, stream) -> {
+            CompletableFuture<UploadHandler.UploadResult> future = new CompletableFuture<>();
+            new Thread(() -> {
+                try {
+                    Thread.sleep(200);
+                    future.complete(new UploadHandler.UploadResult("https://example.com/delayed.jpg"));
+                } catch (InterruptedException e) {
+                    future.completeExceptionally(e);
+                }
+            }).start();
+            return future;
+        };
+
+        // Zero timeout = no timeout
+        manager = new UploadManager(delayedHandler, null, createCallback(), 0);
+
+        manager.handleUpload("timeout-3", "test.jpg", "image/jpeg", createBase64Data("test"));
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals("timeout-3", lastUploadId.get());
+        assertEquals("https://example.com/delayed.jpg", lastUrl.get());
+        assertNull(lastError.get());
+    }
+
+    @Test
+    @DisplayName("Default constructor should use default timeout")
+    void defaultConstructorUsesDefaultTimeout() {
+        manager = new UploadManager(createSuccessHandler("url"), null, (id, url, err) -> {});
+        // Should not throw - uses default 6 minute timeout
+        assertDoesNotThrow(() ->
+            manager.handleUpload("timeout-4", "test.jpg", "image/jpeg", createBase64Data("test")));
     }
 }

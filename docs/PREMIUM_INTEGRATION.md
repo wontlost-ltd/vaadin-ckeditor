@@ -28,9 +28,28 @@ All plans include a **14-day free trial** with full access.
 2. Start a free trial or purchase a plan
 3. Copy your license key from the dashboard
 
-### 2. Install Premium Package
+### 2. Enable Premium Features (Recommended)
 
-In your Vaadin project's `frontend/` directory:
+**Option A: Use `VaadinCKEditorPremium` class (Recommended)**
+
+The simplest way to enable premium features is to call `VaadinCKEditorPremium.enable()` once at application startup. This automatically installs the `ckeditor5-premium-features` npm package:
+
+```java
+import com.wontlost.ckeditor.VaadinCKEditorPremium;
+
+@SpringBootApplication
+public class Application implements AppShellConfigurator {
+    public static void main(String[] args) {
+        // Enable premium features - call once at startup
+        VaadinCKEditorPremium.enable();
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+**Option B: Manual npm installation**
+
+Alternatively, install the package manually in your Vaadin project's `frontend/` directory:
 
 ```bash
 cd frontend
@@ -62,6 +81,23 @@ VaadinCKEditor editor = VaadinCKEditor.create()
         "bold", "italic", "underline", "|",
         "exportPdf", "exportWord"
     )
+    .build();
+```
+
+### 4. Using PremiumPlugin Enum (Type-Safe)
+
+For type-safe premium plugin configuration, use the `PremiumPlugin` enum:
+
+```java
+import com.wontlost.ckeditor.*;
+import com.wontlost.ckeditor.VaadinCKEditorPremium.PremiumPlugin;
+
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.FULL)
+    .withLicenseKey(System.getenv("CKEDITOR_LICENSE_KEY"))
+    .addCustomPlugin(PremiumPlugin.EXPORT_PDF.toCustomPlugin())
+    .addCustomPlugin(PremiumPlugin.EXPORT_WORD.toCustomPlugin())
+    .addCustomPlugin(PremiumPlugin.FORMAT_PAINTER.toCustomPlugin())
     .build();
 ```
 

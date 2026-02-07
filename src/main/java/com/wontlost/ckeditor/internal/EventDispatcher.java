@@ -16,10 +16,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 管理编辑器事件分发的内部类。
- * 提供类型安全的事件注册和分发机制。
+ * Internal class for managing editor event dispatching.
+ * Provides type-safe event registration and dispatch mechanism.
  *
- * <p>此类是内部 API，不应直接由外部代码使用。</p>
+ * <p>This class is an internal API and should not be used directly by external code.</p>
  */
 public class EventDispatcher {
 
@@ -28,7 +28,7 @@ public class EventDispatcher {
     private final VaadinCKEditor source;
     private ErrorHandler errorHandler;
 
-    // 使用 CopyOnWriteArrayList 保证线程安全
+    // Use CopyOnWriteArrayList for thread safety
     private final List<ComponentEventListener<EditorReadyEvent>> readyListeners = new CopyOnWriteArrayList<>();
     private final List<ComponentEventListener<EditorErrorEvent>> errorListeners = new CopyOnWriteArrayList<>();
     private final List<ComponentEventListener<AutosaveEvent>> autosaveListeners = new CopyOnWriteArrayList<>();
@@ -36,39 +36,39 @@ public class EventDispatcher {
     private final List<ComponentEventListener<FallbackEvent>> fallbackListeners = new CopyOnWriteArrayList<>();
 
     /**
-     * 创建事件分发器
+     * Create an event dispatcher.
      *
-     * @param source 事件源组件
+     * @param source the event source component
      */
     public EventDispatcher(VaadinCKEditor source) {
         this.source = source;
     }
 
     /**
-     * 设置错误处理器
+     * Set the error handler.
      *
-     * @param errorHandler 错误处理器
+     * @param errorHandler the error handler
      */
     public void setErrorHandler(ErrorHandler errorHandler) {
         this.errorHandler = errorHandler;
     }
 
     /**
-     * 获取错误处理器
+     * Get the error handler.
      *
-     * @return 错误处理器
+     * @return the error handler
      */
     public ErrorHandler getErrorHandler() {
         return errorHandler;
     }
 
-    // ==================== 监听器注册 ====================
+    // ==================== Listener Registration ====================
 
     /**
-     * 添加编辑器就绪监听器
+     * Add an editor ready listener.
      *
-     * @param listener 监听器
-     * @return 注册句柄，用于移除监听器
+     * @param listener the listener
+     * @return a registration handle for removing the listener
      */
     public Registration addEditorReadyListener(ComponentEventListener<EditorReadyEvent> listener) {
         readyListeners.add(listener);
@@ -76,10 +76,10 @@ public class EventDispatcher {
     }
 
     /**
-     * 添加错误监听器
+     * Add an error listener.
      *
-     * @param listener 监听器
-     * @return 注册句柄
+     * @param listener the listener
+     * @return a registration handle
      */
     public Registration addEditorErrorListener(ComponentEventListener<EditorErrorEvent> listener) {
         errorListeners.add(listener);
@@ -87,10 +87,10 @@ public class EventDispatcher {
     }
 
     /**
-     * 添加自动保存监听器
+     * Add an autosave listener.
      *
-     * @param listener 监听器
-     * @return 注册句柄
+     * @param listener the listener
+     * @return a registration handle
      */
     public Registration addAutosaveListener(ComponentEventListener<AutosaveEvent> listener) {
         autosaveListeners.add(listener);
@@ -98,10 +98,10 @@ public class EventDispatcher {
     }
 
     /**
-     * 添加内容变更监听器
+     * Add a content change listener.
      *
-     * @param listener 监听器
-     * @return 注册句柄
+     * @param listener the listener
+     * @return a registration handle
      */
     public Registration addContentChangeListener(ComponentEventListener<ContentChangeEvent> listener) {
         contentChangeListeners.add(listener);
@@ -109,22 +109,22 @@ public class EventDispatcher {
     }
 
     /**
-     * 添加回退模式监听器
+     * Add a fallback mode listener.
      *
-     * @param listener 监听器
-     * @return 注册句柄
+     * @param listener the listener
+     * @return a registration handle
      */
     public Registration addFallbackListener(ComponentEventListener<FallbackEvent> listener) {
         fallbackListeners.add(listener);
         return () -> fallbackListeners.remove(listener);
     }
 
-    // ==================== 事件触发 ====================
+    // ==================== Event Firing ====================
 
     /**
-     * 触发编辑器就绪事件
+     * Fire an editor ready event.
      *
-     * @param initTimeMs 初始化耗时（毫秒）
+     * @param initTimeMs initialization time in milliseconds
      */
     public void fireEditorReady(long initTimeMs) {
         EditorReadyEvent event = new EditorReadyEvent(source, true, initTimeMs);
@@ -132,35 +132,35 @@ public class EventDispatcher {
     }
 
     /**
-     * 触发错误事件
+     * Fire an error event.
      *
-     * @param error 错误信息
-     * @return 如果错误被处理器处理则返回 true
+     * @param error the error information
+     * @return true if the error was handled by the error handler
      */
     public boolean fireEditorError(EditorError error) {
-        // 先调用错误处理器
+        // Invoke error handler first
         if (errorHandler != null) {
             try {
                 if (errorHandler.handleError(error)) {
-                    return true; // 错误已处理
+                    return true; // Error handled
                 }
             } catch (Exception e) {
                 logger.log(Level.WARNING, "Error in error handler", e);
             }
         }
 
-        // 触发事件
+        // Fire event
         EditorErrorEvent event = new EditorErrorEvent(source, true, error);
         dispatchEvent(errorListeners, event, "EditorError");
         return false;
     }
 
     /**
-     * 触发自动保存事件
+     * Fire an autosave event.
      *
-     * @param content 保存的内容
-     * @param success 是否成功
-     * @param errorMessage 错误消息（成功时为 null）
+     * @param content the saved content
+     * @param success whether the save succeeded
+     * @param errorMessage error message (null on success)
      */
     public void fireAutosave(String content, boolean success, String errorMessage) {
         AutosaveEvent event = new AutosaveEvent(source, true, content, success, errorMessage);
@@ -168,11 +168,11 @@ public class EventDispatcher {
     }
 
     /**
-     * 触发内容变更事件
+     * Fire a content change event.
      *
-     * @param oldContent 旧内容
-     * @param newContent 新内容
-     * @param changeSource 变更来源
+     * @param oldContent the old content
+     * @param newContent the new content
+     * @param changeSource the source of the change
      */
     public void fireContentChange(String oldContent, String newContent, ChangeSource changeSource) {
         ContentChangeEvent event = new ContentChangeEvent(source, true, oldContent, newContent, changeSource);
@@ -180,18 +180,18 @@ public class EventDispatcher {
     }
 
     /**
-     * 触发回退模式事件
+     * Fire a fallback mode event.
      *
-     * @param mode 回退模式
-     * @param reason 原因
-     * @param originalError 原始错误
+     * @param mode the fallback mode
+     * @param reason the reason for fallback
+     * @param originalError the original error
      */
     public void fireFallback(FallbackMode mode, String reason, String originalError) {
         FallbackEvent event = new FallbackEvent(source, true, mode, reason, originalError);
         dispatchEvent(fallbackListeners, event, "Fallback");
     }
 
-    // ==================== 内部方法 ====================
+    // ==================== Internal Methods ====================
 
     private <E extends ComponentEvent<?>> void dispatchEvent(List<ComponentEventListener<E>> listeners, E event, String eventName) {
         for (ComponentEventListener<E> listener : listeners) {
@@ -204,7 +204,7 @@ public class EventDispatcher {
     }
 
     /**
-     * 清理所有监听器
+     * Clean up all listeners.
      */
     public void cleanup() {
         readyListeners.clear();
@@ -215,9 +215,9 @@ public class EventDispatcher {
     }
 
     /**
-     * 获取已注册监听器的统计信息
+     * Get statistics about registered listeners.
      *
-     * @return 监听器统计
+     * @return listener statistics
      */
     public ListenerStats getListenerStats() {
         return new ListenerStats(
@@ -230,7 +230,7 @@ public class EventDispatcher {
     }
 
     /**
-     * 监听器统计信息
+     * Listener statistics.
      */
     public static class ListenerStats {
         public final int ready;

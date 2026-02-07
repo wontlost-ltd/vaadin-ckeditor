@@ -123,7 +123,7 @@ class ContentManagerTest {
     @DisplayName("getWordCount should count Chinese characters individually")
     void getWordCountCountsChineseCharacters() {
         String html = "<p>你好世界</p>";
-        assertEquals(4, manager.getWordCount(html)); // 每个汉字算一个词
+        assertEquals(4, manager.getWordCount(html)); // Each CJK character counts as one word
     }
 
     @Test
@@ -131,6 +131,6 @@ class ContentManagerTest {
     void normalizeForComparisonRemovesWhitespace() {
         String html = "<p>Hello  World</p>  <p>Test</p>";
         String normalized = manager.normalizeForComparison(html);
-        assertFalse(normalized.contains("  ")); // 无双空格
+        assertFalse(normalized.contains("  ")); // No double spaces
     }
 }

@@ -4,19 +4,19 @@ import com.vaadin.flow.component.ComponentEvent;
 import com.wontlost.ckeditor.VaadinCKEditor;
 
 /**
- * 降级事件。
- * 当编辑器因错误触发降级模式时发送。
+ * Fallback event.
+ * Fired when the editor triggers a fallback mode due to an error.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
  * editor.addFallbackListener(event -&gt; {
  *     if (event.getMode() == FallbackMode.TEXTAREA) {
- *         // 编辑器已降级为纯文本区域
- *         Notification.show("编辑器加载失败，已切换到基础模式",
+ *         // Editor has fallen back to a plain textarea
+ *         Notification.show("Editor failed to load, switched to basic mode",
  *             Notification.Type.WARNING_MESSAGE);
  *     }
  *
- *     // 记录降级原因
+ *     // Log the fallback reason
  *     logger.warn("Editor fallback triggered: {}", event.getReason());
  * });
  * </pre>
@@ -28,13 +28,13 @@ public class FallbackEvent extends ComponentEvent<VaadinCKEditor> {
     private final String originalError;
 
     /**
-     * 创建降级事件
+     * Create a fallback event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param mode 降级模式
-     * @param reason 降级原因描述
-     * @param originalError 原始错误信息
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param mode the fallback mode
+     * @param reason description of the fallback reason
+     * @param originalError the original error message
      */
     public FallbackEvent(VaadinCKEditor source, boolean fromClient,
                         FallbackMode mode, String reason, String originalError) {
@@ -45,64 +45,64 @@ public class FallbackEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取降级模式
+     * Get the fallback mode.
      *
-     * @return 当前降级模式
+     * @return the current fallback mode
      */
     public FallbackMode getMode() {
         return mode;
     }
 
     /**
-     * 获取降级原因
+     * Get the fallback reason.
      *
-     * @return 人类可读的降级原因
+     * @return a human-readable fallback reason
      */
     public String getReason() {
         return reason;
     }
 
     /**
-     * 获取原始错误信息
+     * Get the original error message.
      *
-     * @return 触发降级的原始错误，可能为 null
+     * @return the original error that triggered the fallback, may be null
      */
     public String getOriginalError() {
         return originalError;
     }
 
     /**
-     * 降级模式
+     * Fallback mode.
      */
     public enum FallbackMode {
         /**
-         * 降级为原生 textarea
-         * 保持基本编辑功能，丢失富文本特性
+         * Fall back to a native textarea.
+         * Retains basic editing capability but loses rich text features.
          */
         TEXTAREA("textarea"),
 
         /**
-         * 降级为只读模式
-         * 内容可见但不可编辑
+         * Fall back to read-only mode.
+         * Content is visible but not editable.
          */
         READ_ONLY("readonly"),
 
         /**
-         * 显示错误消息
-         * 不提供编辑功能
+         * Display an error message.
+         * No editing capability provided.
          */
         ERROR_MESSAGE("error"),
 
         /**
-         * 隐藏编辑器
-         * 完全不显示
+         * Hide the editor.
+         * Nothing is displayed.
          */
         HIDDEN("hidden");
 
         private final String jsName;
 
         /**
-         * 预构建的 jsName -> FallbackMode 查找表，O(1) 查找
+         * Pre-built jsName to FallbackMode lookup map for O(1) lookup.
          */
         private static final java.util.Map<String, FallbackMode> JS_NAME_MAP;
         static {
@@ -118,19 +118,19 @@ public class FallbackEvent extends ComponentEvent<VaadinCKEditor> {
         }
 
         /**
-         * 获取 JavaScript 端使用的模式名称
+         * Get the JavaScript-side mode name.
          *
-         * @return JS 模式名
+         * @return the JS mode name
          */
         public String getJsName() {
             return jsName;
         }
 
         /**
-         * 从 JS 名称解析模式
+         * Parse a mode from its JS name.
          *
-         * @param jsName JavaScript 端模式名
-         * @return 对应的枚举值，未找到返回 ERROR_MESSAGE
+         * @param jsName the JavaScript-side mode name
+         * @return the corresponding enum value, or ERROR_MESSAGE if not found
          */
         public static FallbackMode fromJsName(String jsName) {
             FallbackMode mode = JS_NAME_MAP.get(jsName);

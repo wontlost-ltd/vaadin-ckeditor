@@ -10,30 +10,28 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 管理文件上传的内部类。
- * 处理上传队列、进度跟踪和结果回调，确保线程安全。
+ * Internal class for managing file uploads.
+ * Handles upload queuing, progress tracking, and result callbacks with thread safety.
  *
- * <p>此类是内部 API，不应直接由外部代码使用。</p>
+ * <p>This class is an internal API and should not be used directly by external code.</p>
  */
 public class UploadManager {
 
     private static final Logger logger = Logger.getLogger(UploadManager.class.getName());
 
     /**
-     * 默认上传超时时间（秒）。
-     * 后端超时设为 6 分钟，略长于前端默认的 5 分钟，
-     * 避免前后端同时超时导致的竞争条件。
+     * Default upload timeout in seconds.
+     * Backend timeout is set to 6 minutes, slightly longer than the frontend default of 5 minutes,
+     * to avoid race conditions when both sides time out simultaneously.
      */
     private static final long DEFAULT_UPLOAD_TIMEOUT_SECONDS = 360; // 6 minutes
 
     /**
-     * 上传任务状态
+     * Upload task status
      */
     public enum UploadStatus {
         PENDING,
@@ -44,7 +42,7 @@ public class UploadManager {
     }
 
     /**
-     * 上传任务信息
+     * Upload task information
      */
     public static class UploadTask {
         private final String uploadId;
@@ -55,7 +53,7 @@ public class UploadManager {
         private volatile UploadStatus status;
         private volatile String resultUrl;
         private volatile String errorMessage;
-        /** 标记是否已通知回调，防止双重通知 */
+        /** Flag indicating whether the callback has been notified, to prevent double notification */
         private volatile boolean notified;
 
         UploadTask(String uploadId, String fileName, String mimeType, long fileSize) {
@@ -88,7 +86,7 @@ public class UploadManager {
         CompletableFuture<?> getFuture() { return future; }
 
         /**
-         * 获取上传耗时（毫秒）
+         * Get the elapsed upload time in milliseconds
          */
         public long getElapsedTimeMs() {
             return System.currentTimeMillis() - startTime;
@@ -96,16 +94,16 @@ public class UploadManager {
     }
 
     /**
-     * 上传结果回调接口
+     * Upload result callback interface
      */
     @FunctionalInterface
     public interface UploadResultCallback {
         /**
-         * 上传完成时的回调
+         * Callback when upload completes
          *
-         * @param uploadId 上传 ID
-         * @param url 成功时的 URL，失败时为 null
-         * @param error 失败时的错误消息，成功时为 null
+         * @param uploadId upload ID
+         * @param url URL on success, null on failure
+         * @param error error message on failure, null on success
          */
         void onComplete(String uploadId, String url, String error);
     }
@@ -114,15 +112,14 @@ public class UploadManager {
     private final UploadHandler.UploadConfig uploadConfig;
     private final UploadResultCallback resultCallback;
     private final Map<String, UploadTask> activeTasks = new ConcurrentHashMap<>();
-    private final AtomicLong uploadCounter = new AtomicLong(0);
     private final long uploadTimeoutSeconds;
 
     /**
-     * 创建上传管理器（使用默认超时）
+     * Create an upload manager with default timeout
      *
-     * @param uploadHandler 上传处理器
-     * @param uploadConfig 上传配置，为 null 时使用默认配置
-     * @param resultCallback 结果回调
+     * @param uploadHandler upload handler
+     * @param uploadConfig upload configuration, uses default if null
+     * @param resultCallback result callback
      */
     public UploadManager(UploadHandler uploadHandler,
                         UploadHandler.UploadConfig uploadConfig,
@@ -131,12 +128,12 @@ public class UploadManager {
     }
 
     /**
-     * 创建上传管理器（自定义超时）
+     * Create an upload manager with custom timeout
      *
-     * @param uploadHandler 上传处理器
-     * @param uploadConfig 上传配置，为 null 时使用默认配置
-     * @param resultCallback 结果回调
-     * @param uploadTimeoutSeconds 上传超时时间（秒），0 表示无超时
+     * @param uploadHandler upload handler
+     * @param uploadConfig upload configuration, uses default if null
+     * @param resultCallback result callback
+     * @param uploadTimeoutSeconds upload timeout in seconds, 0 means no timeout
      */
     public UploadManager(UploadHandler uploadHandler,
                         UploadHandler.UploadConfig uploadConfig,
@@ -149,12 +146,12 @@ public class UploadManager {
     }
 
     /**
-     * 处理文件上传请求
+     * Handle a file upload request
      *
-     * @param uploadId 上传标识符
-     * @param fileName 文件名
-     * @param mimeType MIME 类型
-     * @param base64Data Base64 编码的文件内容
+     * @param uploadId upload identifier
+     * @param fileName file name
+     * @param mimeType MIME type
+     * @param base64Data Base64-encoded file content
      */
     public void handleUpload(String uploadId, String fileName, String mimeType, String base64Data) {
         logger.log(Level.FINE, "Starting upload: id={0}, file={1}, type={2}, dataLength={3}",
@@ -181,7 +178,7 @@ public class UploadManager {
 
         UploadHandler.UploadContext context = new UploadHandler.UploadContext(fileName, mimeType, fileSize);
 
-        // 验证上传
+        // Validate upload
         String validationError = uploadConfig.validate(context);
         if (validationError != null) {
             logger.log(Level.INFO, "Upload {0} rejected by validation: {1}",
@@ -190,13 +187,13 @@ public class UploadManager {
             return;
         }
 
-        // 创建并跟踪上传任务
+        // Create and track upload task
         UploadTask task = new UploadTask(uploadId, fileName, mimeType, fileSize);
         activeTasks.put(uploadId, task);
         task.setStatus(UploadStatus.IN_PROGRESS);
         logger.log(Level.FINE, "Upload {0} task created and tracking started", uploadId);
 
-        // 异步处理上传（捕获同步异常和 null 返回值）
+        // Process upload asynchronously (catch synchronous exceptions and null return values)
         CompletableFuture<UploadHandler.UploadResult> future;
         try {
             logger.log(Level.FINE, "Upload {0} invoking handler", uploadId);
@@ -223,7 +220,7 @@ public class UploadManager {
             return;
         }
 
-        // 应用超时机制（如果配置了超时）
+        // Apply timeout if configured
         CompletableFuture<UploadHandler.UploadResult> timedFuture;
         if (uploadTimeoutSeconds > 0) {
             timedFuture = future.orTimeout(uploadTimeoutSeconds, TimeUnit.SECONDS);
@@ -231,14 +228,14 @@ public class UploadManager {
             timedFuture = future;
         }
 
-        // 保存 Future 引用以支持取消
+        // Save Future reference to support cancellation
         task.setFuture(timedFuture);
 
-        // 使用 handle 而不是 thenAccept + exceptionally，确保单一处理路径
+        // Use handle instead of thenAccept + exceptionally to ensure a single processing path
         timedFuture.handle((result, ex) -> {
-            // 同步更新任务状态
+            // Synchronize task state updates
             synchronized (task) {
-                // 双重通知防护：如果已通知或已取消，直接返回
+                // Double notification guard: if already notified or cancelled, return immediately
                 if (task.isNotified()) {
                     logger.log(Level.FINE, "Upload {0} already notified, skipping duplicate callback", uploadId);
                     activeTasks.remove(uploadId);
@@ -246,7 +243,7 @@ public class UploadManager {
                 }
 
                 if (task.getStatus() == UploadStatus.CANCELLED) {
-                    // 任务已取消，忽略结果
+                    // Task was cancelled, ignore result
                     logger.log(Level.FINE, "Upload {0} was cancelled, ignoring result", uploadId);
                     activeTasks.remove(uploadId);
                     return null;
@@ -255,7 +252,7 @@ public class UploadManager {
                 long elapsedMs = task.getElapsedTimeMs();
 
                 if (ex != null) {
-                    // 异常处理 - 解包 CompletionException 获取根本原因
+                    // Exception handling - unwrap CompletionException to get root cause
                     Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
                         ? ex.getCause() : ex;
                     task.setStatus(UploadStatus.FAILED);
@@ -274,14 +271,14 @@ public class UploadManager {
                     task.setErrorMessage(errorMsg);
                     notifyResult(uploadId, task, null, errorMsg);
                 } else if (result != null && result.isSuccess()) {
-                    // 成功
+                    // Success
                     task.setStatus(UploadStatus.COMPLETED);
                     task.setResultUrl(result.getUrl());
                     logger.log(Level.INFO, "Upload {0} completed successfully in {1}ms, url={2}",
                         new Object[]{uploadId, elapsedMs, result.getUrl()});
                     notifyResult(uploadId, task, result.getUrl(), null);
                 } else {
-                    // 失败
+                    // Failure
                     task.setStatus(UploadStatus.FAILED);
                     String errorMsg = result != null ? result.getErrorMessage() : "Unknown upload error";
                     task.setErrorMessage(errorMsg);
@@ -290,7 +287,7 @@ public class UploadManager {
                     notifyResult(uploadId, task, null, errorMsg);
                 }
 
-                // 清理完成的任务
+                // Clean up completed task
                 activeTasks.remove(uploadId);
             }
             return null;
@@ -298,10 +295,10 @@ public class UploadManager {
     }
 
     /**
-     * 取消上传任务
+     * Cancel an upload task
      *
-     * @param uploadId 上传 ID
-     * @return 是否成功取消
+     * @param uploadId upload ID
+     * @return whether the cancellation succeeded
      */
     public boolean cancelUpload(String uploadId) {
         UploadTask task = activeTasks.get(uploadId);
@@ -311,7 +308,7 @@ public class UploadManager {
         }
 
         synchronized (task) {
-            // 双重通知防护：如果已通知，不再取消
+            // Double notification guard: if already notified, do not cancel
             if (task.isNotified()) {
                 logger.log(Level.FINE, "Upload {0} already notified, cancel ignored", uploadId);
                 return false;
@@ -322,7 +319,7 @@ public class UploadManager {
                 task.setStatus(UploadStatus.CANCELLED);
                 task.setErrorMessage("Upload cancelled");
 
-                // 尝试取消底层的 Future
+                // Attempt to cancel the underlying Future
                 CompletableFuture<?> future = task.getFuture();
                 if (future != null) {
                     future.cancel(true);
@@ -342,45 +339,47 @@ public class UploadManager {
     }
 
     /**
-     * 获取活跃上传数量
+     * Get the number of active uploads
      *
-     * @return 活跃上传任务数
+     * @return active upload task count
      */
     public int getActiveUploadCount() {
         return activeTasks.size();
     }
 
     /**
-     * 检查是否有活跃上传
+     * Check whether there are any active uploads
      *
-     * @return 是否有活跃上传
+     * @return true if there are active uploads
      */
     public boolean hasActiveUploads() {
         return !activeTasks.isEmpty();
     }
 
     /**
-     * 获取上传任务状态
+     * Get upload task status
      *
-     * @param uploadId 上传 ID
-     * @return 上传任务，不存在时返回 null
+     * @param uploadId upload ID
+     * @return upload task, or null if not found
      */
     public UploadTask getUploadTask(String uploadId) {
         return activeTasks.get(uploadId);
     }
 
     /**
-     * 清理所有待处理的上传任务
+     * Clean up all pending upload tasks
      */
     public void cleanup() {
-        for (String uploadId : activeTasks.keySet()) {
+        // Iterate over a snapshot to avoid ConcurrentModificationException,
+        // since cancelUpload() removes entries from activeTasks
+        for (String uploadId : new java.util.ArrayList<>(activeTasks.keySet())) {
             cancelUpload(uploadId);
         }
         activeTasks.clear();
     }
 
     /**
-     * 通知上传错误（用于早期失败，任务可能不存在）
+     * Notify upload error (for early failures where the task may not exist)
      */
     private void notifyError(String uploadId, UploadTask task, String error) {
         logger.log(Level.WARNING, "Upload failed for {0}: {1}", new Object[]{uploadId, error});
@@ -388,10 +387,10 @@ public class UploadManager {
     }
 
     /**
-     * 通知上传结果，带双重通知防护
+     * Notify upload result with double notification guard
      */
     private void notifyResult(String uploadId, UploadTask task, String url, String error) {
-        // 双重通知防护
+        // Double notification guard
         if (task != null) {
             synchronized (task) {
                 if (task.isNotified()) {

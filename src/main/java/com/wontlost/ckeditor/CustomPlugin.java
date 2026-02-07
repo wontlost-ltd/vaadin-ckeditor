@@ -34,28 +34,28 @@ import java.util.regex.Pattern;
 public class CustomPlugin {
 
     /**
-     * 合法的 npm 包名正则表达式
-     * 支持格式:
-     * - 普通包名: my-package, ckeditor5-plugin
-     * - 作用域包: @scope/package, @company/my-plugin
-     * - npm 子路径导入: lodash/merge, @scope/package/subpath
-     * - 相对路径: ./my-local-plugin, ../plugins/my-plugin, ../../shared/plugin
-     * - 带扩展名: ./plugin.js, ../utils/helper.ts
+     * Valid npm package name regex.
+     * Supported formats:
+     * - Plain package: my-package, ckeditor5-plugin
+     * - Scoped package: @scope/package, @company/my-plugin
+     * - npm subpath imports: lodash/merge, @scope/package/subpath
+     * - Relative paths: ./my-local-plugin, ../plugins/my-plugin, ../../shared/plugin
+     * - With extensions: ./plugin.js, ../utils/helper.ts
      *
-     * 禁止格式:
-     * - 绝对路径: /etc/passwd, C:\Windows
-     * - URL: http://evil.com/malware.js, file:///etc/passwd
-     * - 深度路径遍历 (>2级): ../../../etc/passwd
+     * Forbidden formats:
+     * - Absolute paths: /etc/passwd, C:\Windows
+     * - URLs: http://evil.com/malware.js, file:///etc/passwd
+     * - Deep path traversal (>2 levels): ../../../etc/passwd
      */
     private static final Pattern VALID_IMPORT_PATH = Pattern.compile(
         "^(?:" +
-            // npm 作用域包 (支持子路径): @scope/package-name 或 @scope/package/subpath
+            // Scoped npm package (with subpath support): @scope/package-name or @scope/package/subpath
             "@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._/-]*" +
             "|" +
-            // 普通 npm 包名 (支持子路径): package-name 或 package/subpath
+            // Plain npm package (with subpath support): package-name or package/subpath
             "[a-z0-9][a-z0-9._/-]*" +
             "|" +
-            // 相对路径: ./ 或 ../ 或 ../../ (最多向上 2 级)，支持扩展名
+            // Relative path: ./ or ../ or ../../ (up to 2 levels), with extension support
             "(?:\\.{1,2}/){1,2}(?:[a-zA-Z0-9_.-]+/)*[a-zA-Z0-9_.-]+" +
         ")$",
         Pattern.CASE_INSENSITIVE
@@ -182,8 +182,8 @@ public class CustomPlugin {
         /**
          * Set import path (e.g., 'my-ckeditor-plugin' or '@scope/my-plugin')
          *
-         * @param importPath npm 包名或相对路径
-         * @throws IllegalArgumentException 如果路径格式不合法
+         * @param importPath npm package name or relative path
+         * @throws IllegalArgumentException if the path format is invalid
          */
         public Builder withImportPath(String importPath) {
             if (importPath != null && !importPath.isEmpty()) {
@@ -194,30 +194,30 @@ public class CustomPlugin {
         }
 
         /**
-         * 验证 importPath 是否为合法的 npm 包名或相对路径
-         * 防止路径遍历攻击和任意模块加载
+         * Validate that importPath is a valid npm package name or relative path.
+         * Prevents path traversal attacks and arbitrary module loading.
          */
         private void validateImportPath(String path) {
-            // 禁止绝对路径
-            if (path.startsWith("/") || path.matches("^[a-zA-Z]:.*")) {
+            // Reject absolute paths (Unix, Windows drive, Windows UNC)
+            if (path.startsWith("/") || path.matches("^[a-zA-Z]:.*") || path.startsWith("\\\\")) {
                 throw new IllegalArgumentException(
                     "Absolute paths are not allowed in importPath: " + path);
             }
 
-            // 禁止 URL
+            // Reject URLs
             if (path.contains("://")) {
                 throw new IllegalArgumentException(
                     "URLs are not allowed in importPath: " + path);
             }
 
-            // 禁止过深的路径遍历 (超过 2 级向上)
-            // ../../.. 表示向上 3 级，超过允许的 2 级限制
+            // Reject deep path traversal (more than 2 levels up)
+            // ../../.. means 3 levels up, exceeding the allowed 2-level limit
             if (path.contains("../../..")) {
                 throw new IllegalArgumentException(
                     "Deep path traversal (more than 2 levels up) is not allowed in importPath: " + path);
             }
 
-            // 验证格式
+            // Validate format
             if (!VALID_IMPORT_PATH.matcher(path).matches()) {
                 throw new IllegalArgumentException(
                     "Invalid importPath format. Must be a valid npm package name or relative path: " + path);

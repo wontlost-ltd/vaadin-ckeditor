@@ -338,6 +338,78 @@ class CustomPluginTest {
         assertThat(plugin).isEqualTo(plugin);
     }
 
+    // ==================== Import Path Validation ====================
+
+    @Test
+    @DisplayName("Absolute Unix path should be rejected")
+    void absoluteUnixPathShouldBeRejected() {
+        assertThatThrownBy(() -> CustomPlugin.builder("MyPlugin")
+            .withImportPath("/etc/passwd")
+            .build())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Absolute paths");
+    }
+
+    @Test
+    @DisplayName("Windows drive path should be rejected")
+    void windowsDrivePathShouldBeRejected() {
+        assertThatThrownBy(() -> CustomPlugin.builder("MyPlugin")
+            .withImportPath("C:\\Windows\\System32")
+            .build())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Absolute paths");
+    }
+
+    @Test
+    @DisplayName("Windows UNC path should be rejected")
+    void windowsUncPathShouldBeRejected() {
+        assertThatThrownBy(() -> CustomPlugin.builder("MyPlugin")
+            .withImportPath("\\\\server\\share\\malware.js")
+            .build())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Absolute paths");
+    }
+
+    @Test
+    @DisplayName("URL in import path should be rejected")
+    void urlInImportPathShouldBeRejected() {
+        assertThatThrownBy(() -> CustomPlugin.builder("MyPlugin")
+            .withImportPath("http://evil.com/malware.js")
+            .build())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("URLs are not allowed");
+    }
+
+    @Test
+    @DisplayName("Deep path traversal should be rejected")
+    void deepPathTraversalShouldBeRejected() {
+        assertThatThrownBy(() -> CustomPlugin.builder("MyPlugin")
+            .withImportPath("../../../etc/passwd")
+            .build())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Deep path traversal");
+    }
+
+    @Test
+    @DisplayName("Valid relative path should be accepted")
+    void validRelativePathShouldBeAccepted() {
+        CustomPlugin plugin = CustomPlugin.builder("MyPlugin")
+            .withImportPath("./my-local-plugin")
+            .build();
+
+        assertThat(plugin.getImportPath()).isEqualTo("./my-local-plugin");
+    }
+
+    @Test
+    @DisplayName("Valid two-level relative path should be accepted")
+    void validTwoLevelRelativePathShouldBeAccepted() {
+        CustomPlugin plugin = CustomPlugin.builder("MyPlugin")
+            .withImportPath("../../shared/plugin")
+            .build();
+
+        assertThat(plugin.getImportPath()).isEqualTo("../../shared/plugin");
+    }
+
     // ==================== Factory Method Comparison ====================
 
     @Test

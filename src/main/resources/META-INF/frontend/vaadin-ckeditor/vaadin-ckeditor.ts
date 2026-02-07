@@ -20,6 +20,10 @@ import {
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
 
+// Import document editor CSS for Decoupled/Document editor styling
+// These styles are applied globally since VaadinCKEditor uses Light DOM
+import './document-editor.css';
+
 /**
  * Debug logger - only logs in development mode
  * Set window.VAADIN_CKEDITOR_DEBUG = true to enable debug logging
@@ -32,6 +36,22 @@ const logger = {
     warn: (...args: unknown[]) => console.warn('[VaadinCKEditor]', ...args),
     error: (...args: unknown[]) => console.error('[VaadinCKEditor]', ...args),
 };
+
+// Timing constants
+/** Delay (ms) for toolbar repaint mouse-leave event */
+const TOOLBAR_REPAINT_DELAY_MS = 10;
+/** Delay (ms) for sticky panel setup after CKEditor initialization */
+const STICKY_PANEL_SETUP_DELAY_MS = 100;
+/** Timeout (ms) for requestIdleCallback during editor destruction */
+const DESTROY_IDLE_TIMEOUT_MS = 100;
+/** Opacity value used to trigger container repaint without visible flicker */
+const REPAINT_OPACITY = '0.99';
+/** Maximum polling attempts for minimap iframe injection */
+const MINIMAP_INJECT_MAX_ATTEMPTS = 20;
+/** A4 paper minimum height in pixels (portrait, ~297mm at 96dpi) */
+const A4_MIN_HEIGHT_PX = '1123px';
+/** A4 paper width in pixels (portrait, ~210mm at 96dpi) */
+const A4_WIDTH_PX = '796px';
 
 // Import CKEditor 5 core editors and types (plugins are now in plugin-resolver.ts)
 import {
@@ -136,51 +156,12 @@ interface ToolbarStyleConfig {
 @customElement('vaadin-ckeditor')
 export class VaadinCKEditor extends LitElement {
 
-    static styles = css`
-        :host {
-            display: block;
-            width: 100%;
-        }
-
-        .editor-container {
-            width: 100%;
-        }
-
-        .ck-editor__editable {
-            min-height: 200px;
-        }
-
-        /* Decoupled editor styles */
-        #document-container {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-
-        #toolbar-container {
-            width: 100%;
-        }
-
-        .minimap-wrapper {
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-        }
-
-        .editor-container {
-            flex: 1;
-        }
-
-        .minimap-container {
-            width: 120px;
-            flex-shrink: 0;
-        }
-
-        /* Hide toolbar when requested */
-        :host([hide-toolbar]) .ck-toolbar {
-            display: none !important;
-        }
-    `;
+    /**
+     * Static styles are not used since VaadinCKEditor uses Light DOM.
+     * Document editor styles are loaded via document-editor.css import.
+     * Sticky toolbar styles are loaded via sticky-toolbar.css import.
+     */
+    static styles = css``;
 
     // Properties synced from Java backend
     @property({ type: String }) editorId = '';
@@ -195,6 +176,20 @@ export class VaadinCKEditor extends LitElement {
     @property({ type: Boolean }) autosave = false;
     @property({ type: Number }) autosaveWaitingTime = 2000;
     @property({ type: Boolean }) minimapEnabled = false;
+    /**
+     * When true, minimap renders content as simple boxes for better performance.
+     * Use this option if the minimap updates too slowly with large documents.
+     *
+     * @default false
+     */
+    @property({ type: Boolean }) minimapSimplePreview = false;
+    /**
+     * When true, enables Document Outline sidebar for decoupled editor.
+     * Requires DocumentOutline plugin to be loaded.
+     *
+     * @default false
+     */
+    @property({ type: Boolean }) documentOutlineEnabled = false;
     @property({ type: Boolean }) ghsEnabled = false;
     @property({ type: Boolean }) hideToolbar = false;
     @property({ type: Boolean }) sync = true;
@@ -252,9 +247,20 @@ export class VaadinCKEditor extends LitElement {
     private destroyPromise: Promise<void> | null = null;
     private isDisconnected = false;
 
-    // Creation state management - 防止并发创建
+    // Creation state management - prevent concurrent creation
     private isCreating = false;
     private createPromise: Promise<void> | null = null;
+
+    // Command listener cleanup references (undo/redo/clipboard)
+    private undoExecuteListener?: { off: () => void };
+    private redoExecuteListener?: { off: () => void };
+    private clipboardInputListener?: { off: () => void };
+
+    // Timer tracking for cleanup
+    private toolbarRepaintTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    // requestAnimationFrame tracking for minimap style injection
+    private minimapInjectRafId: number | null = null;
 
     // Custom CSS link reference for cleanup
     private customCssLink?: HTMLLinkElement;
@@ -265,7 +271,7 @@ export class VaadinCKEditor extends LitElement {
     // Server communication
     private $server?: VaadinServer;
 
-    // Version info
+    // Version info — keep in sync with VaadinCKEditor.java VERSION constant
     private readonly version = '5.0.3';
 
     constructor() {
@@ -368,14 +374,15 @@ export class VaadinCKEditor extends LitElement {
         });
         toolbar.dispatchEvent(enterEvent);
 
-        setTimeout(() => {
+        this.toolbarRepaintTimeoutId = setTimeout(() => {
+            this.toolbarRepaintTimeoutId = null;
             const leaveEvent = new MouseEvent('mouseleave', {
                 bubbles: true,
                 cancelable: true,
                 view: window
             });
             toolbar.dispatchEvent(leaveEvent);
-        }, 10);
+        }, TOOLBAR_REPAINT_DELAY_MS);
     }
 
     /**
@@ -386,7 +393,7 @@ export class VaadinCKEditor extends LitElement {
         if (!editorContainer) return;
 
         const originalOpacity = editorContainer.style.opacity;
-        editorContainer.style.opacity = '0.99';
+        editorContainer.style.opacity = REPAINT_OPACITY;
         void editorContainer.offsetHeight; // Force reflow
         requestAnimationFrame(() => {
             editorContainer.style.opacity = originalOpacity || '';
@@ -398,9 +405,10 @@ export class VaadinCKEditor extends LitElement {
      */
     private triggerEditableRepaint(): void {
         const editable = this.querySelector('.ck.ck-editor__editable') as HTMLElement;
+        if (!editable) return;
 
         requestAnimationFrame(() => {
-            const shouldFocusCycle = editable && document.activeElement !== editable;
+            const shouldFocusCycle = document.activeElement !== editable;
 
             if (shouldFocusCycle) {
                 this.performFocusCycle(editable);
@@ -460,10 +468,25 @@ export class VaadinCKEditor extends LitElement {
      */
     private async resolvePlugins(): Promise<unknown[]> {
         const resolver = new PluginResolver(logger);
-        return resolver.resolvePlugins(this.plugins, {
+        const resolved = await resolver.resolvePlugins(this.plugins, {
             strictPluginLoading: this.strictPluginLoading,
             allowConfigRequiredPlugins: this.allowConfigRequiredPlugins,
         });
+
+        // Report plugin load errors to backend (non-fatal)
+        if (resolver.loadErrors.length > 0 && this.$server) {
+            for (const errorMsg of resolver.loadErrors) {
+                this.$server.fireEditorError(
+                    'PLUGIN_LOAD_FAILED',
+                    errorMsg,
+                    'WARNING',
+                    true,
+                    ''
+                );
+            }
+        }
+
+        return resolved;
     }
 
     /**
@@ -483,9 +506,15 @@ export class VaadinCKEditor extends LitElement {
             ...this.config,
         };
 
-        // Add toolbar if specified
+        // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
+        // config.toolbar takes precedence when it's an object with additional options
         if (this.toolbar && this.toolbar.length > 0) {
-            editorConfig.toolbar = this.toolbar;
+            // Only use this.toolbar if config.toolbar is not set or is a simple array
+            const configToolbar = this.config?.toolbar;
+            const configToolbarIsObject = configToolbar && typeof configToolbar === 'object' && !Array.isArray(configToolbar);
+            if (!configToolbarIsObject) {
+                editorConfig.toolbar = this.toolbar;
+            }
         }
 
         // Add autosave configuration
@@ -517,6 +546,7 @@ export class VaadinCKEditor extends LitElement {
         }
 
         // Add minimap for decoupled editor
+        // Minimap shows a scaled-down preview of the editor content for navigation
         if (this.editorType === 'decoupled' && this.minimapEnabled) {
             const minimapContainer = this.querySelector('.minimap-container');
             if (minimapContainer) {
@@ -524,8 +554,38 @@ export class VaadinCKEditor extends LitElement {
                     ...editorConfig,
                     minimap: {
                         container: minimapContainer as HTMLElement,
+                        // extraClasses applies to iframe body element
+                        // 'minimap-body' sets A4 paper width (796px) for proper scaling
+                        // 'ck-content' ensures content styling is applied
+                        extraClasses: 'minimap-body ck-content',
+                        // useSimplePreview renders content as boxes for better performance
+                        // Useful for large documents where full rendering is too slow
+                        useSimplePreview: this.minimapSimplePreview,
                     },
                 };
+                logger.debug('Minimap container configured, simplePreview:', this.minimapSimplePreview);
+            } else {
+                logger.warn('Minimap enabled but container .minimap-container not found');
+            }
+        }
+
+        // Add document outline for decoupled editor
+        if (this.editorType === 'decoupled' && this.documentOutlineEnabled) {
+            const outlineContainer = this.querySelector('#editor-outline');
+            logger.debug('Looking for outline container #editor-outline:', outlineContainer ? 'found' : 'not found');
+            if (outlineContainer) {
+                editorConfig = {
+                    ...editorConfig,
+                    ...{ documentOutline:
+                        {
+                            container: outlineContainer as HTMLElement,
+                        }
+                    },
+                };
+                logger.debug('Document outline container configured');
+            } else {
+                // Log warning if outline container not found but outline is enabled
+                logger.warn('Document outline enabled but container #editor-outline not found in DOM');
             }
         }
 
@@ -577,7 +637,7 @@ export class VaadinCKEditor extends LitElement {
             return false;
         }
 
-        // 防止并发创建 - 如果已经在创建中，等待现有的创建完成
+        // Prevent concurrent creation - if already creating, wait for the existing creation to finish
         if (this.isCreating && this.createPromise) {
             logger.debug(' Editor creation already in progress, waiting...');
             return false;
@@ -624,7 +684,7 @@ export class VaadinCKEditor extends LitElement {
             logger.error('Failed to create CKEditor:', error);
             this.handleEditorCreationError(error);
         } finally {
-            // 释放创建锁 - 确保无论成功或失败都会执行
+            // Release creation lock - ensures execution regardless of success or failure
             this.isCreating = false;
         }
     }
@@ -635,10 +695,13 @@ export class VaadinCKEditor extends LitElement {
      */
     private async createEditorInstance(editorElement: HTMLElement): Promise<number> {
         const EditorConstructor = this.getEditorConstructor();
-        const config = await this.buildConfig();
 
-        // 等待一帧，让浏览器有机会处理其他任务
+        // Wait for Lit update to complete, ensuring full DOM render (including dynamic elements like outline container)
+        await this.updateComplete;
+        // Wait one extra frame to ensure the browser has finished layout
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+        const config = await this.buildConfig();
 
         // Double-check we're still connected after the await
         if (this.isDisconnected) {
@@ -646,14 +709,14 @@ export class VaadinCKEditor extends LitElement {
             return 0;
         }
 
-        console.log(`[VaadinCKEditor] Starting editor creation with ${this.plugins.length} plugins...`);
+        logger.info(`Starting editor creation with ${this.plugins.length} plugins...`);
         const startTime = performance.now();
 
         this.editor = await EditorConstructor.create(editorElement, config);
 
         const endTime = performance.now();
         const initTimeMs = endTime - startTime;
-        console.log(`[VaadinCKEditor] Editor created in ${initTimeMs.toFixed(0)}ms`);
+        logger.info(`Editor created in ${initTimeMs.toFixed(0)}ms`);
 
         // Set editor ID for reference
         (this.editor as unknown as { id: string }).id = this.editorId;
@@ -714,6 +777,97 @@ export class VaadinCKEditor extends LitElement {
         if (this.toolbarStyle) {
             this.injectToolbarStyles();
         }
+
+        // Inject minimap iframe styles if minimap is enabled
+        if (this.minimapEnabled) {
+            this.injectMinimapStyles();
+        }
+    }
+
+    /**
+     * Inject CSS styles directly into the minimap iframe.
+     * This ensures the styles are applied correctly even if CKEditor's style cloning
+     * doesn't capture all our custom CSS rules.
+     * The minimap will inherit the editor's background and foreground colors.
+     */
+    private injectMinimapStyles(): void {
+        // Poll for the minimap iframe instead of using a fixed delay.
+        // The iframe is created asynchronously by CKEditor's minimap plugin.
+        const maxAttempts = MINIMAP_INJECT_MAX_ATTEMPTS;
+        let attempt = 0;
+
+        const tryInject = (): void => {
+            this.minimapInjectRafId = null;
+            const minimapIframe = this.querySelector('.ck-minimap__iframe') as HTMLIFrameElement;
+            if (!minimapIframe || !minimapIframe.contentDocument) {
+                if (++attempt < maxAttempts) {
+                    this.minimapInjectRafId = requestAnimationFrame(tryInject);
+                    return;
+                }
+                logger.debug('Minimap iframe not found after polling, skipping style injection');
+                return;
+            }
+
+            const iframeDoc = minimapIframe.contentDocument;
+
+            // Check if styles already injected
+            if (iframeDoc.getElementById('vaadin-ckeditor-minimap-styles')) {
+                return;
+            }
+
+            // Get the main editor's computed styles for background and foreground colors
+            const editorContent = this.querySelector('.ck-content');
+            let backgroundColor = 'white';
+            let textColor = 'inherit';
+
+            if (editorContent) {
+                const computedStyle = window.getComputedStyle(editorContent);
+                backgroundColor = computedStyle.backgroundColor || 'white';
+                textColor = computedStyle.color || 'inherit';
+            }
+
+            // Apply styles directly to iframe body element for maximum compatibility
+            // This ensures colors are applied even if CSS selectors don't match
+            const body = iframeDoc.body;
+            if (body) {
+                body.style.setProperty('background', backgroundColor, 'important');
+                body.style.setProperty('background-color', backgroundColor, 'important');
+                body.style.setProperty('color', textColor, 'important');
+                body.style.setProperty('height', 'auto', 'important');
+                body.style.setProperty('min-height', A4_MIN_HEIGHT_PX, 'important');
+                body.style.setProperty('width', A4_WIDTH_PX, 'important');
+                body.style.setProperty('min-width', A4_WIDTH_PX, 'important');
+                body.style.setProperty('max-width', A4_WIDTH_PX, 'important');
+                body.style.setProperty('margin', '0', 'important');
+                body.style.setProperty('padding', '20mm 12mm', 'important');
+                body.style.setProperty('box-sizing', 'border-box', 'important');
+                body.style.setProperty('overflow', 'visible', 'important');
+            }
+
+            // Also create style element for html and nested elements
+            const style = iframeDoc.createElement('style');
+            style.id = 'vaadin-ckeditor-minimap-styles';
+            style.textContent = `
+                html {
+                    height: auto !important;
+                    min-height: 100% !important;
+                }
+                body.minimap-body .ck-content,
+                body.minimap-body .ck.ck-editor__editable {
+                    width: 100% !important;
+                    min-height: 100% !important;
+                    height: auto !important;
+                    box-sizing: border-box !important;
+                    background: ${backgroundColor} !important;
+                    background-color: ${backgroundColor} !important;
+                    color: ${textColor} !important;
+                }
+            `;
+            iframeDoc.head.appendChild(style);
+            logger.debug('Minimap styles injected with colors:', { backgroundColor, textColor });
+        };
+
+        this.minimapInjectRafId = requestAnimationFrame(tryInject);
     }
 
     /**
@@ -799,19 +953,16 @@ export class VaadinCKEditor extends LitElement {
         // Listen to command execution to detect undo/redo
         const undoCommand = editor.commands.get('undo');
         const redoCommand = editor.commands.get('redo');
+        const undoRedoHandler = () => { this.changeSource = 'UNDO_REDO'; };
         if (undoCommand) {
-            undoCommand.on('execute', () => {
-                this.changeSource = 'UNDO_REDO';
-            });
+            this.undoExecuteListener = undoCommand.on('execute', undoRedoHandler);
         }
         if (redoCommand) {
-            redoCommand.on('execute', () => {
-                this.changeSource = 'UNDO_REDO';
-            });
+            this.redoExecuteListener = redoCommand.on('execute', undoRedoHandler);
         }
 
         // Track paste operations for ChangeSource
-        editor.editing.view.document.on('clipboardInput', () => {
+        this.clipboardInputListener = editor.editing.view.document.on('clipboardInput', () => {
             this.changeSource = 'PASTE';
         });
 
@@ -895,17 +1046,37 @@ export class VaadinCKEditor extends LitElement {
     }
 
     /**
-     * Setup decoupled editor toolbar
+     * Setup decoupled editor toolbar and menu bar.
+     * Mounts the toolbar and menu bar elements to their respective containers.
+     * Follows the official CKEditor 5 Builder structure.
      */
     private setupDecoupledToolbar(): void {
         if (!this.editor || this.editorType !== 'decoupled') return;
 
+        const decoupledEditor = this.editor as DecoupledEditor;
+
+        // Mount toolbar
         const toolbarContainer = this.querySelector('#toolbar-container');
-        const toolbarElement = (this.editor as DecoupledEditor).ui?.view?.toolbar?.element;
+        const toolbarElement = decoupledEditor.ui?.view?.toolbar?.element;
         if (toolbarContainer && toolbarElement) {
             toolbarContainer.appendChild(toolbarElement);
-            (this.editor as DecoupledEditor).ui.update();
+            logger.debug('Toolbar mounted to #toolbar-container');
         }
+
+        // Mount menu bar if available (CKEditor 5.40+)
+        const menuBarContainer = this.querySelector('#menu-bar-container');
+        const menuBarView = (decoupledEditor.ui?.view as { menuBarView?: { element?: HTMLElement } })?.menuBarView;
+        const menuBarElement = menuBarView?.element;
+        if (menuBarContainer && menuBarElement) {
+            menuBarContainer.appendChild(menuBarElement);
+            logger.debug('Menu bar mounted to #menu-bar-container');
+        } else if (menuBarContainer) {
+            // Hide empty menu bar container if no menu bar available
+            (menuBarContainer as HTMLElement).style.display = 'none';
+        }
+
+        // Update UI to reflect the changes
+        decoupledEditor.ui.update();
     }
 
     /**
@@ -1007,17 +1178,14 @@ export class VaadinCKEditor extends LitElement {
      * Uses try/finally to ensure Promise always resolves
      */
     private handleAutosave(editor: Editor): Promise<void> {
-        return new Promise(resolve => {
-            setTimeout(() => {
-                try {
-                    if (this.$server) {
-                        this.$server.saveEditorData(editor.getData());
-                    }
-                } finally {
-                    resolve();
-                }
-            }, 400);
-        });
+        try {
+            if (this.$server) {
+                this.$server.saveEditorData(editor.getData());
+            }
+        } catch (e) {
+            logger.error('Autosave failed:', e);
+        }
+        return Promise.resolve();
     }
 
     /**
@@ -1026,6 +1194,12 @@ export class VaadinCKEditor extends LitElement {
      */
     private loadCustomCss(): void {
         if (!this.overrideCssUrl) return;
+
+        // Validate URL: only allow http(s) and relative paths
+        if (this.overrideCssUrl.includes('javascript:') || this.overrideCssUrl.includes('data:')) {
+            logger.warn('Rejected overrideCssUrl with unsafe protocol:', this.overrideCssUrl);
+            return;
+        }
 
         // Remove existing custom CSS if any
         this.removeCustomCss();
@@ -1173,11 +1347,33 @@ export class VaadinCKEditor extends LitElement {
                     }
                 } catch (e) { /* ignore */ }
 
+                // Remove undo/redo/clipboard listeners
+                try {
+                    if (this.undoExecuteListener) {
+                        this.undoExecuteListener.off();
+                    }
+                } catch (e) { /* ignore */ }
+
+                try {
+                    if (this.redoExecuteListener) {
+                        this.redoExecuteListener.off();
+                    }
+                } catch (e) { /* ignore */ }
+
+                try {
+                    if (this.clipboardInputListener) {
+                        this.clipboardInputListener.off();
+                    }
+                } catch (e) { /* ignore */ }
+
                 // Clear listener references
                 this.selectionChangeListener = undefined;
                 this.dataChangeListener = undefined;
                 this.focusChangeListener = undefined;
                 this.readOnlyChangeListener = undefined;
+                this.undoExecuteListener = undefined;
+                this.redoExecuteListener = undefined;
+                this.clipboardInputListener = undefined;
 
                 // Step 3: For decoupled editor, remove toolbar from DOM
                 if (this.editorType === 'decoupled') {
@@ -1220,7 +1416,7 @@ export class VaadinCKEditor extends LitElement {
                     // Use requestIdleCallback if available, otherwise use setTimeout
                     if ('requestIdleCallback' in window) {
                         (window as typeof window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
-                            .requestIdleCallback(() => doDestroy(), { timeout: 100 });
+                            .requestIdleCallback(() => doDestroy(), { timeout: DESTROY_IDLE_TIMEOUT_MS });
                     } else {
                         setTimeout(() => doDestroy(), 0);
                     }
@@ -1231,9 +1427,14 @@ export class VaadinCKEditor extends LitElement {
             } finally {
                 logger.debug(' destroyEditor() FINALLY block, cleaning up state');
                 this.isDestroying = false;
-                this.destroyPromise = null;
             }
         })();
+
+        // Clean up destroyPromise after the async IIFE settles,
+        // so callers who awaited the returned promise see it resolve correctly.
+        this.destroyPromise.finally(() => {
+            this.destroyPromise = null;
+        });
 
         logger.debug(' destroyEditor() returning promise');
         return this.destroyPromise;
@@ -1241,14 +1442,32 @@ export class VaadinCKEditor extends LitElement {
 
     /**
      * Render the component
+     *
+     * For decoupled editor, the structure follows the official CKEditor 5 Builder layout:
+     * - editor-container_document-editor: main container with border
+     * - editor-container__menu-bar: menu bar mount point (optional)
+     * - editor-container__toolbar: toolbar mount point
+     * - editor-container__editor-wrapper: scrollable wrapper containing sidebar and editor
+     *   - editor-container__sidebar: Document Outline container (when enabled)
+     *   - editor-container__editor: editor wrapper with A4 styling
      */
     render() {
         if (this.editorType === 'decoupled') {
+            const includeOutlineClass = this.documentOutlineEnabled ? 'editor-container_include-outline' : '';
+            const includeMinimapClass = this.minimapEnabled ? 'editor-container_include-minimap' : '';
+            // Apply custom editor height if specified (otherwise uses CSS default of 700px)
+            const heightStyle = this.editorHeight && this.editorHeight !== 'auto'
+                ? `--ck-editor-height: ${this.editorHeight};`
+                : '';
             return html`
-                <div id="document-container">
-                    <div id="toolbar-container"></div>
-                    <div class="minimap-wrapper">
-                        <div class="editor-container">
+                <div class="editor-container editor-container_document-editor ${includeOutlineClass} ${includeMinimapClass}"
+                     id="editor-container"
+                     style="${heightStyle}">
+                    <div class="editor-container__menu-bar" id="menu-bar-container"></div>
+                    <div class="editor-container__toolbar" id="toolbar-container"></div>
+                    <div class="editor-container__editor-wrapper">
+                        <div class="editor-container__sidebar" id="editor-outline" style="display: ${this.documentOutlineEnabled ? 'block' : 'none'}"></div>
+                        <div class="editor-container__editor">
                             <div id="${this.editorId}" class="editor-content"></div>
                         </div>
                         <div class="minimap-container" style="display: ${this.minimapEnabled ? 'block' : 'none'}"></div>
@@ -1272,25 +1491,8 @@ export class VaadinCKEditor extends LitElement {
         logger.debug(' connectedCallback, editorId:', this.editorId);
         this.isDisconnected = false;
 
-        // Inject sticky toolbar styles for light DOM (idempotent - only injects once)
-        this.injectStickyToolbarStyles();
         // Setup scroll handler for sticky panel (must be called on each connection)
         this.setupStickyPanelObserver();
-    }
-
-    /**
-     * Ensure sticky toolbar CSS styles are loaded.
-     * The CSS is now imported from sticky-toolbar.css via ES module import.
-     * This method is kept for compatibility but no longer injects inline styles.
-     *
-     * Required because CKEditor renders in light DOM, not shadow DOM.
-     * See: https://github.com/ckeditor/ckeditor5/issues/1133
-     */
-    private injectStickyToolbarStyles(): void {
-        // CSS is now loaded via import statement at the top of this file:
-        // import './sticky-toolbar.css';
-        // This method is retained for backward compatibility and potential future runtime checks.
-        logger.debug('Sticky toolbar styles loaded via CSS import');
     }
 
     /**
@@ -1341,7 +1543,10 @@ export class VaadinCKEditor extends LitElement {
         // Per-button styles
         if (style.buttonStyles) {
             for (const [buttonName, buttonStyle] of Object.entries(style.buttonStyles)) {
-                const btnSelector = `${scope} .ck.ck-toolbar .ck-button[data-cke-tooltip-text*="${buttonName}"]`;
+                // Sanitize buttonName to prevent CSS injection via attribute selector
+                const safeName = buttonName.replace(/[\\"\]]/g, '');
+                if (!safeName) continue;
+                const btnSelector = `${scope} .ck.ck-toolbar .ck-button[data-cke-tooltip-text*="${safeName}"]`;
                 if (buttonStyle.background) {
                     rules.push(`${btnSelector} { background: ${buttonStyle.background} !important; }`);
                 }
@@ -1481,7 +1686,7 @@ export class VaadinCKEditor extends LitElement {
             if (this.stickyPanelScrollHandler) {
                 window.addEventListener('scroll', this.stickyPanelScrollHandler);
             }
-        }, 100);
+        }, STICKY_PANEL_SETUP_DELAY_MS);
     }
 
     /**
@@ -1521,6 +1726,18 @@ export class VaadinCKEditor extends LitElement {
         // Clean up sticky panel observer
         this.cleanupStickyPanelObserver();
 
+        // Clean up toolbar repaint timer
+        if (this.toolbarRepaintTimeoutId) {
+            clearTimeout(this.toolbarRepaintTimeoutId);
+            this.toolbarRepaintTimeoutId = null;
+        }
+
+        // Clean up minimap injection polling
+        if (this.minimapInjectRafId !== null) {
+            cancelAnimationFrame(this.minimapInjectRafId);
+            this.minimapInjectRafId = null;
+        }
+
         // Clean up custom CSS
         this.removeCustomCss();
 
@@ -1549,7 +1766,3 @@ export class VaadinCKEditor extends LitElement {
     }
 }
 
-// Ensure custom element is defined
-if (!customElements.get('vaadin-ckeditor')) {
-    customElements.define('vaadin-ckeditor', VaadinCKEditor);
-}

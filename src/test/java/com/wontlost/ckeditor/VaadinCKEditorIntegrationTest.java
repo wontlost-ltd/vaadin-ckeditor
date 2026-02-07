@@ -438,7 +438,7 @@ class VaadinCKEditorIntegrationTest {
         void testStrictModeThrowsOnMissingDependency() {
             assertThrows(IllegalStateException.class, () -> {
                 VaadinCKEditor.create()
-                    .withPlugins(CKEditorPlugin.IMAGE_CAPTION) // 需要 IMAGE 依赖
+                    .withPlugins(CKEditorPlugin.IMAGE_CAPTION) // Requires IMAGE dependency
                     .withDependencyMode(VaadinCKEditorBuilder.DependencyMode.STRICT)
                     .build();
             });

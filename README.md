@@ -155,7 +155,25 @@ editor.setReadOnly(false);
 
 Premium features require a CKEditor license. Get yours at [ckeditor.com/pricing](https://ckeditor.com/pricing).
 
-### Step 1: Install Premium Package
+### Step 1: Enable Premium Package
+
+**Option A: Use `VaadinCKEditorPremium` class (Recommended)**
+
+Simply call `VaadinCKEditorPremium.enable()` once at application startup to automatically install the premium npm package:
+
+```java
+import com.wontlost.ckeditor.VaadinCKEditorPremium;
+
+@SpringBootApplication
+public class Application implements AppShellConfigurator {
+    public static void main(String[] args) {
+        VaadinCKEditorPremium.enable();  // Enable premium features
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+**Option B: Manual npm installation**
 
 In your Vaadin project's frontend directory:
 

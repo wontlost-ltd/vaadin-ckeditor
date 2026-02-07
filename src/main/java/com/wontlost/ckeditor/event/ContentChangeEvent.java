@@ -4,25 +4,25 @@ import com.vaadin.flow.component.ComponentEvent;
 import com.wontlost.ckeditor.VaadinCKEditor;
 
 /**
- * 内容变更事件。
- * 当编辑器内容发生变化时触发，提供变更前后的内容。
+ * Content change event.
+ * Fired when the editor content changes, providing the content before and after the change.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
  * editor.addContentChangeListener(event -&gt; {
- *     // 计算差异
+ *     // Calculate difference
  *     int charDiff = event.getNewContent().length() - event.getOldContent().length();
  *     updateCharacterCount(charDiff);
  *
- *     // 标记为未保存
+ *     // Mark as unsaved
  *     markAsUnsaved();
  * });
  * </pre>
  *
- * <p>注意：此事件与 Vaadin 的 ValueChangeListener 不同：</p>
+ * <p>Note: This event differs from Vaadin's ValueChangeListener:</p>
  * <ul>
- *   <li>ContentChangeEvent - 每次内容变化都触发（实时）</li>
- *   <li>ValueChangeListener - 失去焦点或同步时触发</li>
+ *   <li>ContentChangeEvent - fires on every content change (real-time)</li>
+ *   <li>ValueChangeListener - fires on blur or sync</li>
  * </ul>
  */
 public class ContentChangeEvent extends ComponentEvent<VaadinCKEditor> {
@@ -32,13 +32,13 @@ public class ContentChangeEvent extends ComponentEvent<VaadinCKEditor> {
     private final ChangeSource changeSource;
 
     /**
-     * 创建内容变更事件
+     * Create a content change event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param oldContent 变更前的内容
-     * @param newContent 变更后的内容
-     * @param changeSource 变更来源
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param oldContent the content before the change
+     * @param newContent the content after the change
+     * @param changeSource the source of the change
      */
     public ContentChangeEvent(VaadinCKEditor source, boolean fromClient,
                               String oldContent, String newContent, ChangeSource changeSource) {
@@ -49,36 +49,36 @@ public class ContentChangeEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取变更前的内容
+     * Get the content before the change.
      *
-     * @return 旧内容
+     * @return the old content
      */
     public String getOldContent() {
         return oldContent;
     }
 
     /**
-     * 获取变更后的内容
+     * Get the content after the change.
      *
-     * @return 新内容
+     * @return the new content
      */
     public String getNewContent() {
         return newContent;
     }
 
     /**
-     * 获取变更来源
+     * Get the source of the change.
      *
-     * @return 变更来源类型
+     * @return the change source type
      */
     public ChangeSource getChangeSource() {
         return changeSource;
     }
 
     /**
-     * 检查内容是否实际发生了变化
+     * Check whether the content has actually changed.
      *
-     * @return 如果内容不同返回 true
+     * @return true if the content is different
      */
     public boolean hasChanged() {
         if (oldContent == null) {
@@ -88,9 +88,9 @@ public class ContentChangeEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取内容长度变化
+     * Get the content length delta.
      *
-     * @return 字符数变化（正数表示增加，负数表示减少）
+     * @return character count change (positive means increase, negative means decrease)
      */
     public int getLengthDelta() {
         int oldLen = oldContent != null ? oldContent.length() : 0;
@@ -99,20 +99,20 @@ public class ContentChangeEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 内容变更来源
+     * Content change source.
      */
     public enum ChangeSource {
-        /** 用户输入 */
+        /** User input */
         USER_INPUT,
-        /** API 调用（如 setValue） */
+        /** API call (e.g., setValue) */
         API,
-        /** 撤销/重做操作 */
+        /** Undo/Redo operation */
         UNDO_REDO,
-        /** 粘贴操作 */
+        /** Paste operation */
         PASTE,
-        /** 协作编辑同步 */
+        /** Collaborative editing sync */
         COLLABORATION,
-        /** 未知来源 */
+        /** Unknown source */
         UNKNOWN
     }
 }

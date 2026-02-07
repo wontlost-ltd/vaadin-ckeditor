@@ -5,40 +5,40 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 安全的枚举解析工具类。
+ * Safe enum parsing utility class.
  *
- * <p>提供类型安全的枚举解析，避免以下常见问题：</p>
+ * <p>Provides type-safe enum parsing, avoiding the following common issues:</p>
  * <ul>
- *   <li>土耳其语等特殊 locale 导致的大小写转换问题</li>
- *   <li>null 或空字符串导致的异常</li>
- *   <li>无效值导致的 IllegalArgumentException</li>
+ *   <li>Case-conversion issues caused by special locales such as Turkish</li>
+ *   <li>Exceptions caused by null or empty strings</li>
+ *   <li>IllegalArgumentException caused by invalid values</li>
  * </ul>
  *
- * <p>此类是内部 API，不应直接由外部代码使用。</p>
+ * <p>This class is an internal API and should not be used directly by external code.</p>
  */
 public final class EnumParser {
 
     private static final Logger logger = Logger.getLogger(EnumParser.class.getName());
 
     private EnumParser() {
-        // 工具类，禁止实例化
+        // Utility class, prevent instantiation
     }
 
     /**
-     * 安全解析枚举值。
+     * Safely parse an enum value.
      *
-     * <p>解析规则：</p>
+     * <p>Parsing rules:</p>
      * <ul>
-     *   <li>使用 {@link Locale#ROOT} 进行大小写转换，确保国际化安全</li>
-     *   <li>null 或空字符串返回默认值</li>
-     *   <li>无效值返回默认值并记录警告日志</li>
+     *   <li>Uses {@link Locale#ROOT} for case conversion to ensure internationalization safety</li>
+     *   <li>Returns the default value for null or empty strings</li>
+     *   <li>Returns the default value and logs a warning for invalid values</li>
      * </ul>
      *
-     * @param value 要解析的字符串值
-     * @param enumType 目标枚举类型
-     * @param defaultValue 解析失败时的默认值
-     * @param <T> 枚举类型
-     * @return 解析后的枚举值，失败时返回默认值
+     * @param value the string value to parse
+     * @param enumType the target enum type
+     * @param defaultValue the default value when parsing fails
+     * @param <T> the enum type
+     * @return the parsed enum value, or the default value on failure
      */
     public static <T extends Enum<T>> T parse(String value, Class<T> enumType, T defaultValue) {
         if (value == null || value.isEmpty()) {
@@ -59,14 +59,14 @@ public final class EnumParser {
     }
 
     /**
-     * 安全解析枚举值，支持自定义日志消息。
+     * Safely parse an enum value with a custom log message context.
      *
-     * @param value 要解析的字符串值
-     * @param enumType 目标枚举类型
-     * @param defaultValue 解析失败时的默认值
-     * @param context 上下文描述（用于日志消息）
-     * @param <T> 枚举类型
-     * @return 解析后的枚举值，失败时返回默认值
+     * @param value the string value to parse
+     * @param enumType the target enum type
+     * @param defaultValue the default value when parsing fails
+     * @param context context description (used in log messages)
+     * @param <T> the enum type
+     * @return the parsed enum value, or the default value on failure
      */
     public static <T extends Enum<T>> T parse(String value, Class<T> enumType, T defaultValue, String context) {
         if (value == null || value.isEmpty()) {
@@ -87,13 +87,13 @@ public final class EnumParser {
     }
 
     /**
-     * 严格解析枚举值，无效值抛出异常。
+     * Strictly parse an enum value, throwing an exception for invalid values.
      *
-     * @param value 要解析的字符串值
-     * @param enumType 目标枚举类型
-     * @param <T> 枚举类型
-     * @return 解析后的枚举值
-     * @throws IllegalArgumentException 如果值为 null、空或无效
+     * @param value the string value to parse
+     * @param enumType the target enum type
+     * @param <T> the enum type
+     * @return the parsed enum value
+     * @throws IllegalArgumentException if the value is null, empty, or invalid
      */
     public static <T extends Enum<T>> T parseStrict(String value, Class<T> enumType) {
         if (value == null || value.isEmpty()) {

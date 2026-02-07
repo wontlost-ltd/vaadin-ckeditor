@@ -4,27 +4,27 @@ import com.vaadin.flow.component.ComponentEvent;
 import com.wontlost.ckeditor.VaadinCKEditor;
 
 /**
- * 自动保存事件。
- * 当编辑器内容自动保存时触发。
+ * Autosave event.
+ * Fired when editor content is automatically saved.
  *
- * <p>使用示例：</p>
+ * <p>Usage example:</p>
  * <pre>
  * editor.addAutosaveListener(event -&gt; {
  *     String content = event.getContent();
- *     // 保存到数据库或后端服务
+ *     // Save to database or backend service
  *     documentService.save(documentId, content);
  *
  *     if (event.isSuccess()) {
- *         Notification.show("已自动保存");
+ *         Notification.show("Auto-saved");
  *     }
  * });
  * </pre>
  *
- * <p>自动保存行为可通过 Builder 配置：</p>
+ * <p>Autosave behavior can be configured via the Builder:</p>
  * <pre>
  * VaadinCKEditor editor = VaadinCKEditor.create()
  *     .withPreset(CKEditorPreset.STANDARD)
- *     .withAutosave(content -&gt; saveToBackend(content), 3000) // 3秒延迟
+ *     .withAutosave(content -&gt; saveToBackend(content), 3000) // 3-second delay
  *     .build();
  * </pre>
  */
@@ -36,24 +36,24 @@ public class AutosaveEvent extends ComponentEvent<VaadinCKEditor> {
     private final String errorMessage;
 
     /**
-     * 创建成功的自动保存事件
+     * Create a successful autosave event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param content 保存的内容
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param content the saved content
      */
     public AutosaveEvent(VaadinCKEditor source, boolean fromClient, String content) {
         this(source, fromClient, content, true, null);
     }
 
     /**
-     * 创建自动保存事件
+     * Create an autosave event.
      *
-     * @param source 触发事件的编辑器组件
-     * @param fromClient 事件是否来自客户端
-     * @param content 保存的内容
-     * @param success 是否保存成功
-     * @param errorMessage 错误消息（失败时）
+     * @param source the editor component that fired the event
+     * @param fromClient whether the event originated from the client
+     * @param content the saved content
+     * @param success whether the save succeeded
+     * @param errorMessage error message (on failure)
      */
     public AutosaveEvent(VaadinCKEditor source, boolean fromClient, String content,
                         boolean success, String errorMessage) {
@@ -65,36 +65,36 @@ public class AutosaveEvent extends ComponentEvent<VaadinCKEditor> {
     }
 
     /**
-     * 获取保存的内容
+     * Get the saved content.
      *
-     * @return HTML 内容
+     * @return the HTML content
      */
     public String getContent() {
         return content;
     }
 
     /**
-     * 获取保存时间戳
+     * Get the save timestamp.
      *
-     * @return 时间戳（毫秒）
+     * @return timestamp in milliseconds
      */
     public long getTimestamp() {
         return timestamp;
     }
 
     /**
-     * 检查保存是否成功
+     * Check whether the save succeeded.
      *
-     * @return 如果保存成功返回 true
+     * @return true if the save was successful
      */
     public boolean isSuccess() {
         return success;
     }
 
     /**
-     * 获取错误消息
+     * Get the error message.
      *
-     * @return 错误消息，如果保存成功则返回 null
+     * @return error message, or null if the save succeeded
      */
     public String getErrorMessage() {
         return errorMessage;

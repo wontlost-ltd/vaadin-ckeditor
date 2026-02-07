@@ -95,6 +95,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
+    /** Keep in sync with version field in vaadin-ckeditor.ts */
     private static final String VERSION = "5.0.3";
 
     /**
@@ -167,7 +168,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * Initialize editor (called by builder)
      */
     void initialize() {
-        // 初始化内部管理器
+        // Initialize internal managers
         initializeManagers();
 
         String editorId = "editor_" + UUID.randomUUID().toString().substring(0, 8);
@@ -418,10 +419,40 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
+     * Enable simple preview mode for minimap (DECOUPLED type only).
+     * When true, minimap renders content as simple boxes for better performance.
+     * Use this option if the minimap updates too slowly with large documents.
+     *
+     * @param enabled true to enable simple preview mode
+     */
+    public void setMinimapSimplePreview(boolean enabled) {
+        getElement().setProperty("minimapSimplePreview", enabled);
+    }
+
+    /**
+     * Enable Document Outline sidebar (DECOUPLED type only).
+     * Requires DocumentOutline plugin to be loaded (premium feature).
+     *
+     * @param enabled true to enable document outline
+     */
+    public void setDocumentOutlineEnabled(boolean enabled) {
+        getElement().setProperty("documentOutlineEnabled", enabled);
+    }
+
+    /**
      * Enable general HTML support
      */
     public void setGeneralHtmlSupportEnabled(boolean enabled) {
         getElement().setProperty("ghsEnabled", enabled);
+    }
+
+    /**
+     * Allow plugins that require special configuration (CloudServices, Minimap, etc.).
+     * When enabled, these plugins won't be automatically filtered out by the plugin resolver.
+     * This is automatically set to true when premium plugins requiring CloudServices are used.
+     */
+    public void setAllowConfigRequiredPlugins(boolean allow) {
+        getElement().setProperty("allowConfigRequiredPlugins", allow);
     }
 
     /**
@@ -690,6 +721,9 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void cleanupListeners() {
         eventDispatcher.cleanup();
+        if (uploadManager != null) {
+            uploadManager.cleanup();
+        }
     }
 
     // ==================== Client Callable for Events ====================

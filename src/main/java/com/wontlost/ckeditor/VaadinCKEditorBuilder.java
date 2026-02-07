@@ -87,12 +87,12 @@ import java.util.regex.Pattern;
 public class VaadinCKEditorBuilder {
 
     /**
-     * 语言代码正则表达式（ISO 639-1 或带区域的格式，如 "en", "zh-cn", "pt-br"）
+     * Language code regex (ISO 639-1 or regional format, e.g. "en", "zh-cn", "pt-br")
      */
     private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}(-[a-z]{2})?$");
 
     /**
-     * 工具栏分隔符
+     * Toolbar separator
      */
     private static final String TOOLBAR_SEPARATOR = "|";
 
@@ -569,6 +569,13 @@ public class VaadinCKEditorBuilder {
         }
         editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
 
+        // Check if CloudServices is in the final plugins - if so, enable allowConfigRequiredPlugins
+        // This is needed because CloudServices requires special configuration and is normally filtered
+        // out by the frontend plugin resolver
+        if (finalPlugins.contains(CKEditorPlugin.CLOUD_SERVICES)) {
+            editor.setAllowConfigRequiredPlugins(true);
+        }
+
         // Initialize
         editor.initialize();
 
@@ -582,14 +589,28 @@ public class VaadinCKEditorBuilder {
 
     /**
      * Process plugin dependencies based on the configured mode.
+     * This method handles both standard CKEditorPlugin dependencies and
+     * premium plugin dependencies (e.g., ExportPdf requires CloudServices).
      */
     private Set<CKEditorPlugin> processPluginDependencies(Set<CKEditorPlugin> plugins) {
         switch (dependencyMode) {
             case AUTO_RESOLVE:
-                return CKEditorPluginDependencies.resolve(plugins, true);
+                // Use resolveWithPremium to include premium plugin dependencies
+                return CKEditorPluginDependencies.resolveWithPremium(plugins, customPlugins, true);
 
             case AUTO_RESOLVE_WITH_RECOMMENDED:
-                return CKEditorPluginDependencies.resolveWithRecommended(plugins);
+                // First resolve with recommended, then add premium dependencies
+                Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolveWithRecommended(plugins);
+                // Add premium plugin dependencies
+                for (CustomPlugin customPlugin : customPlugins) {
+                    Set<CKEditorPlugin> premiumDeps = CKEditorPluginDependencies.getPremiumDependencies(customPlugin.getJsName());
+                    for (CKEditorPlugin dep : premiumDeps) {
+                        resolved.add(dep);
+                        // Also resolve transitive dependencies of premium deps
+                        resolved.addAll(CKEditorPluginDependencies.resolve(Set.of(dep), false));
+                    }
+                }
+                return resolved;
 
             case STRICT:
                 validateDependenciesStrict(plugins);
@@ -597,6 +618,11 @@ public class VaadinCKEditorBuilder {
                 Set<CKEditorPlugin> withCore = new LinkedHashSet<>(plugins);
                 withCore.add(CKEditorPlugin.ESSENTIALS);
                 withCore.add(CKEditorPlugin.PARAGRAPH);
+                // In strict mode, also add premium dependencies but validate they exist
+                for (CustomPlugin customPlugin : customPlugins) {
+                    Set<CKEditorPlugin> premiumDeps = CKEditorPluginDependencies.getPremiumDependencies(customPlugin.getJsName());
+                    withCore.addAll(premiumDeps);
+                }
                 return withCore;
 
             case MANUAL:
@@ -607,13 +633,21 @@ public class VaadinCKEditorBuilder {
 
     /**
      * Validate that all dependencies are satisfied, throw exception if not.
+     * This includes both standard plugin dependencies and premium plugin dependencies.
      */
     private void validateDependenciesStrict(Set<CKEditorPlugin> plugins) {
+        // Validate standard plugin dependencies
         Map<CKEditorPlugin, Set<CKEditorPlugin>> missing =
             CKEditorPluginDependencies.validateDependencies(plugins);
 
-        if (!missing.isEmpty()) {
+        // Validate premium plugin dependencies
+        Map<String, Set<CKEditorPlugin>> premiumMissing =
+            CKEditorPluginDependencies.validatePremiumDependencies(plugins, customPlugins);
+
+        if (!missing.isEmpty() || !premiumMissing.isEmpty()) {
             StringBuilder message = new StringBuilder("Missing plugin dependencies:\n");
+
+            // Standard plugin dependencies
             for (Map.Entry<CKEditorPlugin, Set<CKEditorPlugin>> entry : missing.entrySet()) {
                 message.append("  - ")
                        .append(entry.getKey().getJsName())
@@ -623,6 +657,18 @@ public class VaadinCKEditorBuilder {
                 message.setLength(message.length() - 2); // Remove trailing ", "
                 message.append("\n");
             }
+
+            // Premium plugin dependencies
+            for (Map.Entry<String, Set<CKEditorPlugin>> entry : premiumMissing.entrySet()) {
+                message.append("  - [Premium] ")
+                       .append(entry.getKey())
+                       .append(" requires: ");
+                entry.getValue().forEach(dep ->
+                    message.append(dep.getJsName()).append(", "));
+                message.setLength(message.length() - 2); // Remove trailing ", "
+                message.append("\n");
+            }
+
             throw new IllegalStateException(message.toString());
         }
     }
@@ -659,6 +705,23 @@ public class VaadinCKEditorBuilder {
         initialPlugins.addAll(additionalPlugins);
         initialPlugins.removeAll(removedPlugins);
         return CKEditorPluginDependencies.validateDependencies(initialPlugins);
+    }
+
+    /**
+     * Get missing dependencies for premium plugins in current configuration.
+     * Useful for understanding what premium plugin dependencies would be auto-resolved.
+     *
+     * @return map of premium plugin names to their missing dependencies
+     */
+    public Map<String, Set<CKEditorPlugin>> getMissingPremiumDependencies() {
+        Set<CKEditorPlugin> initialPlugins = new LinkedHashSet<>();
+        if (preset != null && !editor.hasPlugins()) {
+            initialPlugins.addAll(preset.getPlugins());
+        }
+        initialPlugins.addAll(editor.getPluginsInternal());
+        initialPlugins.addAll(additionalPlugins);
+        initialPlugins.removeAll(removedPlugins);
+        return CKEditorPluginDependencies.validatePremiumDependencies(initialPlugins, customPlugins);
     }
 
     // ==================== Validation Methods ====================

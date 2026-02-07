@@ -27,6 +27,7 @@ export interface FallbackServer {
 export class FallbackRenderer {
     private container: HTMLElement;
     private server: FallbackServer | undefined;
+    private textareaInputHandler?: () => void;
 
     constructor(container: HTMLElement, server?: FallbackServer) {
         this.container = container;
@@ -86,11 +87,12 @@ export class FallbackRenderer {
         `;
         textarea.value = content || ''; // Safe: value property, not innerHTML
 
-        textarea.addEventListener('input', () => {
+        this.textareaInputHandler = () => {
             if (this.server) {
                 this.server.setEditorData(textarea.value);
             }
-        });
+        };
+        textarea.addEventListener('input', this.textareaInputHandler);
 
         this.container.appendChild(textarea);
     }
@@ -201,9 +203,17 @@ export class FallbackRenderer {
     }
 
     /**
-     * Clear the fallback content.
+     * Clear the fallback content and remove event listeners.
      */
     clear(): void {
+        // Remove textarea input listener before clearing DOM
+        if (this.textareaInputHandler) {
+            const textarea = this.container.querySelector('textarea');
+            if (textarea) {
+                textarea.removeEventListener('input', this.textareaInputHandler);
+            }
+            this.textareaInputHandler = undefined;
+        }
         this.container.textContent = '';
     }
 }

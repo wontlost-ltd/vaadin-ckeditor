@@ -1,17 +1,15 @@
 package com.wontlost.ckeditor.handler;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 文件上传处理器。
- * 用于处理编辑器中的图片和文件上传。
+ * File upload handler.
+ * Handles image and file uploads in the editor.
  *
- * <p>使用示例：</p>
+ * <p>Usage examples:</p>
  * <pre>
- * // 上传到本地文件系统
+ * // Upload to local filesystem
  * editor.setUploadHandler((context, stream) -&gt; {
  *     String filename = context.getFileName();
  *     Path targetPath = uploadDir.resolve(filename);
@@ -21,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
  *     );
  * });
  *
- * // 上传到云存储
+ * // Upload to cloud storage
  * editor.setUploadHandler((context, stream) -&gt; {
  *     return cloudStorage.uploadAsync(stream, context.getFileName())
  *         .thenApply(url -&gt; new UploadResult(url));
@@ -32,16 +30,16 @@ import java.util.concurrent.CompletableFuture;
 public interface UploadHandler {
 
     /**
-     * 处理文件上传
+     * Handle file upload
      *
-     * @param context 上传上下文信息
-     * @param inputStream 文件输入流
-     * @return 异步上传结果
+     * @param context upload context information
+     * @param inputStream file input stream
+     * @return asynchronous upload result
      */
     CompletableFuture<UploadResult> handleUpload(UploadContext context, InputStream inputStream);
 
     /**
-     * 上传上下文
+     * Upload context
      */
     class UploadContext {
         private final String fileName;
@@ -49,11 +47,11 @@ public interface UploadHandler {
         private final long fileSize;
 
         /**
-         * 创建上传上下文
+         * Create an upload context
          *
-         * @param fileName 文件名
-         * @param mimeType MIME 类型
-         * @param fileSize 文件大小（字节）
+         * @param fileName file name
+         * @param mimeType MIME type
+         * @param fileSize file size in bytes
          */
         public UploadContext(String fileName, String mimeType, long fileSize) {
             this.fileName = fileName;
@@ -74,9 +72,9 @@ public interface UploadHandler {
         }
 
         /**
-         * 检查是否为图片
+         * Check if the file is an image
          *
-         * @return 如果是图片返回 true
+         * @return true if the file is an image
          */
         public boolean isImage() {
             return mimeType != null && mimeType.startsWith("image/");
@@ -84,7 +82,7 @@ public interface UploadHandler {
     }
 
     /**
-     * 上传结果
+     * Upload result
      */
     class UploadResult {
         private final String url;
@@ -92,9 +90,9 @@ public interface UploadHandler {
         private final String errorMessage;
 
         /**
-         * 创建成功的上传结果
+         * Create a successful upload result
          *
-         * @param url 上传后的访问 URL
+         * @param url the accessible URL after upload
          */
         public UploadResult(String url) {
             this.url = url;
@@ -103,10 +101,10 @@ public interface UploadHandler {
         }
 
         /**
-         * 创建失败的上传结果
+         * Create a failed upload result
          *
-         * @param errorMessage 错误消息
-         * @return 失败结果
+         * @param errorMessage error message
+         * @return failure result
          */
         public static UploadResult failure(String errorMessage) {
             return new UploadResult(null, false, errorMessage);
@@ -132,14 +130,14 @@ public interface UploadHandler {
     }
 
     /**
-     * 上传配置
+     * Upload configuration
      */
     class UploadConfig {
-        /** 最小允许的文件大小：1 字节 */
+        /** Minimum allowed file size: 1 byte */
         public static final long MIN_FILE_SIZE = 1;
-        /** 最大允许的文件大小：1GB */
+        /** Maximum allowed file size: 1GB */
         public static final long MAX_FILE_SIZE_LIMIT = 1024L * 1024 * 1024;
-        /** 默认最大文件大小：10MB */
+        /** Default maximum file size: 10MB */
         public static final long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
         private long maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -148,20 +146,20 @@ public interface UploadHandler {
         );
 
         /**
-         * 获取最大文件大小
+         * Get maximum file size
          *
-         * @return 最大文件大小（字节）
+         * @return maximum file size in bytes
          */
         public long getMaxFileSize() {
             return maxFileSize;
         }
 
         /**
-         * 设置最大文件大小
+         * Set maximum file size
          *
-         * @param maxFileSize 最大文件大小（字节），必须在 1 字节到 1GB 之间
+         * @param maxFileSize maximum file size in bytes, must be between 1 byte and 1GB
          * @return this
-         * @throws IllegalArgumentException 如果 maxFileSize 超出有效范围
+         * @throws IllegalArgumentException if maxFileSize is outside the valid range
          */
         public UploadConfig setMaxFileSize(long maxFileSize) {
             if (maxFileSize < MIN_FILE_SIZE || maxFileSize > MAX_FILE_SIZE_LIMIT) {
@@ -174,21 +172,21 @@ public interface UploadHandler {
         }
 
         /**
-         * 获取允许的 MIME 类型
+         * Get allowed MIME types
          *
-         * @return MIME 类型数组的副本
+         * @return a copy of the MIME types array
          */
         public String[] getAllowedMimeTypes() {
             return allowedMimeTypes.toArray(new String[0]);
         }
 
         /**
-         * 设置允许的 MIME 类型。
-         * 设置为空数组将允许所有 MIME 类型。
+         * Set allowed MIME types.
+         * Setting to an empty array allows all MIME types.
          *
-         * @param allowedMimeTypes MIME 类型数组
+         * @param allowedMimeTypes MIME types array
          * @return this
-         * @throws IllegalArgumentException 如果数组为 null 或包含 null/空字符串
+         * @throws IllegalArgumentException if the array is null or contains null/empty strings
          */
         public UploadConfig setAllowedMimeTypes(String... allowedMimeTypes) {
             if (allowedMimeTypes == null) {
@@ -205,9 +203,9 @@ public interface UploadHandler {
         }
 
         /**
-         * 添加额外的 MIME 类型到允许列表
+         * Add additional MIME types to the allowed list
          *
-         * @param mimeTypes 要添加的 MIME 类型
+         * @param mimeTypes MIME types to add
          * @return this
          */
         public UploadConfig addAllowedMimeTypes(String... mimeTypes) {
@@ -222,7 +220,7 @@ public interface UploadHandler {
         }
 
         /**
-         * 重置为默认的 MIME 类型列表
+         * Reset to the default MIME types list
          *
          * @return this
          */
@@ -234,10 +232,10 @@ public interface UploadHandler {
         }
 
         /**
-         * 验证上传是否符合配置
+         * Validate an upload against this configuration
          *
-         * @param context 上传上下文
-         * @return 验证失败的错误消息，验证成功返回 null
+         * @param context upload context
+         * @return error message if validation fails, null if validation passes
          */
         public String validate(UploadContext context) {
             if (context == null) {
@@ -249,7 +247,7 @@ public interface UploadHandler {
                     context.getFileSize(), maxFileSize);
             }
 
-            // 空的允许列表表示允许所有类型
+            // Empty allowed list means all types are permitted
             if (!allowedMimeTypes.isEmpty() && !allowedMimeTypes.contains(context.getMimeType())) {
                 return String.format("MIME type '%s' is not allowed. Allowed types: %s",
                     context.getMimeType(), String.join(", ", allowedMimeTypes));

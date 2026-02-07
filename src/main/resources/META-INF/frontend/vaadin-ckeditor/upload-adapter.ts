@@ -84,7 +84,7 @@ export class UploadAdapterManager {
     private editorId: string;
     private server: UploadServer | undefined;
     private logger: Logger;
-    private maxFileSize: number = 10 * 1024 * 1024; // 默认 10MB
+    private maxFileSize: number = 10 * 1024 * 1024; // Default 10MB
     private allowedMimeTypes: Set<string> = new Set(DEFAULT_ALLOWED_MIME_TYPES);
     private uploadTimeoutMs: number = DEFAULT_UPLOAD_TIMEOUT_MS;
 
@@ -155,21 +155,31 @@ export class UploadAdapterManager {
         const manager = this;
 
         return (loader: FileLoader): UploadAdapter => {
-            // 在 adapter 级别跟踪上传状态，以便 abort 可以访问
-            // 使用对象包装以便在闭包中安全地共享和更新
-            // isUploading 标志防止在 fileToBase64 期间的竞态条件
+            // Track upload state at the adapter level so abort() can access it.
+            // Use an object wrapper for safe sharing and updating within closures.
+            // The isUploading flag prevents race conditions during fileToBase64.
             const uploadState = {
                 currentId: null as string | null,
-                isUploading: false
+                isUploading: false,
+                abortController: null as AbortController | null,
             };
 
             return {
                 upload: async (): Promise<{ default: string }> => {
-                    // 防止同一 adapter 实例的并发上传
+                    // Prevent concurrent uploads for the same adapter instance
                     if (uploadState.isUploading) {
                         throw new Error('Upload already in progress for this adapter');
                     }
                     uploadState.isUploading = true;
+
+                    // Generate upload ID and assign to state BEFORE any async gap,
+                    // so abort() can always find the current upload ID
+                    const uploadId = `upload-${manager.editorId}-${++manager.uploadIdCounter}`;
+                    uploadState.currentId = uploadId;
+
+                    // Create AbortController for cancelling FileReader if abort() is called
+                    const abortController = new AbortController();
+                    uploadState.abortController = abortController;
 
                     try {
                         const file = await loader.file;
@@ -177,28 +187,24 @@ export class UploadAdapterManager {
                             throw new Error('No file provided');
                         }
 
-                        // 空文件校验
+                        // Empty file validation
                         if (file.size === 0) {
                             manager.logger.debug('Empty file rejected', { fileName: file.name });
                             throw new Error('Cannot upload empty file');
                         }
 
-                        // 文件大小校验
+                        // File size validation
                         if (file.size > manager.maxFileSize) {
                             throw new Error(`File size ${file.size} exceeds maximum allowed ${manager.maxFileSize} bytes`);
                         }
 
-                        // MIME 类型白名单校验
+                        // MIME type whitelist validation
                         if (!manager.isMimeTypeAllowed(file.type)) {
                             throw new Error(`File type '${file.type}' is not allowed. Allowed types: ${Array.from(manager.allowedMimeTypes).join(', ')}`);
                         }
 
-                        // 生成唯一上传 ID 并立即捕获到本地变量
-                        const uploadId = `upload-${manager.editorId}-${++manager.uploadIdCounter}`;
-                        uploadState.currentId = uploadId;
-
-                        // fileToBase64 是异步操作，但 isUploading 标志确保不会有竞态
-                        const base64Data = await manager.fileToBase64(file);
+                        // Pass AbortSignal so FileReader can be aborted on cancel
+                        const base64Data = await manager.fileToBase64(file, abortController.signal);
 
                         const uploadPromise = new Promise<string>((resolve, reject) => {
                             manager.pendingUploads.set(uploadId, { resolve, reject });
@@ -212,36 +218,43 @@ export class UploadAdapterManager {
                             throw new Error('Server connection not available');
                         }
 
-                        // 应用超时机制
+                        // Apply timeout mechanism
                         const url = await manager.withTimeout(uploadPromise, uploadId);
                         uploadState.currentId = null;
                         return { default: url };
                     } finally {
                         uploadState.isUploading = false;
+                        uploadState.abortController = null;
                     }
                 },
                 abort: () => {
-                    // 检查是否有活跃上传，防止取消错误的上传
+                    // Check if there is an active upload, prevent cancelling the wrong one
                     if (!uploadState.isUploading) {
                         manager.logger.debug('Upload abort requested but no upload in progress');
                         return;
                     }
 
-                    // 立即捕获当前 uploadId 到本地变量，避免竞态条件
+                    // Capture current uploadId in local variable immediately to avoid race condition
                     const idToCancel = uploadState.currentId;
                     manager.logger.debug('Upload abort requested', { uploadId: idToCancel });
 
+                    // Abort FileReader if still in progress
+                    if (uploadState.abortController) {
+                        uploadState.abortController.abort();
+                        uploadState.abortController = null;
+                    }
+
                     if (idToCancel) {
-                        // 立即清除状态，防止重复取消
+                        // Clear state immediately to prevent duplicate cancellation
                         uploadState.currentId = null;
 
-                        // 清理前端 pending promise
+                        // Clean up frontend pending promise
                         const resolver = manager.pendingUploads.get(idToCancel);
                         if (resolver) {
                             manager.pendingUploads.delete(idToCancel);
                             resolver.reject(new Error('Upload cancelled'));
                         }
-                        // 通知服务器取消上传（类型安全检查）
+                        // Notify server to cancel upload (type-safe check)
                         if (manager.server?.cancelUploadFromClient) {
                             manager.server.cancelUploadFromClient(idToCancel);
                         }
@@ -300,13 +313,13 @@ export class UploadAdapterManager {
 
         return new Promise<T>((resolve, reject) => {
             const timeoutId = setTimeout(() => {
-                // 清理 pending upload
+                // Clean up pending upload
                 const resolver = this.pendingUploads.get(uploadId);
                 if (resolver) {
                     this.pendingUploads.delete(uploadId);
                 }
 
-                // 通知服务器取消上传
+                // Notify server to cancel upload
                 if (this.server?.cancelUploadFromClient) {
                     this.server.cancelUploadFromClient(uploadId);
                 }
@@ -328,17 +341,46 @@ export class UploadAdapterManager {
 
     /**
      * Convert a file to Base64 string.
+     * Accepts an optional AbortSignal to abort the FileReader when upload is cancelled.
      */
-    private fileToBase64(file: File): Promise<string> {
+    private fileToBase64(file: File, signal?: AbortSignal): Promise<string> {
         return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
+
+            const cleanup = (): void => {
+                reader.onload = null;
+                reader.onerror = null;
+                reader.onabort = null;
+            };
+
+            // Listen for abort signal to cancel the FileReader
+            if (signal) {
+                signal.addEventListener('abort', () => {
+                    reader.abort();
+                    cleanup();
+                    reject(new Error('File reading cancelled'));
+                }, { once: true });
+            }
+
             reader.onload = () => {
+                cleanup();
                 const result = reader.result as string;
                 // Remove data URL prefix (e.g., "data:image/png;base64,")
                 const base64 = result.split(',')[1];
+                if (!base64) {
+                    reject(new Error('Failed to extract Base64 data from file'));
+                    return;
+                }
                 resolve(base64);
             };
-            reader.onerror = () => reject(new Error(`Failed to read file: ${reader.error?.message || 'Unknown error'}`));
+            reader.onerror = () => {
+                cleanup();
+                reject(new Error(`Failed to read file: ${reader.error?.message || 'Unknown error'}`));
+            };
+            reader.onabort = () => {
+                cleanup();
+                reject(new Error('File reading cancelled'));
+            };
             reader.readAsDataURL(file);
         });
     }

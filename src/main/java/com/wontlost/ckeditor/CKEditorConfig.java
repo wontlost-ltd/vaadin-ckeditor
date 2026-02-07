@@ -21,13 +21,13 @@ public class CKEditorConfig {
     private final Map<String, JsonNode> configs = new LinkedHashMap<>();
 
     /**
-     * 是否允许私有/内网地址作为上传 URL（用于开发环境）
+     * Whether to allow private/internal network addresses as upload URLs (for development environments)
      */
     private boolean allowPrivateNetworks = false;
 
     public CKEditorConfig() {
         // Initialize defaults
-        setPlaceholder("Type your content here...");
+        setPlaceholder("");
         setLanguage("en");
     }
 
@@ -368,7 +368,7 @@ public class CKEditorConfig {
             throw new IllegalArgumentException("uploadUrl must not be null or blank");
         }
 
-        // URL 格式验证，防止 SSRF 攻击
+        // URL format validation to prevent SSRF attacks
         validateUploadUrl(uploadUrl);
 
         ObjectNode uploadObj = createObjectNode();
@@ -389,24 +389,25 @@ public class CKEditorConfig {
     }
 
     /**
-     * 允许的上传 URL 协议白名单
+     * Allowed URL protocol whitelist for uploads
      */
     private static final Set<String> ALLOWED_URL_PROTOCOLS = Set.of("http", "https");
 
     /**
-     * 允许私有/内网地址作为上传 URL。
+     * Allow private/internal network addresses as upload URLs.
      *
-     * <p>默认情况下，出于安全考虑，禁止使用 localhost、127.0.0.1、192.168.x.x、
-     * 10.x.x.x、172.16-31.x.x 等内网地址。在开发环境中，可以启用此选项：</p>
+     * <p>By default, for security reasons, localhost, 127.0.0.1, 192.168.x.x,
+     * 10.x.x.x, 172.16-31.x.x and other internal addresses are blocked.
+     * In development environments, you can enable this option:</p>
      *
      * <pre>{@code
      * config.allowPrivateNetworks(true)
      *       .setSimpleUpload("/api/upload");
      * }</pre>
      *
-     * <p><b>警告：</b>在生产环境中启用此选项可能导致 SSRF 攻击风险。</p>
+     * <p><b>Warning:</b> Enabling this option in production may expose SSRF attack risks.</p>
      *
-     * @param allow true 允许内网地址，false 禁止（默认）
+     * @param allow true to allow internal addresses, false to block (default)
      * @return this
      */
     public CKEditorConfig allowPrivateNetworks(boolean allow) {
@@ -415,20 +416,20 @@ public class CKEditorConfig {
     }
 
     /**
-     * 检查是否允许私有网络地址
+     * Check whether private network addresses are allowed.
      *
-     * @return 是否允许私有网络
+     * @return true if private networks are allowed
      */
     public boolean isAllowPrivateNetworks() {
         return allowPrivateNetworks;
     }
 
     /**
-     * 验证上传 URL 格式和协议安全性。
-     * 防止 SSRF 攻击，仅允许 http/https 协议。
+     * Validate upload URL format and protocol security.
+     * Prevents SSRF attacks by only allowing http/https protocols.
      *
-     * @param uploadUrl 待验证的 URL
-     * @throws IllegalArgumentException 如果 URL 格式无效或协议不在白名单中
+     * @param uploadUrl the URL to validate
+     * @throws IllegalArgumentException if the URL format is invalid or protocol is not whitelisted
      */
     private void validateUploadUrl(String uploadUrl) {
         try {
@@ -446,7 +447,7 @@ public class CKEditorConfig {
                     ", got: " + protocol);
             }
 
-            // 禁止内网地址（可选的额外安全检查，可通过 allowPrivateNetworks() 禁用）
+            // Block internal addresses (optional extra security check, can be disabled via allowPrivateNetworks())
             String host = uri.getHost();
             if (host == null) {
                 throw new IllegalArgumentException("Upload URL must have a valid host");
@@ -463,16 +464,16 @@ public class CKEditorConfig {
     }
 
     /**
-     * 检查是否为私有/内网地址，包括 IPv4 和 IPv6 的各种表示形式。
-     * 防止 SSRF 绕过攻击。
+     * Check whether the host is a private/internal address, including various IPv4 and IPv6 representations.
+     * Prevents SSRF bypass attacks.
      *
-     * @param host 主机名或 IP 地址
-     * @return 是否为私有地址
+     * @param host hostname or IP address
+     * @return true if the address is private
      */
     private boolean isPrivateNetworkAddress(String host) {
         String lowerHost = host.toLowerCase(Locale.ROOT);
 
-        // IPv4 localhost 和私有地址
+        // IPv4 localhost and private addresses
         if (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1") ||
             lowerHost.startsWith("192.168.") || lowerHost.startsWith("10.") ||
             isPrivateClassBAddress(lowerHost) ||
@@ -480,50 +481,50 @@ public class CKEditorConfig {
             return true;
         }
 
-        // 0.0.0.0 - 通配地址
+        // 0.0.0.0 - wildcard address
         if (lowerHost.equals("0.0.0.0")) {
             return true;
         }
 
-        // 169.254.x.x - IPv4 链路本地地址
+        // 169.254.x.x - IPv4 link-local address
         if (lowerHost.startsWith("169.254.")) {
             return true;
         }
 
-        // IPv6 localhost: ::1 或 [::1]
+        // IPv6 localhost: ::1 or [::1]
         if (lowerHost.equals("::1") || lowerHost.equals("[::1]")) {
             return true;
         }
 
-        // IPv4-mapped IPv6 地址: ::ffff:127.0.0.1 或 [::ffff:127.0.0.1]
-        // 也包括其他私有 IPv4 地址的 IPv6 映射
+        // IPv4-mapped IPv6 address: ::ffff:127.0.0.1 or [::ffff:127.0.0.1]
+        // Also includes IPv6 mappings of other private IPv4 addresses
         if (isIPv4MappedIPv6PrivateAddress(lowerHost)) {
             return true;
         }
 
-        // IPv4 兼容 IPv6 地址: ::127.0.0.1 或 [::127.0.0.1]
-        // 注意：这与 ::ffff: 格式不同，是已弃用但仍需防护的格式
+        // IPv4-compatible IPv6 address: ::127.0.0.1 or [::127.0.0.1]
+        // Note: different from ::ffff: format; deprecated but still needs protection
         if (isIPv4CompatibleIPv6PrivateAddress(lowerHost)) {
             return true;
         }
 
-        // SIIT (Stateless IP/ICMP Translation) 格式: ::ffff:0:x.x.x.x
+        // SIIT (Stateless IP/ICMP Translation) format: ::ffff:0:x.x.x.x
         if (isSIITIPv6PrivateAddress(lowerHost)) {
             return true;
         }
 
-        // IPv6 链路本地地址: fe80::
+        // IPv6 link-local address: fe80::
         if (lowerHost.startsWith("fe80:") || lowerHost.startsWith("[fe80:")) {
             return true;
         }
 
-        // IPv6 唯一本地地址 (ULA): fc00::/7 (fc00:: 到 fdff::)
+        // IPv6 unique local address (ULA): fc00::/7 (fc00:: to fdff::)
         if (lowerHost.startsWith("fc") || lowerHost.startsWith("fd") ||
             lowerHost.startsWith("[fc") || lowerHost.startsWith("[fd")) {
             return true;
         }
 
-        // 八进制/十六进制 IP 绕过检查 (如 0177.0.0.1 = 127.0.0.1)
+        // Octal/hexadecimal IP bypass check (e.g. 0177.0.0.1 = 127.0.0.1)
         if (isObfuscatedPrivateIPv4(lowerHost)) {
             return true;
         }
@@ -532,8 +533,8 @@ public class CKEditorConfig {
     }
 
     /**
-     * 检查是否为 IPv4-mapped IPv6 私有地址。
-     * 格式: ::ffff:x.x.x.x 或 [::ffff:x.x.x.x]
+     * Check whether the host is an IPv4-mapped IPv6 private address.
+     * Format: ::ffff:x.x.x.x or [::ffff:x.x.x.x]
      */
     private boolean isIPv4MappedIPv6PrivateAddress(String host) {
         String cleanHost = host.replace("[", "").replace("]", "");
@@ -541,25 +542,25 @@ public class CKEditorConfig {
             return false;
         }
 
-        String ipv4Part = cleanHost.substring(7); // 去掉 "::ffff:"
+        String ipv4Part = cleanHost.substring(7); // Strip "::ffff:"
         return isPrivateIPv4String(ipv4Part);
     }
 
     /**
-     * 检查是否为 IPv4 兼容 IPv6 私有地址。
-     * 格式: ::x.x.x.x 或 [::x.x.x.x]（已弃用但仍需防护）
-     * 注意：这与 ::ffff: 映射格式不同
+     * Check whether the host is an IPv4-compatible IPv6 private address.
+     * Format: ::x.x.x.x or [::x.x.x.x] (deprecated but still needs protection).
+     * Note: this differs from the ::ffff: mapped format.
      */
     private boolean isIPv4CompatibleIPv6PrivateAddress(String host) {
         String cleanHost = host.replace("[", "").replace("]", "");
-        // 必须以 :: 开头，但不能是 ::ffff: 或 ::ffff:0: 格式
+        // Must start with :: but not be ::ffff: or ::ffff:0: format
         if (!cleanHost.startsWith("::") || cleanHost.startsWith("::ffff:")) {
             return false;
         }
 
-        // 提取 :: 后的部分
+        // Extract the part after ::
         String remainder = cleanHost.substring(2);
-        // 检查是否为 IPv4 地址格式（包含点号）
+        // Check whether it is an IPv4 address format (contains dots)
         if (!remainder.contains(".")) {
             return false;
         }
@@ -568,9 +569,9 @@ public class CKEditorConfig {
     }
 
     /**
-     * 检查是否为 SIIT (Stateless IP/ICMP Translation) 格式的私有 IPv6 地址。
-     * 格式: ::ffff:0:x.x.x.x 或 [::ffff:0:x.x.x.x]
-     * RFC 6052 定义的 IPv4 嵌入式 IPv6 地址
+     * Check whether the host is a SIIT (Stateless IP/ICMP Translation) private IPv6 address.
+     * Format: ::ffff:0:x.x.x.x or [::ffff:0:x.x.x.x]
+     * IPv4-embedded IPv6 address as defined by RFC 6052.
      */
     private boolean isSIITIPv6PrivateAddress(String host) {
         String cleanHost = host.replace("[", "").replace("]", "");
@@ -578,13 +579,13 @@ public class CKEditorConfig {
             return false;
         }
 
-        String ipv4Part = cleanHost.substring(9); // 去掉 "::ffff:0:"
+        String ipv4Part = cleanHost.substring(9); // Strip "::ffff:0:"
         return isPrivateIPv4String(ipv4Part);
     }
 
     /**
-     * 检查 IPv4 字符串是否为私有地址。
-     * 提取公共逻辑，避免重复。
+     * Check whether an IPv4 string represents a private address.
+     * Extracts common logic to avoid duplication.
      */
     private boolean isPrivateIPv4String(String ipv4) {
         return ipv4.equals("127.0.0.1") ||
@@ -596,22 +597,22 @@ public class CKEditorConfig {
     }
 
     /**
-     * 八进制/十六进制 IP 绕过检测正则。
-     * 匹配以 0 开头的八进制表示（如 0177.0.0.1）或以 0x 开头的十六进制表示。
+     * Regex for detecting octal/hexadecimal IP bypass attempts.
+     * Matches octal representations starting with 0 (e.g. 0177.0.0.1) or hexadecimal starting with 0x.
      */
     private static final Pattern OBFUSCATED_IP_PATTERN =
         Pattern.compile("^(0[0-7]+|0x[0-9a-f]+)(\\.(0[0-7]+|0x[0-9a-f]+|\\d+)){0,3}$", Pattern.CASE_INSENSITIVE);
 
     /**
-     * 检查是否为混淆的私有 IPv4 地址（八进制/十六进制表示）。
-     * 例如：0177.0.0.1 (= 127.0.0.1), 0x7f.0.0.1 (= 127.0.0.1)
+     * Check whether the host is an obfuscated private IPv4 address (octal/hexadecimal notation).
+     * Examples: 0177.0.0.1 (= 127.0.0.1), 0x7f.0.0.1 (= 127.0.0.1)
      */
     private boolean isObfuscatedPrivateIPv4(String host) {
         if (!OBFUSCATED_IP_PATTERN.matcher(host).matches()) {
             return false;
         }
 
-        // 尝试解析为标准 IPv4 地址
+        // Try to parse as a standard IPv4 address
         try {
             String[] parts = host.split("\\.");
             int[] octets = new int[4];
@@ -630,12 +631,12 @@ public class CKEditorConfig {
                 octets[partIndex++] = value;
             }
 
-            // 填充剩余部分为 0
+            // Fill remaining parts with 0
             while (partIndex < 4) {
                 octets[partIndex++] = 0;
             }
 
-            // 检查是否为私有地址
+            // Check whether it is a private address
             return isPrivateIPv4Octets(octets);
         } catch (NumberFormatException e) {
             return false;
@@ -643,7 +644,7 @@ public class CKEditorConfig {
     }
 
     /**
-     * 检查 IPv4 八位字节数组是否为私有地址。
+     * Check whether IPv4 octets represent a private address.
      */
     private boolean isPrivateIPv4Octets(int[] octets) {
         // 127.x.x.x (loopback)
@@ -662,34 +663,34 @@ public class CKEditorConfig {
     }
 
     /**
-     * 私有 B 类地址正则（172.16.0.0 - 172.31.255.255）
-     * 匹配 172.16.x.x 到 172.31.x.x
+     * Private Class B address regex (172.16.0.0 - 172.31.255.255).
+     * Matches 172.16.x.x through 172.31.x.x.
      */
     private static final Pattern PRIVATE_CLASS_B_PATTERN =
         Pattern.compile("^172\\.(1[6-9]|2[0-9]|3[01])\\.");
 
     /**
-     * 检查是否为 172.16.0.0 - 172.31.255.255 范围的私有地址
+     * Check whether the host is in the 172.16.0.0 - 172.31.255.255 private address range.
      */
     private boolean isPrivateClassBAddress(String host) {
         return PRIVATE_CLASS_B_PATTERN.matcher(host).find();
     }
 
     /**
-     * Autosave 最小等待时间（毫秒）
+     * Autosave minimum waiting time (milliseconds).
      */
     private static final int MIN_AUTOSAVE_WAITING_TIME = 100;
 
     /**
-     * Autosave 最大等待时间（毫秒）
+     * Autosave maximum waiting time (milliseconds).
      */
     private static final int MAX_AUTOSAVE_WAITING_TIME = 60000;
 
     /**
      * Set autosave configuration
      *
-     * @param waitingTime 等待时间（毫秒），范围 100-60000
-     * @throws IllegalArgumentException 如果等待时间超出有效范围
+     * @param waitingTime waiting time in milliseconds, range 100-60000
+     * @throws IllegalArgumentException if waiting time is outside the valid range
      */
     public CKEditorConfig setAutosave(int waitingTime) {
         if (waitingTime < MIN_AUTOSAVE_WAITING_TIME || waitingTime > MAX_AUTOSAVE_WAITING_TIME) {
@@ -1463,39 +1464,39 @@ public class CKEditorConfig {
     }
 
     /**
-     * CSS 值验证正则表达式。
-     * 允许：颜色值（#hex, rgb, rgba, hsl, hsla, named colors）、尺寸值（px, em, rem, %）、transparent、inherit 等。
-     * 禁止：url()、expression()、javascript:、分号、花括号等可能导致注入的内容。
+     * CSS value validation regex.
+     * Allowed: color values (#hex, rgb, rgba, hsl, hsla, named colors), size values (px, em, rem, %), transparent, inherit, etc.
+     * Forbidden: url(), expression(), javascript:, semicolons, braces, and other potentially injectable content.
      */
     private static final Pattern SAFE_CSS_VALUE_PATTERN = Pattern.compile(
         "^(" +
-        // 颜色值
+        // Color values
         "#[0-9a-fA-F]{3,8}|" +                                          // #RGB, #RRGGBB, #RRGGBBAA
         "rgba?\\s*\\(\\s*[0-9.,\\s%]+\\s*\\)|" +                         // rgb(), rgba()
         "hsla?\\s*\\(\\s*[0-9.,\\s%deg]+\\s*\\)|" +                      // hsl(), hsla()
-        // 命名颜色
+        // Named colors
         "[a-zA-Z]+|" +                                                   // named colors like red, blue, transparent
-        // 尺寸值
+        // Size values
         "-?[0-9.]+(?:px|em|rem|%|pt|vh|vw|vmin|vmax|ch|ex)?|" +         // 10px, 1.5em, 50%
-        // 关键字
+        // Keywords
         "transparent|inherit|initial|unset|none|auto" +
         ")$",
         Pattern.CASE_INSENSITIVE
     );
 
     /**
-     * 验证 CSS 值是否安全（防止 CSS 注入攻击）。
+     * Validate whether a CSS value is safe (prevents CSS injection attacks).
      *
-     * @param value CSS 值
-     * @param propertyName 属性名（用于错误消息）
-     * @throws IllegalArgumentException 如果值包含不安全内容
+     * @param value the CSS value
+     * @param propertyName the property name (used in error messages)
+     * @throws IllegalArgumentException if the value contains unsafe content
      */
     private static void validateCssValue(String value, String propertyName) {
         if (value == null || value.isEmpty()) {
-            return; // null 和空值是允许的
+            return; // null and empty values are allowed
         }
 
-        // 检查危险模式
+        // Check for dangerous patterns
         String lowerValue = value.toLowerCase(Locale.ROOT);
         if (lowerValue.contains("url(") ||
             lowerValue.contains("expression(") ||
@@ -1511,7 +1512,7 @@ public class CKEditorConfig {
                 "CSS value for '" + propertyName + "' contains potentially dangerous content: " + value);
         }
 
-        // 验证格式
+        // Validate format
         if (!SAFE_CSS_VALUE_PATTERN.matcher(value.trim()).matches()) {
             throw new IllegalArgumentException(
                 "CSS value for '" + propertyName + "' has invalid format: " + value +
@@ -1716,7 +1717,7 @@ public class CKEditorConfig {
             }
 
             public ToolbarStyle build() {
-                // 验证所有 CSS 值
+                // Validate all CSS values
                 validateCssValue(background, "background");
                 validateCssValue(borderColor, "borderColor");
                 validateCssValue(borderRadius, "borderRadius");
@@ -1818,7 +1819,7 @@ public class CKEditorConfig {
             }
 
             public ButtonStyle build() {
-                // 验证所有 CSS 值
+                // Validate all CSS values
                 validateCssValue(background, "background");
                 validateCssValue(hoverBackground, "hoverBackground");
                 validateCssValue(activeBackground, "activeBackground");

@@ -450,7 +450,7 @@ public enum CKEditorPlugin {
     }
 
     /**
-     * 预构建的 jsName -> plugin 查找表，O(1) 查找
+     * Pre-built jsName to plugin lookup map for O(1) lookup.
      */
     private static final Map<String, CKEditorPlugin> JS_NAME_MAP;
     static {
@@ -465,7 +465,7 @@ public enum CKEditorPlugin {
      * Find plugin by JavaScript name
      *
      * @param jsName JavaScript plugin name
-     * @return 对应的插件，如果未找到则返回 null
+     * @return the corresponding plugin, or null if not found
      */
     public static CKEditorPlugin fromJsName(String jsName) {
         return JS_NAME_MAP.get(jsName);

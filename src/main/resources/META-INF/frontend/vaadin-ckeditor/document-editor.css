@@ -1,0 +1,636 @@
+/**
+ * Document Editor Styles for CKEditor 5
+ *
+ * Official CKEditor 5 Builder-compatible styles for the Decoupled/Document editor.
+ * These styles are applied globally since VaadinCKEditor uses Light DOM.
+ *
+ * Structure:
+ * - .editor-container_document-editor: main container with border
+ * - .editor-container__menu-bar: menu bar mount point
+ * - .editor-container__toolbar: toolbar mount point
+ * - .editor-container__editor-wrapper: scrollable wrapper
+ *   - .editor-container__sidebar: Document Outline container
+ *   - .editor-container__editor: editor wrapper
+ */
+
+/* CSS Variables for Document Editor */
+vaadin-ckeditor {
+    --ck-sidebar-width: 270px;
+    /* Minimap width: larger = more detail visible, smaller = less space used
+       180px gives ~22.6% scale for A4 paper (796px) */
+    --ck-minimap-width: 180px;
+    --ck-editor-height: 700px;
+    /* Responsive sidebar/minimap: percentage of available space after editor area
+       When container shrinks, sidebar and minimap will scale proportionally */
+    --ck-sidebar-flex: 0 1 var(--ck-sidebar-width);
+    --ck-minimap-flex: 0 1 var(--ck-minimap-width);
+    /* Viewport offset for toolbar + container chrome (toolbar ~56px + borders + margin) */
+    --ck-viewport-offset: 180px;
+    /* Sidebar/minimap additional offset (viewport offset + sidebar header ~56px) */
+    --ck-sidebar-viewport-offset: 236px;
+}
+
+/* Editor wrapper for non-document editors */
+vaadin-ckeditor .editor-container__editor-wrapper {
+    display: flex;
+    width: 100%;
+}
+
+/* Document editor main container */
+vaadin-ckeditor .editor-container_document-editor {
+    border: 1px solid var(--ck-color-base-border);
+    border-radius: 8px;
+    overflow: hidden; /* Ensure children don't overflow rounded corners */
+}
+
+/* Toolbar container styling */
+vaadin-ckeditor .editor-container_document-editor .editor-container__toolbar {
+    display: flex;
+    position: relative;
+    box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+}
+
+vaadin-ckeditor .editor-container_document-editor .editor-container__toolbar > .ck.ck-toolbar {
+    flex-grow: 1;
+    width: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+}
+
+/* When no menu bar, toolbar needs top border-radius */
+vaadin-ckeditor .editor-container_document-editor .editor-container__toolbar:first-child > .ck.ck-toolbar {
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+}
+
+/* Menu bar styling */
+vaadin-ckeditor .editor-container_document-editor .editor-container__menu-bar > .ck.ck-menu-bar {
+    border-top-left-radius: 7px; /* Slightly less than container to fit inside */
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+}
+
+/* Editor wrapper - scrollable container */
+/* Note: For minimap to work properly, the editor wrapper must have a constrained height
+   so that scrolling occurs within this container. The minimap tracks scroll position
+   of this wrapper element. */
+vaadin-ckeditor .editor-container_document-editor .editor-container__editor-wrapper {
+    max-height: var(--ck-editor-height, 700px);
+    min-height: var(--ck-editor-height, 700px);
+    overflow-y: scroll;
+    background: var(--ck-color-base-foreground);
+}
+
+/* When parent has explicit height (e.g., from Vaadin setSizeFull()),
+   use viewport-based height for the editor wrapper */
+vaadin-ckeditor[style*="height: 100%"] .editor-container_document-editor .editor-container__editor-wrapper {
+    max-height: calc(100vh - var(--ck-viewport-offset));
+    min-height: calc(100vh - var(--ck-viewport-offset));
+}
+
+/* Adjust sidebar height when using viewport-based height */
+vaadin-ckeditor[style*="height: 100%"] .editor-container__sidebar {
+    max-height: calc(100vh - var(--ck-sidebar-viewport-offset));
+}
+
+/* Adjust minimap height when using viewport-based height */
+vaadin-ckeditor[style*="height: 100%"] .minimap-container {
+    height: calc(100vh - var(--ck-sidebar-viewport-offset));
+}
+
+/* Editor area container */
+vaadin-ckeditor .editor-container_document-editor .editor-container__editor {
+    margin-top: 28px;
+    margin-bottom: 28px;
+    height: 100%;
+}
+
+/* A4 paper-like editable area */
+vaadin-ckeditor .editor-container_document-editor .editor-container__editor .ck.ck-editor__editable {
+    box-sizing: border-box;
+    min-width: calc(210mm + 2px);
+    max-width: calc(210mm + 2px);
+    min-height: 297mm;
+    height: fit-content;
+    padding: 20mm 12mm;
+    border: 1px hsl(0, 0%, 82.7%) solid;
+    background: hsl(0, 0%, 100%);
+    box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+    flex: 1 1 auto;
+    margin-left: 72px;
+    margin-right: 72px;
+}
+
+/* With outline - adjust left margin */
+vaadin-ckeditor .editor-container_include-outline .editor-container__editor .ck.ck-editor__editable {
+    margin-left: 0;
+}
+
+/* Fullscreen with outline - hide duplicate outline header */
+vaadin-ckeditor .editor-container_include-outline.editor-container_include-fullscreen .ck-fullscreen__document-outline-header {
+    display: none;
+}
+
+/* Sidebar (Document Outline) container - sticky to stay visible while scrolling
+   Uses flex to allow responsive shrinking when container is smaller */
+vaadin-ckeditor .editor-container__sidebar {
+    /* Responsive: can shrink below default width when space is limited */
+    flex: var(--ck-sidebar-flex, 0 1 var(--ck-sidebar-width));
+    min-width: 120px; /* Minimum usable width */
+    max-width: var(--ck-sidebar-width);
+    margin-top: 28px;
+    margin-left: 10px;
+    margin-right: 10px;
+    position: sticky;
+    top: 28px;
+    align-self: flex-start;
+    max-height: calc(var(--ck-editor-height, 700px) - 56px);
+    /* Enable both horizontal and vertical scrolling */
+    overflow: auto;
+}
+
+/* AI sidebar collapse handling */
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
+    max-width: 0;
+    min-width: 0;
+}
+
+/* ===== Minimap Styles ===== */
+
+/* Minimap container - sticky to stay visible while scrolling
+   Uses flex to allow responsive shrinking when container is smaller
+   Width is set via CSS variable --ck-minimap-width */
+vaadin-ckeditor .minimap-container {
+    /* Responsive: can shrink below default width when space is limited */
+    flex: var(--ck-minimap-flex, 0 1 var(--ck-minimap-width));
+    min-width: 80px; /* Minimum usable width for minimap */
+    max-width: var(--ck-minimap-width, 180px);
+    margin-top: 28px;
+    margin-right: 10px;
+    margin-left: 10px;
+    position: sticky;
+    top: 28px;
+    align-self: flex-start;
+    height: calc(var(--ck-editor-height, 700px) - 56px);
+    /* CKEditor minimap requires overflow: hidden for proper operation */
+    overflow: hidden;
+    /* Light background to show the minimap area */
+    background: var(--ck-color-base-foreground, #fafafa);
+    border-radius: 4px;
+    border: 1px solid var(--ck-color-base-border, #e0e0e0);
+}
+
+/* With minimap - adjust right margin of editor to make room */
+vaadin-ckeditor .editor-container_include-minimap .editor-container__editor .ck.ck-editor__editable {
+    margin-right: 0;
+}
+
+/* CKEditor minimap element - ensure it fills the container */
+vaadin-ckeditor .minimap-container .ck.ck-minimap {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+/* Minimap iframe - the actual minimap content (A4 paper preview)
+   The iframe height is calculated by CKEditor based on content scale.
+   We ensure it fills the container width and has proper styling. */
+vaadin-ckeditor .minimap-container .ck.ck-minimap__iframe {
+    width: 100% !important;
+    border: 1px solid var(--ck-color-base-border, #d4d4d4) !important;
+    border-radius: 2px;
+    background: var(--ck-color-base-background, #fff) !important;
+    box-shadow: 0 2px 8px hsla(0, 0%, 0%, 0.1), 0 1px 2px hsla(0, 0%, 0%, 0.06);
+}
+
+/* Minimap position tracker - the viewport indicator (draggable) */
+vaadin-ckeditor .minimap-container .ck.ck-minimap__position-tracker {
+    background: hsla(207, 90%, 54%, 0.12) !important;
+    border: 2px solid hsla(207, 90%, 54%, 0.5) !important;
+    border-radius: 3px;
+    cursor: grab;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Minimap tracker hover state */
+vaadin-ckeditor .minimap-container .ck.ck-minimap__position-tracker:hover {
+    background: hsla(207, 90%, 54%, 0.2) !important;
+    border-color: hsla(207, 90%, 54%, 0.7) !important;
+}
+
+/* Minimap tracker active/dragging state */
+vaadin-ckeditor .minimap-container .ck.ck-minimap__position-tracker:active {
+    background: hsla(207, 90%, 54%, 0.25) !important;
+    border-color: hsla(207, 90%, 54%, 0.9) !important;
+    cursor: grabbing;
+}
+
+/* ===== Minimap Content Styles ===== */
+/*
+ * The minimap uses an iframe to render a scaled-down copy of the editor content.
+ * CKEditor injects styles into the iframe, but we need to ensure the content
+ * inside the minimap has proper styling for visibility.
+ *
+ * The minimap content structure is:
+ * iframe.ck-minimap__iframe > body.minimap-body > .ck-content (editor content clone)
+ *
+ * IMPORTANT: The body element has transform: scale(ratio) applied.
+ * The content inside needs to have the ORIGINAL A4 paper width (796px) so that
+ * the scaled result fills the minimap container properly.
+ *
+ * These styles are injected via CKEditor's minimap.extraClasses config.
+ * We use 'minimap-body ck-content' as the extraClasses value.
+ */
+
+/* Minimap iframe html element - ensure it can expand with content */
+html:has(.minimap-body) {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+}
+
+/* Minimap body - set the A4 paper dimensions for proper scaling
+ * The body element has both .minimap-body and .ck-content classes
+ * Use CKEditor CSS variables to inherit theme colors */
+.minimap-body,
+body.minimap-body,
+body.minimap-body.ck-content,
+body.ck-content.minimap-body {
+    /* A4 paper width in pixels (210mm ≈ 796px at 96dpi) */
+    width: 796px !important;
+    min-width: 796px !important;
+    max-width: 796px !important;
+    /* Height should expand with content - auto allows natural growth */
+    height: auto !important;
+    min-height: 1123px !important;
+    /* A4 paper padding */
+    margin: 0 !important;
+    padding: 20mm 12mm !important;
+    box-sizing: border-box !important;
+    /* Ensure content visibility - no clipping */
+    overflow: visible !important;
+    /* Inherit colors from CKEditor theme */
+    background: var(--ck-color-base-background, white) !important;
+    background-color: var(--ck-color-base-background, white) !important;
+    color: var(--ck-color-text, inherit) !important;
+}
+
+/* Ensure the editor content clone has A4 paper dimensions */
+.minimap-body .ck.ck-editor__editable,
+.minimap-body .ck-content {
+    width: 100% !important;
+    /* A4 paper height (297mm ≈ 1123px at 96dpi) as minimum */
+    min-height: 1123px !important;
+    /* Height should be auto to expand with content */
+    height: auto !important;
+    box-sizing: border-box !important;
+    /* Inherit colors from CKEditor theme */
+    background: var(--ck-color-base-background, white) !important;
+    background-color: var(--ck-color-base-background, white) !important;
+    color: var(--ck-color-text, inherit) !important;
+}
+
+/* Direct child of minimap body - the actual cloned content */
+.minimap-body > .ck-content {
+    /* Ensure the cloned content fills and expands properly */
+    display: block !important;
+    height: auto !important;
+    min-height: 1123px !important;
+}
+
+/*
+ * Note: The minimap iframe content inherits CKEditor's default styles.
+ * The A4 paper appearance (white background, borders) from the main editor
+ * is intentionally not replicated in the minimap - this is standard behavior.
+ * The minimap shows a simplified content preview for navigation purposes.
+ */
+
+/* ===== Document Outline Styles ===== */
+
+/* Document Outline container styling */
+vaadin-ckeditor .ck-document-outline {
+    padding: 12px 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    min-width: max-content;
+}
+
+/* Base outline item styling - use !important to override CKEditor's .ck-reset */
+vaadin-ckeditor .ck-document-outline__item {
+    display: block;
+    padding: 6px 12px 6px 8px !important;
+    margin: 2px 0 !important;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    /* Allow text to wrap or show full content */
+    white-space: nowrap;
+    /* position: relative is required for ::before/::after pseudo-elements */
+    position: relative !important;
+}
+
+/* Hover effect for outline items */
+vaadin-ckeditor .ck-document-outline__item:hover {
+    background-color: hsla(207, 90%, 54%, 0.08);
+}
+
+/* Active/selected item styling */
+vaadin-ckeditor .ck-document-outline__item_active {
+    background-color: hsla(207, 90%, 54%, 0.15) !important;
+    color: hsl(207, 90%, 40%);
+    font-weight: 500;
+}
+
+/* Level 1 (H2) - Main sections - largest font, no indent */
+vaadin-ckeditor .ck-document-outline__item_level-1 {
+    font-size: 14px;
+    font-weight: 600;
+    padding-left: 20px !important;
+    color: hsl(0, 0%, 20%);
+    margin-top: 8px !important;
+}
+
+/* Tree connector for level 1 - blue dot indicator */
+vaadin-ckeditor .ck-document-outline__item_level-1::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background-color: hsl(207, 70%, 50%);
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+/* Level 2 (H3) - Subsections - medium font, indented */
+vaadin-ckeditor .ck-document-outline__item_level-2 {
+    font-size: 13px;
+    font-weight: 500;
+    padding-left: 36px !important;
+    color: hsl(0, 0%, 30%);
+}
+
+/* Tree connector for level 2 - vertical line + horizontal branch */
+vaadin-ckeditor .ck-document-outline__item_level-2::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: hsl(0, 0%, 80%);
+}
+
+vaadin-ckeditor .ck-document-outline__item_level-2::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background-color: hsl(0, 0%, 80%);
+}
+
+/* Level 3 (H4) - Sub-subsections - smaller font, more indented */
+vaadin-ckeditor .ck-document-outline__item_level-3 {
+    font-size: 12px;
+    font-weight: 400;
+    padding-left: 52px !important;
+    color: hsl(0, 0%, 40%);
+}
+
+/* Tree connector for level 3 - vertical line + horizontal branch */
+vaadin-ckeditor .ck-document-outline__item_level-3::before {
+    content: '';
+    position: absolute;
+    left: 26px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: hsl(0, 0%, 85%);
+}
+
+vaadin-ckeditor .ck-document-outline__item_level-3::after {
+    content: '';
+    position: absolute;
+    left: 26px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background-color: hsl(0, 0%, 85%);
+}
+
+/* Level 4 (H5) - Deep sections - smallest font, most indented */
+vaadin-ckeditor .ck-document-outline__item_level-4 {
+    font-size: 11px;
+    font-weight: 400;
+    padding-left: 68px !important;
+    color: hsl(0, 0%, 50%);
+}
+
+/* Tree connector for level 4 - vertical line + horizontal branch */
+vaadin-ckeditor .ck-document-outline__item_level-4::before {
+    content: '';
+    position: absolute;
+    left: 42px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: hsl(0, 0%, 88%);
+}
+
+vaadin-ckeditor .ck-document-outline__item_level-4::after {
+    content: '';
+    position: absolute;
+    left: 42px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background-color: hsl(0, 0%, 88%);
+}
+
+/* Level 5+ (H6) - Deepest sections */
+vaadin-ckeditor .ck-document-outline__item_level-5,
+vaadin-ckeditor .ck-document-outline__item_level-6 {
+    font-size: 11px;
+    font-weight: 400;
+    padding-left: 84px !important;
+    color: hsl(0, 0%, 55%);
+}
+
+/* Tree connector for level 5+ - vertical line + horizontal branch */
+vaadin-ckeditor .ck-document-outline__item_level-5::before,
+vaadin-ckeditor .ck-document-outline__item_level-6::before {
+    content: '';
+    position: absolute;
+    left: 58px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: hsl(0, 0%, 90%);
+}
+
+vaadin-ckeditor .ck-document-outline__item_level-5::after,
+vaadin-ckeditor .ck-document-outline__item_level-6::after {
+    content: '';
+    position: absolute;
+    left: 58px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background-color: hsl(0, 0%, 90%);
+}
+
+/* Active state overrides for all levels */
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-1::before {
+    background-color: hsl(207, 90%, 45%);
+    width: 8px;
+    height: 8px;
+}
+
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-2::before,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-3::before,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-4::before,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-5::before,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-6::before {
+    background-color: hsl(207, 70%, 70%);
+    width: 2px;
+}
+
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-2::after,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-3::after,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-4::after,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-5::after,
+vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-6::after {
+    background-color: hsl(207, 70%, 60%);
+    height: 2px;
+}
+
+/* Outline header styling */
+vaadin-ckeditor .ck-document-outline-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: hsl(0, 0%, 50%);
+    padding: 8px 12px;
+    border-bottom: 1px solid hsl(0, 0%, 90%);
+    margin-bottom: 8px;
+}
+
+/* ===== Dark Theme Support for Document Outline ===== */
+/* Uses prefers-color-scheme media query and CKEditor CSS variables */
+
+@media (prefers-color-scheme: dark) {
+    /* Base outline item - use CKEditor's text color variable */
+    vaadin-ckeditor .ck-document-outline__item {
+        color: var(--ck-color-text, hsl(0, 0%, 90%));
+    }
+
+    /* Hover effect - lighter blue for dark theme */
+    vaadin-ckeditor .ck-document-outline__item:hover {
+        background-color: hsla(207, 70%, 50%, 0.15);
+    }
+
+    /* Active/selected item - brighter for dark theme */
+    vaadin-ckeditor .ck-document-outline__item_active {
+        background-color: hsla(207, 70%, 50%, 0.25) !important;
+        color: hsl(207, 80%, 70%) !important;
+    }
+
+    /* Level 1 (H2) - bright text for dark theme */
+    vaadin-ckeditor .ck-document-outline__item_level-1 {
+        color: hsl(0, 0%, 95%);
+    }
+
+    /* Level 1 blue dot - brighter for dark theme */
+    vaadin-ckeditor .ck-document-outline__item_level-1::before {
+        background-color: hsl(207, 80%, 60%);
+    }
+
+    /* Level 2 (H3) - slightly dimmer */
+    vaadin-ckeditor .ck-document-outline__item_level-2 {
+        color: hsl(0, 0%, 85%);
+    }
+
+    /* Tree connectors for level 2 - visible on dark background */
+    vaadin-ckeditor .ck-document-outline__item_level-2::before,
+    vaadin-ckeditor .ck-document-outline__item_level-2::after {
+        background-color: hsl(0, 0%, 45%);
+    }
+
+    /* Level 3 (H4) */
+    vaadin-ckeditor .ck-document-outline__item_level-3 {
+        color: hsl(0, 0%, 75%);
+    }
+
+    /* Tree connectors for level 3 */
+    vaadin-ckeditor .ck-document-outline__item_level-3::before,
+    vaadin-ckeditor .ck-document-outline__item_level-3::after {
+        background-color: hsl(0, 0%, 40%);
+    }
+
+    /* Level 4 (H5) */
+    vaadin-ckeditor .ck-document-outline__item_level-4 {
+        color: hsl(0, 0%, 65%);
+    }
+
+    /* Tree connectors for level 4 */
+    vaadin-ckeditor .ck-document-outline__item_level-4::before,
+    vaadin-ckeditor .ck-document-outline__item_level-4::after {
+        background-color: hsl(0, 0%, 35%);
+    }
+
+    /* Level 5+ (H6) */
+    vaadin-ckeditor .ck-document-outline__item_level-5,
+    vaadin-ckeditor .ck-document-outline__item_level-6 {
+        color: hsl(0, 0%, 60%);
+    }
+
+    /* Tree connectors for level 5+ */
+    vaadin-ckeditor .ck-document-outline__item_level-5::before,
+    vaadin-ckeditor .ck-document-outline__item_level-5::after,
+    vaadin-ckeditor .ck-document-outline__item_level-6::before,
+    vaadin-ckeditor .ck-document-outline__item_level-6::after {
+        background-color: hsl(0, 0%, 32%);
+    }
+
+    /* Active state connectors - brighter blue for dark theme */
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-1::before {
+        background-color: hsl(207, 90%, 65%);
+    }
+
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-2::before,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-3::before,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-4::before,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-5::before,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-6::before {
+        background-color: hsl(207, 80%, 65%);
+    }
+
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-2::after,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-3::after,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-4::after,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-5::after,
+    vaadin-ckeditor .ck-document-outline__item_active.ck-document-outline__item_level-6::after {
+        background-color: hsl(207, 80%, 60%);
+    }
+
+    /* Outline header - dark theme */
+    vaadin-ckeditor .ck-document-outline-header {
+        color: hsl(0, 0%, 60%);
+        border-bottom-color: hsl(0, 0%, 30%);
+    }
+
+    /* Sidebar container background for dark theme */
+    vaadin-ckeditor .editor-container__sidebar {
+        background-color: var(--ck-color-base-foreground, hsl(270, 1%, 29%));
+    }
+}

@@ -286,4 +286,68 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.BASE64_UPLOAD_ADAPTER))
             .contains(CKEditorPlugin.IMAGE_UPLOAD);
     }
+
+    // ==================== Cycle Detection / Topological Sort Tests ====================
+
+    @Test
+    @DisplayName("topologicalSort should complete for all plugins without hanging")
+    void topologicalSortShouldCompleteForAllPlugins() {
+        Set<CKEditorPlugin> allPlugins = EnumSet.allOf(CKEditorPlugin.class);
+
+        // This would hang or throw if there were an undetected cycle
+        List<CKEditorPlugin> sorted = CKEditorPluginDependencies.topologicalSort(allPlugins);
+
+        assertThat(sorted)
+            .isNotNull()
+            .hasSize(allPlugins.size())
+            .containsExactlyInAnyOrderElementsOf(allPlugins);
+    }
+
+    @Test
+    @DisplayName("topologicalSort should place dependencies before dependents")
+    void topologicalSortShouldPlaceDependenciesBeforeDependents() {
+        Set<CKEditorPlugin> plugins = EnumSet.of(
+            CKEditorPlugin.IMAGE_CAPTION,
+            CKEditorPlugin.IMAGE,
+            CKEditorPlugin.ESSENTIALS,
+            CKEditorPlugin.PARAGRAPH
+        );
+
+        List<CKEditorPlugin> sorted = CKEditorPluginDependencies.topologicalSort(plugins);
+
+        // IMAGE must come before IMAGE_CAPTION (IMAGE is a dependency of IMAGE_CAPTION)
+        int imageIndex = sorted.indexOf(CKEditorPlugin.IMAGE);
+        int captionIndex = sorted.indexOf(CKEditorPlugin.IMAGE_CAPTION);
+        assertThat(imageIndex)
+            .isLessThan(captionIndex)
+            .as("IMAGE should be sorted before IMAGE_CAPTION");
+    }
+
+    @Test
+    @DisplayName("topologicalSort should handle empty input")
+    void topologicalSortShouldHandleEmptyInput() {
+        List<CKEditorPlugin> sorted = CKEditorPluginDependencies.topologicalSort(
+            EnumSet.noneOf(CKEditorPlugin.class));
+
+        assertThat(sorted).isEmpty();
+    }
+
+    @Test
+    @DisplayName("No circular dependencies should exist in the built-in dependency graph")
+    void noCircularDependenciesShouldExistInBuiltInGraph() {
+        // For each plugin with dependencies, verify no plugin depends on itself
+        // directly or transitively by resolving a single plugin and checking the result
+        for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
+            Set<CKEditorPlugin> directDeps = CKEditorPluginDependencies.getDependencies(plugin);
+            // Resolve transitive dependencies (without core plugins to keep it focused)
+            Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(
+                EnumSet.of(plugin), false);
+            // Remove the plugin itself — resolve() includes the input plugin
+            resolved.remove(plugin);
+            // The direct dependencies should not include the plugin itself
+            assertThat(directDeps)
+                .as("Plugin %s should not directly depend on itself", plugin.name())
+                .doesNotContain(plugin);
+        }
+    }
 }

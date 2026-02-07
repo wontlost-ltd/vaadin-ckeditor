@@ -596,25 +596,25 @@ class CKEditorConfigTest {
             .build();
         assertThat(plugin1.getImportPath()).isEqualTo("my-ckeditor-plugin");
 
-        // 作用域包
+        // Scoped package
         CustomPlugin plugin2 = CustomPlugin.builder("MyPlugin")
             .withImportPath("@scope/my-plugin")
             .build();
         assertThat(plugin2.getImportPath()).isEqualTo("@scope/my-plugin");
 
-        // 相对路径
+        // Relative path
         CustomPlugin plugin3 = CustomPlugin.builder("MyPlugin")
             .withImportPath("./local-plugin")
             .build();
         assertThat(plugin3.getImportPath()).isEqualTo("./local-plugin");
 
-        // npm 子路径导入
+        // npm subpath import
         CustomPlugin plugin4 = CustomPlugin.builder("MyPlugin")
             .withImportPath("lodash/merge")
             .build();
         assertThat(plugin4.getImportPath()).isEqualTo("lodash/merge");
 
-        // 作用域包子路径
+        // Scoped package subpath
         CustomPlugin plugin5 = CustomPlugin.builder("MyPlugin")
             .withImportPath("@scope/package/subpath")
             .build();
@@ -710,17 +710,17 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("setSimpleUpload should reject 172.16-31.x.x addresses")
     void setSimpleUploadShouldReject172() {
-        // 172.16.x.x (最小)
+        // 172.16.x.x (minimum)
         assertThatThrownBy(() -> config.setSimpleUpload("http://172.16.0.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // 172.20.x.x (中间)
+        // 172.20.x.x (middle)
         assertThatThrownBy(() -> config.setSimpleUpload("http://172.20.1.1/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
 
-        // 172.31.x.x (最大)
+        // 172.31.x.x (maximum)
         assertThatThrownBy(() -> config.setSimpleUpload("http://172.31.255.255/upload"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("internal/private");
@@ -870,7 +870,7 @@ class CKEditorConfigTest {
     @Test
     @DisplayName("allowPrivateNetworks can be toggled")
     void allowPrivateNetworksCanBeToggled() {
-        // 启用
+        // Enable
         config.allowPrivateNetworks(true);
         assertThat(config.isAllowPrivateNetworks()).isTrue();
 
