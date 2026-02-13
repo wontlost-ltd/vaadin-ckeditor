@@ -31,14 +31,14 @@ Vaadin CKEditor 5 is a rich text editor component for Vaadin applications, provi
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.5</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.wontlost:ckeditor-vaadin:5.0.3'
+implementation 'com.wontlost:ckeditor-vaadin:5.0.5'
 ```
 
 ---
@@ -566,70 +566,69 @@ editor.setUploadHandler((context, stream) -> {
 
 ### Upload Timeout Configuration
 
-上传超时机制用于防止上传操作无限挂起：
+The upload timeout mechanism prevents upload operations from hanging indefinitely:
 
-- **前端超时**: 默认 5 分钟（300,000 毫秒）
-- **后端超时**: 默认 6 分钟（360 秒）
+- **Frontend timeout**: 5 minutes (300,000ms) by default
+- **Backend timeout**: 6 minutes (360s) by default
 
-后端超时比前端长 1 分钟，确保前端先触发超时错误，避免竞争条件。
+The backend timeout is 1 minute longer than the frontend to ensure the frontend triggers the timeout error first, avoiding race conditions.
 
 ```java
-// 自定义后端超时（在 UploadManager 构造函数中）
+// Custom backend timeout (in UploadManager constructor)
 UploadManager manager = new UploadManager(
     handler,
     config,
     callback,
-    180  // 3 分钟超时（秒）
+    180  // 3 minutes (seconds)
 );
 ```
 
 ```typescript
-// 自定义前端超时
-uploadManager.setUploadTimeout(120000); // 2 分钟（毫秒）
-uploadManager.setUploadTimeout(0);      // 禁用超时
+// Custom frontend timeout
+uploadManager.setUploadTimeout(120000); // 2 minutes (milliseconds)
+uploadManager.setUploadTimeout(0);      // Disable timeout
 ```
 
 ### SSRF Protection
 
-`setSimpleUpload()` 方法内置 SSRF（服务端请求伪造）防护：
+`setSimpleUpload()` has built-in SSRF (Server-Side Request Forgery) protection:
 
-**防护范围：**
-- IPv4 私有地址：`127.x.x.x`, `10.x.x.x`, `192.168.x.x`, `172.16-31.x.x`
-- IPv6 私有地址：`::1`, `fe80::`, `fc00::/fd00::`
-- IPv4-mapped IPv6：`::ffff:127.0.0.1`
-- IPv4-compatible IPv6：`::127.0.0.1`
-- SIIT 格式：`::ffff:0:127.0.0.1`
-- 八进制/十六进制表示：`0177.0.0.1`, `0x7f.0.0.1`
-- 特殊域名：`localhost`, `*.local`, `*.internal`
+**Protected addresses:**
+- IPv4 private addresses: `127.x.x.x`, `10.x.x.x`, `192.168.x.x`, `172.16-31.x.x`
+- IPv6 private addresses: `::1`, `fe80::`, `fc00::/fd00::`
+- IPv4-mapped IPv6: `::ffff:127.0.0.1`
+- IPv4-compatible IPv6: `::127.0.0.1`
+- SIIT format: `::ffff:0:127.0.0.1`
+- Octal/hex notation: `0177.0.0.1`, `0x7f.0.0.1`
+- Special hostnames: `localhost`, `*.local`, `*.internal`
 
-**已知限制：**
-- 十进制整数 IP（如 `2130706433`）：被 Java URI 解析器视为域名，不会触发 SSRF 检查。由于主流浏览器对此格式支持不一致，实际威胁较低。
-- DNS 重绑定：当前不防护。如需防护，建议在服务端实现请求级验证。
+**Known limitations:**
+- Decimal integer IPs (e.g., `2130706433`): Treated as a hostname by Java's URI parser, so SSRF checks are not triggered. The actual threat is low since major browsers have inconsistent support for this format.
+- DNS rebinding: Not currently protected. For protection, implement request-level validation on the server side.
 
-**威胁模型说明：**
-`setSimpleUpload()` 配置的 URL 由浏览器发起请求，浏览器同源策略提供了额外保护层。
-此防护主要防止配置错误导致的意外内网访问，而非完整的 SSRF 防御。
+**Threat model:**
+The URL configured via `setSimpleUpload()` is requested by the browser, and the browser's same-origin policy provides an additional layer of protection. This protection primarily prevents accidental internal network access due to misconfiguration, rather than serving as a complete SSRF defense.
 
-**开发环境配置：**
+**Development environment:**
 ```java
 CKEditorConfig config = new CKEditorConfig();
-config.allowPrivateNetworks(true);  // 允许内网地址（仅用于开发环境）
+config.allowPrivateNetworks(true);  // Allow private networks (development only)
 config.setSimpleUpload("http://localhost:8080/api/upload");
 ```
 
 ### CSS Value Restrictions
 
-工具栏样式自定义支持以下 CSS 值类型：
-- 颜色值：`#fff`, `rgb()`, `hsl()`, 颜色名称
-- 尺寸值：`10px`, `1em`, `50%`
-- 关键字：`none`, `inherit`, `transparent`
+Toolbar style customization supports the following CSS value types:
+- Color values: `#fff`, `rgb()`, `hsl()`, color names
+- Size values: `10px`, `1em`, `50%`
+- Keywords: `none`, `inherit`, `transparent`
 
-**不支持的 CSS 函数（出于安全考虑）：**
-- `url()` - 可能导致数据泄露
-- `calc()` - 复杂度较高，暂不支持
-- `var()` - CSS 变量暂不支持
+**Unsupported CSS functions (for security reasons):**
+- `url()` - May lead to data exfiltration
+- `calc()` - Not supported due to complexity
+- `var()` - CSS variables not supported
 
-如需使用高级 CSS 特性，建议通过自定义 CSS 文件实现。
+For advanced CSS features, use a custom CSS file instead.
 
 ---
 
@@ -934,7 +933,8 @@ window.VAADIN_CKEDITOR_DEBUG = true;
 
 | Version | CKEditor 5 | Vaadin | Notes           |
 |---------|------------|--------|-----------------|
-| 5.0.3   | 47.4.0 | 25.0.4 | Current release |
+| 5.0.5   | 47.4.0 | 25.0.5 | Current release |
+| 5.0.3   | 47.4.0 | 25.0.4 | CI/CD workflows |
 | 5.0.1   | 47.4.0 | 25.0.4 | Bug fixes       |
 | 5.0.0   | 47.4.0 | 25.0.3 | Initial v5 release |
 

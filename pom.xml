@@ -5,7 +5,7 @@
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
     <packaging>jar</packaging>
-    <version>5.0.4</version>
+    <version>5.0.5</version>
     <name>CKEditorVaadin</name>
     <description>Integration of CKEditor 5 for Vaadin</description>
     <url>https://github.com/wontlost-ltd/vaadin-ckeditor</url>
@@ -15,7 +15,7 @@
         <developerConnection>scm:git:git@github.com:wontlost-ltd/vaadin-ckeditor.git</developerConnection>
     </scm>
     <properties>
-        <vaadin.version>25.0.4</vaadin.version>
+        <vaadin.version>25.0.5</vaadin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

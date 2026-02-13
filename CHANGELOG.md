@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.5] - 2025-02-13
+
 ### Added
+- Premium plugin support and custom plugin builder
 - Empty file upload validation - rejects zero-byte files with clear error message
 - Upload abort race condition protection - prevents cancellation of wrong upload
 - SSRF protection documentation with known limitations (decimal integer IP, DNS rebinding)
@@ -15,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Upload adapter abort() now safely handles edge case when no upload is in progress
 - Debug logging added for empty file rejection and abort edge cases
+- Code review issues across frontend, backend, and tests
 
 ## [5.0.3] - 2025-02-02
 
@@ -87,7 +91,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.3...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.5...HEAD
+[5.0.5]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.3...v5.0.5
 [5.0.3]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.0...v5.0.1

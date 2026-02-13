@@ -164,6 +164,11 @@ public final class VaadinCKEditorPremium {
         IMPORT_WORD("ImportWord", "importWord"),
 
         /**
+         * Enhanced paste from Office documents with advanced formatting preservation.
+         */
+        PASTE_FROM_OFFICE_ENHANCED("PasteFromOfficeEnhanced"),
+
+        /**
          * Copy and apply text formatting.
          */
         FORMAT_PAINTER("FormatPainter", "formatPainter"),
@@ -200,9 +205,9 @@ public final class VaadinCKEditorPremium {
         MERGE_FIELDS("MergeFields", "insertMergeField"),
 
         /**
-         * Page breaks and pagination support.
+         * Page breaks and pagination support (A4/Letter page layout).
          */
-        PAGINATION("Pagination"),
+        PAGINATION("Pagination", "pagination"),
 
         /**
          * AI-powered writing assistant.
@@ -220,14 +225,44 @@ public final class VaadinCKEditorPremium {
         TRACK_CHANGES("TrackChanges", "trackChanges"),
 
         /**
+         * Track changes data integration (process data without showing suggestions UI).
+         */
+        TRACK_CHANGES_DATA("TrackChangesData"),
+
+        /**
+         * Track changes preview (accept/reject all changes preview).
+         */
+        TRACK_CHANGES_PREVIEW("TrackChangesPreview"),
+
+        /**
          * Revision history and version management.
          */
         REVISION_HISTORY("RevisionHistory", "revisionHistory"),
 
         /**
-         * Real-time collaborative editing.
+         * Real-time collaborative editing (meta plugin).
          */
         REAL_TIME_COLLABORATION("RealTimeCollaboration"),
+
+        /**
+         * Real-time collaborative editing (individual plugin).
+         */
+        REAL_TIME_COLLABORATIVE_EDITING("RealTimeCollaborativeEditing"),
+
+        /**
+         * Real-time collaborative comments sync.
+         */
+        REAL_TIME_COLLABORATIVE_COMMENTS("RealTimeCollaborativeComments"),
+
+        /**
+         * Real-time collaborative track changes sync.
+         */
+        REAL_TIME_COLLABORATIVE_TRACK_CHANGES("RealTimeCollaborativeTrackChanges"),
+
+        /**
+         * Real-time collaborative revision history sync.
+         */
+        REAL_TIME_COLLABORATIVE_REVISION_HISTORY("RealTimeCollaborativeRevisionHistory"),
 
         /**
          * Presence list showing active collaborators.
@@ -235,9 +270,9 @@ public final class VaadinCKEditorPremium {
         PRESENCE_LIST("PresenceList"),
 
         /**
-         * Multi-level list formatting.
+         * Multi-level list formatting (nested lists with different styles).
          */
-        MULTI_LEVEL_LIST("MultiLevelList"),
+        MULTI_LEVEL_LIST("MultiLevelList", "multiLevelList"),
 
         /**
          * Line height adjustment for paragraphs.

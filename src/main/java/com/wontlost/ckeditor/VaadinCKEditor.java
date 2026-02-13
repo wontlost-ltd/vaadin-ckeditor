@@ -96,7 +96,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
     /** Keep in sync with version field in vaadin-ckeditor.ts */
-    private static final String VERSION = "5.0.3";
+    private static final String VERSION = "5.0.5";
 
     /**
      * Default autosave waiting time in milliseconds.
@@ -438,6 +438,26 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void setDocumentOutlineEnabled(boolean enabled) {
         getElement().setProperty("documentOutlineEnabled", enabled);
+    }
+
+    /**
+     * Enable annotation sidebar for collaboration features (DECOUPLED type only).
+     * Provides container for Comments, TrackChanges and PresenceList UI.
+     *
+     * @param enabled true to enable annotation sidebar and presence list
+     */
+    public void setAnnotationSidebarEnabled(boolean enabled) {
+        getElement().setProperty("annotationSidebarEnabled", enabled);
+    }
+
+    /**
+     * 启用评论权限强制插件，隐藏非当前用户评论的 Edit/Remove 下拉菜单。
+     * 需要同时启用 annotationSidebarEnabled 和 CommentsRepository 插件。
+     *
+     * @param enabled true 启用评论权限 UI 强制
+     */
+    public void setCommentPermissionEnforcerEnabled(boolean enabled) {
+        getElement().setProperty("commentPermissionEnforcerEnabled", enabled);
     }
 
     /**

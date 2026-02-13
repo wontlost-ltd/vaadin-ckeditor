@@ -239,6 +239,21 @@ public final class CKEditorPluginDependencies {
         // AI Assistant requires CloudServices for AI features
         premDeps.put("AIAssistant", cloudServicesDeps);
 
+        // Pagination — 独立插件，无外部依赖
+        premDeps.put("Pagination", Set.of());
+
+        // MultiLevelList — 依赖 List 基础插件
+        premDeps.put("MultiLevelList", Set.of(CKEditorPlugin.LIST));
+
+        // PasteFromOfficeEnhanced — 增强版 Office 粘贴，依赖基础 PasteFromOffice
+        premDeps.put("PasteFromOfficeEnhanced", Set.of(CKEditorPlugin.PASTE_FROM_OFFICE));
+
+        // TrackChangesData — 独立数据处理插件
+        premDeps.put("TrackChangesData", Set.of());
+
+        // TrackChangesPreview — 独立预览插件
+        premDeps.put("TrackChangesPreview", Set.of());
+
         // Collaboration features that require CloudServices
         premDeps.put("RealTimeCollaboration", cloudServicesDeps);
         premDeps.put("PresenceList", Set.of(

@@ -274,6 +274,9 @@ public enum CKEditorPlugin {
     /** Full-screen editing mode */
     FULLSCREEN("Fullscreen", Category.EDITING, "fullscreen"),
 
+    /** Balloon toolbar — 选中文本时自动显示的浮动工具栏 */
+    BALLOON_TOOLBAR("BalloonToolbar", Category.EDITING),
+
     // ==================== Markdown ====================
 
     /** Markdown GFM data processor */

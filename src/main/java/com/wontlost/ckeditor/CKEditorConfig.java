@@ -229,6 +229,56 @@ public class CKEditorConfig {
     }
 
     /**
+     * 设置分页配置（Pagination 插件）
+     *
+     * @param pageWidth  页面宽度（如 "21cm"）
+     * @param pageHeight 页面高度（如 "29.7cm"）
+     * @param pageMargins 页面边距
+     * @return this config for chaining
+     */
+    public CKEditorConfig setPagination(String pageWidth, String pageHeight,
+                                        PaginationMargins pageMargins) {
+        ObjectNode paginationObj = createObjectNode();
+        if (pageWidth != null) {
+            paginationObj.put("pageWidth", pageWidth);
+        }
+        if (pageHeight != null) {
+            paginationObj.put("pageHeight", pageHeight);
+        }
+        if (pageMargins != null) {
+            paginationObj.set("pageMargins", pageMargins.toJson());
+        }
+        configs.put("pagination", paginationObj);
+        return this;
+    }
+
+    /**
+     * 分页边距配置
+     */
+    public static class PaginationMargins {
+        private final String top;
+        private final String right;
+        private final String bottom;
+        private final String left;
+
+        public PaginationMargins(String top, String right, String bottom, String left) {
+            this.top = top;
+            this.right = right;
+            this.bottom = bottom;
+            this.left = left;
+        }
+
+        ObjectNode toJson() {
+            ObjectNode obj = createObjectNode();
+            if (top != null) obj.put("top", top);
+            if (right != null) obj.put("right", right);
+            if (bottom != null) obj.put("bottom", bottom);
+            if (left != null) obj.put("left", left);
+            return obj;
+        }
+    }
+
+    /**
      * Set mention feeds
      */
     public CKEditorConfig setMention(MentionFeed... feeds) {

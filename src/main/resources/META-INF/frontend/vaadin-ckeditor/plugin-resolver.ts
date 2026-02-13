@@ -124,6 +124,8 @@ import {
     // Emoji
     Emoji,
     EmojiPicker,
+    // Balloon toolbar (浮动工具栏，选中文本时自动显示)
+    BalloonToolbar,
 } from 'ckeditor5';
 
 /**
@@ -273,6 +275,8 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     // Emoji
     'Emoji': Emoji,
     'EmojiPicker': EmojiPicker,
+    // Balloon toolbar
+    'BalloonToolbar': BalloonToolbar,
 };
 
 /**

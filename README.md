@@ -32,14 +32,14 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.5</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```kotlin
-implementation("com.wontlost:ckeditor-vaadin:5.0.3")
+implementation("com.wontlost:ckeditor-vaadin:5.0.5")
 ```
 
 ## Quick Start

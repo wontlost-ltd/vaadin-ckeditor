@@ -6,7 +6,7 @@
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.5</version>
 </dependency>
 ```
 

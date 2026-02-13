@@ -17,6 +17,9 @@ import {
     type PluginConfig,
 } from './plugin-resolver';
 
+// 内置插件
+import CommentPermissionEnforcer from './comment-permission-enforcer';
+
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
 
@@ -190,6 +193,22 @@ export class VaadinCKEditor extends LitElement {
      * @default false
      */
     @property({ type: Boolean }) documentOutlineEnabled = false;
+    /**
+     * When true, enables annotation sidebar for collaboration features (decoupled editor only).
+     * Provides container for Comments, TrackChanges, and RevisionHistory sidebar panels.
+     * Also creates a presence list container for showing active collaborators.
+     *
+     * @default false
+     */
+    @property({ type: Boolean }) annotationSidebarEnabled = false;
+    /**
+     * 当启用时，对非当前用户的评论隐藏 Edit/Remove 下拉菜单，
+     * 使前端 UI 与 CKEditor Cloud Services 的 comment:write 权限模型保持一致。
+     * 需要 annotationSidebarEnabled=true 和 CommentsRepository 插件。
+     *
+     * @default false
+     */
+    @property({ type: Boolean }) commentPermissionEnforcerEnabled = false;
     @property({ type: Boolean }) ghsEnabled = false;
     @property({ type: Boolean }) hideToolbar = false;
     @property({ type: Boolean }) sync = true;
@@ -279,7 +298,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '5.0.3';
+    private readonly version = '5.0.5';
 
     constructor() {
         super();
@@ -508,15 +527,24 @@ export class VaadinCKEditor extends LitElement {
     private async buildConfig(): Promise<EditorConfig> {
         const resolvedPlugins = await this.resolvePlugins();
 
+        // 评论权限强制插件：隐藏非当前用户评论的 Edit/Remove 按钮
+        if (this.commentPermissionEnforcerEnabled && this.annotationSidebarEnabled) {
+            resolvedPlugins.push(CommentPermissionEnforcer);
+            logger.debug('CommentPermissionEnforcer plugin injected');
+        }
+
         // Get translations for the specified language
         const translations = this.language !== 'en' ? TRANSLATION_REGISTRY[this.language] : undefined;
+
+        // 协作模式下检查频道是否已有数据，有则移除 initialData 避免警告
+        const configWithInitialData = await this.stripInitialDataIfChannelExists(this.config);
 
         let editorConfig: EditorConfig = {
             licenseKey: this.licenseKey,
             plugins: resolvedPlugins as EditorConfig['plugins'],
             language: this.language,
             ...(translations ? { translations: [translations] } : {}),
-            ...this.config,
+            ...configWithInitialData,
         };
 
         // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
@@ -602,11 +630,108 @@ export class VaadinCKEditor extends LitElement {
             }
         }
 
+        // Add annotation sidebar for collaboration features (Comments, TrackChanges, RevisionHistory)
+        if (this.editorType === 'decoupled' && this.annotationSidebarEnabled) {
+            const sidebarContainer = this.querySelector('#annotation-sidebar');
+            if (sidebarContainer) {
+                editorConfig = {
+                    ...editorConfig,
+                    sidebar: {
+                        container: sidebarContainer as HTMLElement,
+                        preventScrollOutOfView: true,
+                    },
+                };
+                logger.debug('Annotation sidebar container configured');
+            } else {
+                logger.warn('Annotation sidebar enabled but container #annotation-sidebar not found');
+            }
+
+            const presenceListContainer = this.querySelector('#presence-list-container');
+            if (presenceListContainer) {
+                editorConfig = {
+                    ...editorConfig,
+                    presenceList: {
+                        container: presenceListContainer as HTMLElement,
+                    },
+                };
+                logger.debug('Presence list container configured');
+            } else {
+                logger.warn('Annotation sidebar enabled but container #presence-list-container not found');
+            }
+
+            // RevisionHistory 需要四个容器：editorContainer、viewerContainer、viewerEditorElement、viewerSidebarContainer
+            const editorContainer = this.querySelector('#editor-container');
+            const revisionHistoryContainer = this.querySelector('#revision-history-container');
+            const revisionHistoryEditor = this.querySelector('#revision-history-editor');
+            const revisionHistorySidebar = this.querySelector('#revision-history-sidebar');
+            if (editorContainer && revisionHistoryContainer && revisionHistoryEditor && revisionHistorySidebar) {
+                editorConfig = {
+                    ...editorConfig,
+                    revisionHistory: {
+                        editorContainer: editorContainer as HTMLElement,
+                        viewerContainer: revisionHistoryContainer as HTMLElement,
+                        viewerEditorElement: revisionHistoryEditor as HTMLElement,
+                        viewerSidebarContainer: revisionHistorySidebar as HTMLElement,
+                    },
+                };
+                logger.debug('Revision history containers configured');
+            } else {
+                logger.warn('Revision history containers not fully found in DOM');
+            }
+        }
+
         // Add custom upload adapter for server-side file handling
         // This enables the UploadHandler Java API to receive uploaded files
         // Note: The adapter is set up after editor creation in setupCustomUploadAdapter()
 
         return editorConfig;
+    }
+
+    /**
+     * 协作模式下检查频道是否已被初始化
+     *
+     * 当 config 同时包含 cloudServices（协作模式）和 initialData 时，
+     * 通过 localStorage 记录已初始化的频道。首次加载时保留 initialData
+     * 用于种子数据；后续加载检测到已初始化则移除 initialData，
+     * 避免 "editor-initial-data-replaced-with-revision-data" 警告。
+     *
+     * localStorage key 格式: ck-channel-seeded:{channelId}
+     *
+     * @param config 原始编辑器配置
+     * @returns 处理后的配置（可能移除了 initialData）
+     */
+    private async stripInitialDataIfChannelExists(
+        config: Record<string, unknown>
+    ): Promise<Record<string, unknown>> {
+        // 仅在协作模式（有 cloudServices 配置）且设置了 initialData 时检查
+        const cloudServices = config.cloudServices as Record<string, unknown> | undefined;
+        const collaboration = config.collaboration as Record<string, unknown> | undefined;
+        const hasInitialData = 'initialData' in config && config.initialData != null;
+
+        if (!cloudServices?.tokenUrl || !collaboration?.channelId || !hasInitialData) {
+            return config;
+        }
+
+        const channelId = collaboration.channelId as string;
+        const storageKey = `ck-channel-seeded:${channelId}`;
+
+        try {
+            if (localStorage.getItem(storageKey)) {
+                // 频道已被初始化过，移除 initialData 让 Cloud Services 加载已有数据
+                logger.info(`频道 "${channelId}" 已初始化，移除 initialData 避免冲突`);
+                const { initialData: _, ...configWithoutInitialData } = config;
+                return configWithoutInitialData;
+            }
+
+            // 首次加载：标记频道为已初始化，保留 initialData 用于种子
+            localStorage.setItem(storageKey, String(Date.now()));
+            logger.info(`频道 "${channelId}" 首次初始化，使用 initialData 种子数据`);
+        } catch {
+            // localStorage 不可用（隐私模式等），保留 initialData 让 CKEditor 自行处理
+            logger.warn('localStorage 不可用，保留 initialData');
+        }
+
+        return config;
     }
 
     /**
@@ -894,10 +1019,82 @@ export class VaadinCKEditor extends LitElement {
             plugins: this.plugins.map(p => p.name),
         });
 
+        // 批注侧栏对齐：将每个 ck-sidebar-item 绝对定位到对应 ck-comment-marker 的位置
+        if (this.annotationSidebarEnabled) {
+            this.setupAnnotationSidebarSync();
+        }
+
         // Fire editor ready event to Java backend
         if (this.$server) {
             this.$server.fireEditorReady(initTimeMs);
         }
+    }
+
+    /**
+     * 批注侧栏滚动同步：将每个 ck-sidebar-item 绝对定位到对应 ck-comment-marker 的视口 Y 坐标。
+     *
+     * 文档编辑器有两层滚动：wrapper（外层）和 editable（内层）。
+     * CKEditor 原生的 style.top 定位在两层滚动场景下不准确，
+     * 本方法覆盖 ck-sidebar-item 的位置，使其始终与 marker 对齐。
+     * 当批注重叠时自动堆叠（stack），保证最近的 marker 对应的批注排在最上面。
+     */
+    private setupAnnotationSidebarSync(): void {
+        const wrapper = this.querySelector('.editor-container__editor-wrapper') as HTMLElement;
+        const sidebar = this.querySelector('.annotation-sidebar-container') as HTMLElement;
+        if (!wrapper || !sidebar) return;
+        const editable = wrapper.querySelector('.ck-editor__editable') as HTMLElement;
+        if (!editable) return;
+
+        sidebar.style.overflow = 'visible';
+        sidebar.style.position = 'relative';
+
+        const syncPositions = () => {
+            const items = sidebar.querySelectorAll<HTMLElement>('.ck-sidebar-item');
+            const markers = editable.querySelectorAll<HTMLElement>('.ck-comment-marker');
+            if (!items.length || !markers.length) return;
+
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const sidebarOffset = sidebarRect.top - wrapperRect.top;
+
+            let lastBottom = -Infinity;
+            const n = Math.min(items.length, markers.length);
+
+            for (let i = 0; i < n; i++) {
+                const markerRect = markers[i].getBoundingClientRect();
+                const markerRelY = markerRect.top - wrapperRect.top;
+                let desiredTop = markerRelY - sidebarOffset;
+
+                // 堆叠：如果与上一个批注重叠，向下推
+                if (desiredTop < lastBottom + 4) {
+                    desiredTop = lastBottom + 4;
+                }
+
+                items[i].style.position = 'absolute';
+                items[i].style.top = desiredTop + 'px';
+                items[i].style.width = '100%';
+                lastBottom = desiredTop + items[i].offsetHeight;
+            }
+
+            // 超出 markers 数量的 sidebar items（如新建评论的输入框）也绝对定位
+            for (let i = n; i < items.length; i++) {
+                items[i].style.position = 'absolute';
+                items[i].style.top = (lastBottom + 4) + 'px';
+                items[i].style.width = '100%';
+                lastBottom += items[i].offsetHeight + 4;
+            }
+        };
+
+        wrapper.addEventListener('scroll', syncPositions);
+        editable.addEventListener('scroll', syncPositions);
+        syncPositions();
+
+        // MutationObserver 监听侧栏变化（新增/删除评论），自动重新对齐
+        new MutationObserver(syncPositions).observe(sidebar, {
+            childList: true,
+            subtree: true,
+            attributes: true
+        });
     }
 
     /**
@@ -1484,12 +1681,13 @@ export class VaadinCKEditor extends LitElement {
         if (this.editorType === 'decoupled') {
             const includeOutlineClass = this.documentOutlineEnabled ? 'editor-container_include-outline' : '';
             const includeMinimapClass = this.minimapEnabled ? 'editor-container_include-minimap' : '';
+            const includeAnnotationClass = this.annotationSidebarEnabled ? 'editor-container_include-annotations' : '';
             // Apply custom editor height if specified (otherwise uses CSS default of 700px)
             const heightStyle = this.editorHeight && this.editorHeight !== 'auto'
                 ? `--ck-editor-height: ${this.editorHeight};`
                 : '';
             return html`
-                <div class="editor-container editor-container_document-editor ${includeOutlineClass} ${includeMinimapClass}"
+                <div class="editor-container editor-container_document-editor ${includeOutlineClass} ${includeMinimapClass} ${includeAnnotationClass}"
                      id="editor-container"
                      style="${heightStyle}">
                     <div class="editor-container__menu-bar" id="menu-bar-container"></div>
@@ -1500,6 +1698,16 @@ export class VaadinCKEditor extends LitElement {
                             <div id="${this.editorId}" class="editor-content"></div>
                         </div>
                         <div class="minimap-container" style="display: ${this.minimapEnabled ? 'block' : 'none'}"></div>
+                        <div class="annotation-sidebar-wrapper" style="display: ${this.annotationSidebarEnabled ? 'flex' : 'none'}">
+                            <div class="presence-list-container" id="presence-list-container"></div>
+                            <div class="annotation-sidebar-container" id="annotation-sidebar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="revision-history" id="revision-history-container" style="display: none;">
+                    <div class="revision-history__wrapper">
+                        <div class="revision-history__editor" id="revision-history-editor"></div>
+                        <div class="revision-history__sidebar" id="revision-history-sidebar"></div>
                     </div>
                 </div>
             `;
@@ -1519,6 +1727,19 @@ export class VaadinCKEditor extends LitElement {
         super.connectedCallback();
         logger.debug(' connectedCallback, editorId:', this.editorId);
         this.isDisconnected = false;
+
+        // Suppress CKEditor Pagination plugin internal errors (non-fatal)
+        if (!this.paginationErrorHandler) {
+            this.paginationErrorHandler = (event: PromiseRejectionEvent) => {
+                const err = event.reason;
+                if (err instanceof TypeError &&
+                    err.stack?.includes('PageStarterInfoToPageBreakInfo')) {
+                    event.preventDefault();
+                    logger.debug('Suppressed Pagination plugin internal error:', err.message);
+                }
+            };
+            window.addEventListener('unhandledrejection', this.paginationErrorHandler);
+        }
 
         // Setup scroll handler for sticky panel (must be called on each connection)
         this.setupStickyPanelObserver();
@@ -1635,6 +1856,12 @@ export class VaadinCKEditor extends LitElement {
             }
         }
     }
+
+    // Pagination plugin error suppression handler
+    // CKEditor 5 Pagination plugin has an internal bug in _mapElementPageStarterInfoToPageBreakInfo
+    // that throws "Cannot read properties of undefined (reading 'parent')" during page break
+    // recalculation after dimension changes. This is non-fatal — the editor works correctly.
+    private paginationErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 
     // Sticky panel scroll handler state
     private stickyPanelScrollHandler: (() => void) | null = null;
@@ -1766,6 +1993,12 @@ export class VaadinCKEditor extends LitElement {
 
         // Clean up theme manager (observers and dark theme)
         this.themeManager.cleanup();
+
+        // Clean up pagination error handler
+        if (this.paginationErrorHandler) {
+            window.removeEventListener('unhandledrejection', this.paginationErrorHandler);
+            this.paginationErrorHandler = null;
+        }
 
         // Clean up sticky panel observer
         this.cleanupStickyPanelObserver();

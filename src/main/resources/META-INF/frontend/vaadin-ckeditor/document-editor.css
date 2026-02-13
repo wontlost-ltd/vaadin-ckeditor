@@ -162,6 +162,39 @@ vaadin-ckeditor .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
     min-width: 0;
 }
 
+/* ===== Annotation Sidebar (Comments / TrackChanges) ===== */
+
+/* annotation-sidebar-wrapper 包含在线用户列表和批注侧栏 */
+/* sticky 定位使其在编辑器外层滚动时保持可见；overflow:hidden 裁剪绝对定位的批注卡片 */
+vaadin-ckeditor .annotation-sidebar-wrapper {
+    flex-direction: column;
+    min-width: var(--ck-sidebar-width);
+    max-width: var(--ck-sidebar-width);
+    margin-top: 16px;
+    margin-left: 10px;
+    margin-right: 10px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    max-height: var(--ck-editor-height, 700px);
+    overflow: hidden;
+}
+
+/* annotation-sidebar-container 不自带滚动 — JS 通过绝对定位批注卡片对齐 marker */
+vaadin-ckeditor .annotation-sidebar-container {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+    position: relative;
+}
+
+/* ck-sidebar-item 使用绝对定位 — JS 根据 ck-comment-marker 的视口位置动态设置 top */
+vaadin-ckeditor .annotation-sidebar-container .ck-sidebar-item {
+    position: absolute;
+    width: 100%;
+}
+
 /* ===== Minimap Styles ===== */
 
 /* Minimap container - sticky to stay visible while scrolling
@@ -633,4 +666,27 @@ vaadin-ckeditor .ck-document-outline-header {
     vaadin-ckeditor .editor-container__sidebar {
         background-color: var(--ck-color-base-foreground, hsl(270, 1%, 29%));
     }
+}
+
+/* ===== Revision History ===== */
+/* 默认隐藏，CKEditor 在用户点击 "Open Revision History" 时自动切换显示 */
+vaadin-ckeditor .revision-history {
+    display: none;
+}
+
+vaadin-ckeditor .revision-history__wrapper {
+    display: flex;
+    height: 100%;
+}
+
+vaadin-ckeditor .revision-history__editor {
+    flex: 1;
+    overflow: hidden;
+}
+
+vaadin-ckeditor .revision-history__sidebar {
+    min-width: var(--ck-sidebar-width, 270px);
+    max-width: var(--ck-sidebar-width, 270px);
+    border-left: 1px solid var(--ck-color-base-border, #ccced1);
+    overflow-y: auto;
 }
