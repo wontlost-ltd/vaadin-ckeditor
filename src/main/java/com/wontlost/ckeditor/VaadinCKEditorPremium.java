@@ -39,11 +39,20 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>Template</td><td>insertTemplate</td><td>Content templates</td></tr>
  *   <tr><td>MergeFields</td><td>insertMergeField</td><td>Mail merge fields</td></tr>
  *   <tr><td>Pagination</td><td>-</td><td>Page breaks and pagination</td></tr>
- *   <tr><td>AIAssistant</td><td>aiCommands, aiAssistant</td><td>AI-powered writing assistant</td></tr>
+ *   <tr><td>AIAssistant</td><td>aiCommands, aiAssistant</td><td>AI-powered writing assistant (deprecated, use modular AI plugins)</td></tr>
+ *   <tr><td>AIChat</td><td>toggleAi</td><td>AI chat sidebar panel (v47.5.0+)</td></tr>
+ *   <tr><td>AIEditorIntegration</td><td>-</td><td>AI editor integration core (v47.5.0+)</td></tr>
+ *   <tr><td>AIQuickActions</td><td>aiQuickActions</td><td>AI quick actions on text selection (v47.5.0+)</td></tr>
+ *   <tr><td>AIReviewMode</td><td>-</td><td>AI review mode (v47.5.0+)</td></tr>
+ *   <tr><td>AITranslate</td><td>-</td><td>AI translation (v47.5.0+)</td></tr>
  *   <tr><td>Comments</td><td>comment</td><td>Inline commenting</td></tr>
  *   <tr><td>TrackChanges</td><td>trackChanges</td><td>Track document changes</td></tr>
  *   <tr><td>RevisionHistory</td><td>revisionHistory</td><td>Version history</td></tr>
  *   <tr><td>LineHeight</td><td>lineHeight</td><td>Line height adjustment</td></tr>
+ *   <tr><td>EmailConfigurationHelper</td><td>-</td><td>Email editor configuration optimizer (v47.5.0+)</td></tr>
+ *   <tr><td>SourceEditingEnhanced</td><td>sourceEditingEnhanced</td><td>Enhanced source editing with HTML validation (v47.5.0+)</td></tr>
+ *   <tr><td>ExportInlineStyles</td><td>-</td><td>Inline style export for email compatibility (v47.5.0+)</td></tr>
+ *   <tr><td>TableLayout</td><td>insertTableLayout</td><td>Predefined table layout templates (v47.5.0+)</td></tr>
  * </table>
  *
  * <h2>License:</h2>
@@ -70,7 +79,7 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  * @see CustomPlugin#fromPremium(String)
  * @since 5.0.0
  */
-@NpmPackage(value = "ckeditor5-premium-features", version = "47.4.0")
+@NpmPackage(value = "ckeditor5-premium-features", version = "47.5.0")
 public final class VaadinCKEditorPremium {
 
     private static volatile boolean enabled = false;
@@ -139,7 +148,7 @@ public final class VaadinCKEditorPremium {
      * @return the npm package version
      */
     public static String getVersion() {
-        return "47.4.0";
+        return "47.5.0";
     }
 
     /**
@@ -210,9 +219,28 @@ public final class VaadinCKEditorPremium {
         PAGINATION("Pagination", "pagination"),
 
         /**
-         * AI-powered writing assistant.
+         * AI-powered writing assistant (bundled).
+         * @deprecated Since CKEditor 47.5.0, use modular AI plugins instead:
+         *     {@link #AI_CHAT}, {@link #AI_EDITOR_INTEGRATION}, {@link #AI_QUICK_ACTIONS},
+         *     {@link #AI_REVIEW_MODE}, {@link #AI_TRANSLATE}.
          */
+        @Deprecated
         AI_ASSISTANT("AIAssistant", "aiCommands", "aiAssistant"),
+
+        /** AI 聊天侧栏面板（v47.5.0+） */
+        AI_CHAT("AIChat", "toggleAi"),
+
+        /** AI 编辑器集成，核心 AI 功能，无 toolbar（v47.5.0+） */
+        AI_EDITOR_INTEGRATION("AIEditorIntegration"),
+
+        /** AI 快捷操作，选中文本弹出（v47.5.0+） */
+        AI_QUICK_ACTIONS("AIQuickActions", "aiQuickActions"),
+
+        /** AI 审阅模式（v47.5.0+） */
+        AI_REVIEW_MODE("AIReviewMode"),
+
+        /** AI 翻译（v47.5.0+） */
+        AI_TRANSLATE("AITranslate"),
 
         /**
          * Inline commenting and discussions.
@@ -277,7 +305,19 @@ public final class VaadinCKEditorPremium {
         /**
          * Line height adjustment for paragraphs.
          */
-        LINE_HEIGHT("LineHeight", "lineHeight");
+        LINE_HEIGHT("LineHeight", "lineHeight"),
+
+        /** 邮件编辑器配置优化助手（v47.5.0+） */
+        EMAIL_CONFIGURATION_HELPER("EmailConfigurationHelper"),
+
+        /** 增强版源代码编辑（带 HTML 验证，v47.5.0+） */
+        SOURCE_EDITING_ENHANCED("SourceEditingEnhanced", "sourceEditingEnhanced"),
+
+        /** 内联样式导出（邮件客户端兼容性必需，v47.5.0+） */
+        EXPORT_INLINE_STYLES("ExportInlineStyles"),
+
+        /** 表格布局选项（预设表格布局模板，premium，v47.5.0+） */
+        TABLE_LAYOUT("TableLayout", "insertTableLayout");
 
         private final String pluginName;
         private final String[] toolbarItems;

@@ -176,6 +176,9 @@ public enum CKEditorPlugin {
     /** Table column resizing */
     TABLE_COLUMN_RESIZE("TableColumnResize", Category.TABLE),
 
+    /** 输出纯净表格 HTML（去除多余样式，Email 场景必需） */
+    PLAIN_TABLE_OUTPUT("PlainTableOutput", Category.TABLE),
+
     // ==================== Media ====================
 
     /** Embed media from URLs */
@@ -276,6 +279,9 @@ public enum CKEditorPlugin {
 
     /** Balloon toolbar — 选中文本时自动显示的浮动工具栏 */
     BALLOON_TOOLBAR("BalloonToolbar", Category.EDITING),
+
+    /** 块级工具栏（Notion 风格，每个段落左侧显示 + 按钮） */
+    BLOCK_TOOLBAR("BlockToolbar", Category.EDITING),
 
     // ==================== Markdown ====================
 

@@ -90,13 +90,13 @@ import static com.wontlost.ckeditor.JsonUtil.*;
  */
 @Tag("vaadin-ckeditor")
 @JsModule("./vaadin-ckeditor/vaadin-ckeditor.ts")
-@NpmPackage(value = "ckeditor5", version = "47.4.0")
+@NpmPackage(value = "ckeditor5", version = "47.5.0")
 @NpmPackage(value = "lit", version = "^3.3.2")
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
     /** Keep in sync with version field in vaadin-ckeditor.ts */
-    private static final String VERSION = "5.0.5";
+    private static final String VERSION = "5.1.0";
 
     /**
      * Default autosave waiting time in milliseconds.
@@ -448,6 +448,17 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void setAnnotationSidebarEnabled(boolean enabled) {
         getElement().setProperty("annotationSidebarEnabled", enabled);
+    }
+
+    /**
+     * 启用 AI 侧栏容器（仅 DECOUPLED 类型）。
+     * AI Chat/Assistant 插件在 sidebar 模式下需要 DOM 容器。
+     * 启用后会在编辑器右侧创建 AI 侧栏容器，并自动将 config.ai.container.element 绑定到该容器。
+     *
+     * @param enabled true 启用 AI 侧栏
+     */
+    public void setAiSidebarEnabled(boolean enabled) {
+        getElement().setProperty("aiSidebarEnabled", enabled);
     }
 
     /**

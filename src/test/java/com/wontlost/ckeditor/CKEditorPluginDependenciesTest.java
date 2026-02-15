@@ -3,6 +3,9 @@ package com.wontlost.ckeditor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
@@ -368,17 +371,28 @@ class CKEditorPluginDependenciesTest {
     }
 
     @Test
-    @DisplayName("requiresCloudServices should return true for export/import plugins")
-    void requiresCloudServicesShouldReturnTrueForExportImport() {
+    @DisplayName("requiresCloudServices should return true for export/import and AI plugins")
+    void requiresCloudServicesShouldReturnTrueForCloudDependentPlugins() {
+        // Export/Import plugins
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportPdf")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportWord")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ImportWord")).isTrue();
+        // AI plugins also require CloudServices
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIAssistant")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChat")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorIntegration")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIQuickActions")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIReviewMode")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AITranslate")).isTrue();
+        // Collaboration plugins
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaboration")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isTrue();
     }
 
     @Test
     @DisplayName("requiresCloudServices should return false for non-cloud-services plugins")
     void requiresCloudServicesShouldReturnFalseForNonCloudServices() {
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIAssistant")).isFalse();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("Pagination")).isFalse();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("UnknownPlugin")).isFalse();
     }
 
@@ -425,5 +439,29 @@ class CKEditorPluginDependenciesTest {
         Map<String, Set<CKEditorPlugin>> missing =
             CKEditorPluginDependencies.validatePremiumDependencies(allPlugins, premiumPlugins);
         assertThat(missing).isEmpty();
+    }
+
+    @Test
+    @DisplayName("BlockToolbar should depend on Widget and WidgetToolbarRepository")
+    void blockToolbarShouldDependOnWidgetAndWidgetToolbarRepository() {
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.BLOCK_TOOLBAR))
+            .contains(CKEditorPlugin.WIDGET, CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY);
+    }
+
+    // ==================== OSGi Manifest Validation ====================
+
+    @Test
+    @DisplayName("bnd.bnd should exist and contain required OSGi headers")
+    void bndFileShouldContainRequiredHeaders() throws IOException {
+        // Resolve via Maven basedir property for IDE/CI consistency
+        String basedir = System.getProperty("basedir", ".");
+        Path bndFile = Path.of(basedir, "bnd.bnd");
+        assertThat(bndFile).exists();
+
+        String content = Files.readString(bndFile);
+        assertThat(content)
+            .contains("Bundle-SymbolicName:")
+            .contains("Export-Package:")
+            .contains("com.wontlost.ckeditor");
     }
 }

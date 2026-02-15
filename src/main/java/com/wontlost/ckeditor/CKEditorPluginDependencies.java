@@ -49,7 +49,9 @@ public final class CKEditorPluginDependencies {
     private static final Map<String, Set<CKEditorPlugin>> PREMIUM_DEPENDENCIES;
 
     /**
-     * Premium plugin names that require CloudServices for cloud-based conversion.
+     * Premium plugin names that require CloudServices.
+     * Derived from PREMIUM_DEPENDENCIES — any premium plugin whose dependency set
+     * contains CLOUD_SERVICES is automatically included.
      */
     private static final Set<String> CLOUD_SERVICES_REQUIRED_PLUGINS;
 
@@ -81,6 +83,7 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.TABLE_CELL_PROPERTIES, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_CAPTION, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_COLUMN_RESIZE, Set.of(CKEditorPlugin.TABLE));
+        deps.put(CKEditorPlugin.PLAIN_TABLE_OUTPUT, Set.of(CKEditorPlugin.TABLE));
 
         // ==================== Link Plugin Dependencies ====================
         deps.put(CKEditorPlugin.AUTO_LINK, Set.of(CKEditorPlugin.LINK));
@@ -119,6 +122,10 @@ public final class CKEditorPluginDependencies {
         // Note: Premium plugins like ExportPdf, ExportWord, ImportWord require CloudServices
         // as a soft dependency. These are handled in PREMIUM_DEPENDENCIES map below.
         // Minimap requires DecoupledEditor (handled at editor type level)
+
+        // ==================== Block Toolbar Dependencies ====================
+        // BlockToolbar requires WidgetToolbarRepository for block-level widget interaction
+        deps.put(CKEditorPlugin.BLOCK_TOOLBAR, Set.of(CKEditorPlugin.WIDGET, CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY));
 
         // ==================== Restricted Editing Dependencies ====================
         deps.put(CKEditorPlugin.STANDARD_EDITING_MODE, Set.of(CKEditorPlugin.RESTRICTED_EDITING_MODE));
@@ -215,14 +222,6 @@ public final class CKEditorPluginDependencies {
 
         RECOMMENDED = Collections.unmodifiableMap(rec);
 
-        // ==================== Premium Plugin Dependencies ====================
-        // These premium plugins require CloudServices for cloud-based document conversion
-        CLOUD_SERVICES_REQUIRED_PLUGINS = Set.of(
-            "ExportPdf",
-            "ExportWord",
-            "ImportWord"
-        );
-
         // Initialize premium plugin dependency map
         Map<String, Set<CKEditorPlugin>> premDeps = new HashMap<>();
 
@@ -238,6 +237,13 @@ public final class CKEditorPluginDependencies {
 
         // AI Assistant requires CloudServices for AI features
         premDeps.put("AIAssistant", cloudServicesDeps);
+
+        // 模块化 AI 插件（v47.5.0+）— 需要 CloudServices
+        premDeps.put("AIChat", cloudServicesDeps);
+        premDeps.put("AIEditorIntegration", cloudServicesDeps);
+        premDeps.put("AIQuickActions", cloudServicesDeps);
+        premDeps.put("AIReviewMode", cloudServicesDeps);
+        premDeps.put("AITranslate", cloudServicesDeps);
 
         // Pagination — 独立插件，无外部依赖
         premDeps.put("Pagination", Set.of());
@@ -267,7 +273,22 @@ public final class CKEditorPluginDependencies {
         premDeps.put("CKBox", cloudServicesDeps);
         premDeps.put("CKBoxImageEdit", Set.of(CKEditorPlugin.CLOUD_SERVICES));
 
+        // Email 相关 premium 插件
+        premDeps.put("EmailConfigurationHelper", Set.of());
+        premDeps.put("SourceEditingEnhanced", Set.of());
+        premDeps.put("ExportInlineStyles", Set.of());
+
+        // 表格布局（premium，依赖 Table）
+        premDeps.put("TableLayout", Set.of(CKEditorPlugin.TABLE));
+
         PREMIUM_DEPENDENCIES = Collections.unmodifiableMap(premDeps);
+
+        // Derive CLOUD_SERVICES_REQUIRED_PLUGINS from PREMIUM_DEPENDENCIES:
+        // any premium plugin whose dependencies include CLOUD_SERVICES
+        CLOUD_SERVICES_REQUIRED_PLUGINS = premDeps.entrySet().stream()
+            .filter(e -> e.getValue().contains(CKEditorPlugin.CLOUD_SERVICES))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toUnmodifiableSet());
     }
 
     private CKEditorPluginDependencies() {
