@@ -156,10 +156,121 @@ vaadin-ckeditor .editor-container__sidebar {
     overflow: auto;
 }
 
-/* AI sidebar collapse handling */
-vaadin-ckeditor .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
+/* AI sidebar collapse handling — :has() with JS-driven data-collapsed fallback for older browsers.
+   :has() is used in modern browsers; data-collapsed is toggled by MutationObserver in setupAiSidebarCollapseObserver().
+   [hidden] covers the case when aiSidebarEnabled is false. */
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden),
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai[data-collapsed],
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai[hidden] {
     max-width: 0;
     min-width: 0;
+    overflow: hidden;
+    /* visibility:hidden prevents keyboard focus on all children (including dynamically added elements)
+       in browsers that don't support the inert attribute */
+    visibility: hidden;
+}
+
+/* ===== AI Sidebar（CKEditor Premium AI 面板）===== */
+/* AI 侧栏使用 CKEditor Premium 的 ck-tabs 组件，需要完全不同于 Document Outline 的布局。
+   重置继承自 .editor-container__sidebar 的 sticky 定位、270px 宽度和 margin。 */
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai {
+    /* 可覆盖的尺寸 token：开发者可通过自定义属性调整 AI 侧栏尺寸 */
+    --ck-ai-sidebar-min-width: 280px;
+    --ck-ai-sidebar-max-width: 30vw;
+    --ck-ai-sidebar-default-width: 440px;
+    --ck-ai-sidebar-width: clamp(var(--ck-ai-sidebar-min-width), var(--ck-ai-sidebar-default-width), var(--ck-ai-sidebar-max-width));
+    width: var(--ck-ai-sidebar-width);
+    min-width: var(--ck-ai-sidebar-min-width);
+    max-width: var(--ck-ai-sidebar-max-width);
+    flex: 0 0 var(--ck-ai-sidebar-width);
+    /* Sticky 定位：wrapper 滚动时侧栏保持可见，与 .editor-container__sidebar 行为一致。
+       高度使用容器查询单位 100cqh（wrapper 的 clientHeight），不随 scrollHeight 拉伸。
+       需要 wrapper 声明 container-type: size（见下方 AI-active 模式规则）。 */
+    position: sticky;
+    top: 0;
+    height: 100%; /* Fallback for browsers without container query support */
+    height: 100cqh;
+    align-self: flex-start;
+    margin: 0;
+    /* 无边框、透明背景 — AI tabs 自带样式 */
+    border-left: none;
+    background: transparent;
+    padding: 0;
+    overflow: auto;
+}
+
+/* 中等屏幕：多侧栏同时启用时适度缩减 AI 侧栏宽度 */
+@media (max-width: 1200px) {
+    vaadin-ckeditor .editor-container__sidebar_ckeditor-ai {
+        --ck-ai-sidebar-default-width: 360px;
+        --ck-ai-sidebar-min-width: 240px;
+        min-width: var(--ck-ai-sidebar-min-width);
+    }
+}
+
+/* 窄屏回退：缩减所有侧栏最小宽度，避免多侧栏同时启用时水平溢出 */
+@media (max-width: 900px) {
+    vaadin-ckeditor .editor-container__sidebar_ckeditor-ai {
+        --ck-ai-sidebar-min-width: 200px;
+        --ck-ai-sidebar-default-width: 300px;
+        min-width: var(--ck-ai-sidebar-min-width);
+    }
+    vaadin-ckeditor .editor-container__sidebar {
+        --ck-sidebar-narrow-min-width: 80px;
+        min-width: var(--ck-sidebar-narrow-min-width);
+    }
+    vaadin-ckeditor .annotation-sidebar-wrapper {
+        --ck-annotation-narrow-min-width: 180px;
+        min-width: var(--ck-annotation-narrow-min-width);
+    }
+    vaadin-ckeditor .minimap-container {
+        --ck-minimap-narrow-min-width: 60px;
+        min-width: var(--ck-minimap-narrow-min-width);
+    }
+}
+
+/* AI tabs — 填满侧栏高度，移除多余边框 */
+vaadin-ckeditor .editor-container__sidebar_ckeditor-ai > .ck.ck-tabs.ck-ai-tabs {
+    height: 100%;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+}
+
+/* 当 AI 侧栏启用时，容器改为 flex 列布局，wrapper 用 flex 填充剩余空间。
+   解决 wrapper 的 min/max-height: var(--ck-editor-height) 未扣除菜单栏(~33px) + 工具栏(~56px)
+   导致 AI 面板底部被裁剪 ~91px 的问题。
+   使用 .editor-container--ai-active 类（由 JS 设置）作为 :has() 的兼容回退。 */
+vaadin-ckeditor .editor-container_document-editor:has(.editor-container__sidebar_ckeditor-ai:not([hidden]):not([data-collapsed])),
+vaadin-ckeditor .editor-container_document-editor.editor-container--ai-active {
+    display: flex;
+    flex-direction: column;
+}
+
+vaadin-ckeditor .editor-container_document-editor:has(.editor-container__sidebar_ckeditor-ai:not([hidden]):not([data-collapsed])) .editor-container__editor-wrapper,
+vaadin-ckeditor .editor-container_document-editor.editor-container--ai-active .editor-container__editor-wrapper {
+    flex: 1 1 0%;
+    min-height: 0;
+    max-height: none;
+    /* 容器查询上下文：AI 侧栏使用 100cqh 引用 wrapper 的 clientHeight 而非 scrollHeight，
+       确保 sticky 侧栏填满可视区域而不随内容拉伸。 */
+    container-type: size;
+}
+
+/* AI 模式下，编辑区 margin 改为 padding — margin 在 overflow:hidden 的 wrapper 外被裁剪，
+   padding 在 overflow:auto 的编辑区内，可完整滚动到底部。
+   min-height: fit-content 防止 flex: 1 将编辑区钳制为 wrapper 的 clientHeight —
+   editable 通过 overflow: visible 溢出编辑区，但若编辑区高度被钳制，
+   wrapper 的 scrollHeight 不足以滚动到纸张底边。 */
+vaadin-ckeditor .editor-container_document-editor:has(.editor-container__sidebar_ckeditor-ai:not([hidden]):not([data-collapsed])) .editor-container__editor,
+vaadin-ckeditor .editor-container_document-editor.editor-container--ai-active .editor-container__editor {
+    flex: 1;
+    min-height: fit-content;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 28px;
+    padding-bottom: 28px;
+    box-sizing: border-box;
 }
 
 /* ===== Annotation Sidebar (Comments / TrackChanges) ===== */
@@ -167,6 +278,7 @@ vaadin-ckeditor .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
 /* annotation-sidebar-wrapper 包含在线用户列表和批注侧栏 */
 /* sticky 定位使其在编辑器外层滚动时保持可见；overflow:hidden 裁剪绝对定位的批注卡片 */
 vaadin-ckeditor .annotation-sidebar-wrapper {
+    display: flex;
     flex-direction: column;
     min-width: var(--ck-sidebar-width);
     max-width: var(--ck-sidebar-width);
@@ -178,6 +290,11 @@ vaadin-ckeditor .annotation-sidebar-wrapper {
     align-self: flex-start;
     max-height: var(--ck-editor-height, 700px);
     overflow: hidden;
+}
+
+/* [hidden] 属性必须覆盖 display:flex — 浏览器默认 [hidden]{display:none} 优先级低于显式 display 声明 */
+vaadin-ckeditor .annotation-sidebar-wrapper[hidden] {
+    display: none;
 }
 
 /* annotation-sidebar-container 不自带滚动 — JS 通过绝对定位批注卡片对齐 marker */
@@ -689,4 +806,102 @@ vaadin-ckeditor .revision-history__sidebar {
     max-width: var(--ck-sidebar-width, 270px);
     border-left: 1px solid var(--ck-color-base-border, #ccced1);
     overflow-y: auto;
+}
+
+/* ===== AI 侧栏暗色主题 ===== */
+/* CKEditor Premium AI 面板组件默认无暗色样式，需手动覆盖。
+   双选择器：data-ck-theme="dark"（显式/auto）+ html[theme~="dark"]（Vaadin 暗色主题）
+   注：!important 是必需的，因为 CKEditor Premium 通过高优先级选择器或内联样式注入 AI 面板样式，
+   普通优先级的覆盖会被忽略。所有颜色值通过 --ck-ai-* CSS 变量定义，开发者可覆盖变量来自定义暗色主题。 */
+
+/* --- 暗色主题 CSS 变量 --- */
+/* 优先使用 CKEditor 设计 token，回退到手动值。
+   对比度：--ck-ai-text-secondary (68%) on --ck-ai-bg-secondary (17%) ≈ 6.2:1 (WCAG AA) */
+vaadin-ckeditor[data-ck-theme="dark"],
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) {
+    --ck-ai-bg-primary: var(--ck-color-base-background, hsl(0, 0%, 12%));
+    --ck-ai-bg-secondary: var(--ck-color-base-foreground, hsl(0, 0%, 17%));
+    --ck-ai-bg-tertiary: var(--ck-color-widget-blurred-border, hsl(0, 0%, 20%));
+    --ck-ai-text-primary: var(--ck-color-text, hsl(0, 0%, 88%));
+    --ck-ai-text-secondary: var(--ck-color-engine-placeholder-text, hsl(0, 0%, 68%));
+    --ck-ai-border-color: var(--ck-color-base-border, hsl(0, 0%, 27%));
+}
+
+/* --- AI tabs 面板容器（聊天区域） --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-tabs__panels-container_right,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-tabs__panels-container_right {
+    background: var(--ck-ai-bg-primary) !important;
+    color: var(--ck-ai-text-primary) !important;
+}
+
+/* --- AI tabs 按钮容器（右侧垂直图标栏） --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-tabs__buttons-container_right,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-tabs__buttons-container_right {
+    background: var(--ck-ai-bg-secondary) !important;
+    border-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- Tab 按钮 --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-tab-button,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-tab-button {
+    background: transparent !important;
+}
+
+vaadin-ckeditor[data-ck-theme="dark"] .ck-tab-button.ck-on,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-tab-button.ck-on {
+    background: var(--ck-ai-bg-tertiary) !important;
+}
+
+/* --- AI Chat header --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-header,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-header {
+    border-bottom-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- AI Chat feed --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat__feed,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat__feed {
+    color: var(--ck-ai-text-primary);
+}
+
+/* --- AI Chat controls（输入区域） --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat-controls,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat-controls {
+    border-top-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- AI prompt input --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat__prompt-input .ck-input,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat__prompt-input .ck-input {
+    background: var(--ck-ai-bg-tertiary) !important;
+    color: var(--ck-ai-text-primary) !important;
+    border-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- AI context chip（"Current document" 标签） --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat-context-chip,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat-context-chip {
+    background: var(--ck-ai-bg-tertiary) !important;
+    color: var(--ck-ai-text-primary) !important;
+    border-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- AI disclaimer --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-disclaimer,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-disclaimer {
+    background: var(--ck-ai-bg-secondary) !important;
+    color: var(--ck-ai-text-secondary) !important;
+    border-top-color: var(--ck-ai-border-color) !important;
+}
+
+/* --- "+ New chat" 按钮 --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat__start-conversation,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat__start-conversation {
+    color: var(--ck-ai-text-primary) !important;
+}
+
+/* --- AI prompt capabilities（Auto / Browse / Settings） --- */
+vaadin-ckeditor[data-ck-theme="dark"] .ck-ai-chat__prompt-capabilities,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck-ai-chat__prompt-capabilities {
+    color: var(--ck-ai-text-secondary) !important;
 }

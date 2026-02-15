@@ -60,6 +60,7 @@ import {
     TableCellProperties,
     TableCaption,
     TableColumnResize,
+    PlainTableOutput,
     // Media
     MediaEmbed,
     HtmlEmbed,
@@ -126,6 +127,8 @@ import {
     EmojiPicker,
     // Balloon toolbar (浮动工具栏，选中文本时自动显示)
     BalloonToolbar,
+    // Block toolbar (Notion 风格块级工具栏)
+    BlockToolbar,
 } from 'ckeditor5';
 
 /**
@@ -211,6 +214,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'TableCellProperties': TableCellProperties,
     'TableCaption': TableCaption,
     'TableColumnResize': TableColumnResize,
+    'PlainTableOutput': PlainTableOutput,
     // Media
     'MediaEmbed': MediaEmbed,
     'HtmlEmbed': HtmlEmbed,
@@ -277,6 +281,8 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'EmojiPicker': EmojiPicker,
     // Balloon toolbar
     'BalloonToolbar': BalloonToolbar,
+    // Block toolbar
+    'BlockToolbar': BlockToolbar,
 };
 
 /**
@@ -578,6 +584,8 @@ export class PluginResolver {
         resolvedPlugins: unknown[]
     ): Promise<void> {
         try {
+            // Load premium CSS alongside the JS module (tabs, AI sidebar, collaboration UI)
+            await import('ckeditor5-premium-features/ckeditor5-premium-features.css');
             const premiumModule = await import('ckeditor5-premium-features');
             for (const pluginConfig of plugins) {
                 const plugin = premiumModule[pluginConfig.name as keyof typeof premiumModule];

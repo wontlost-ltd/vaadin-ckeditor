@@ -70,6 +70,9 @@ import {
 // Import CKEditor 5 styles
 import 'ckeditor5/ckeditor5.css';
 
+// NOTE: Premium features CSS (ckeditor5-premium-features/ckeditor5-premium-features.css) is loaded
+// dynamically in plugin-resolver.ts when premium plugins are used, to avoid baseline payload increase.
+
 // Import CKEditor 5 translations for i18n support
 import jaTranslations from 'ckeditor5/translations/ja.js';
 import zhCnTranslations from 'ckeditor5/translations/zh-cn.js';
@@ -209,6 +212,13 @@ export class VaadinCKEditor extends LitElement {
      * @default false
      */
     @property({ type: Boolean }) commentPermissionEnforcerEnabled = false;
+    /**
+     * 当启用时，为 AI Chat/Assistant 插件创建侧栏容器（仅 decoupled 编辑器）。
+     * AI 插件在 sidebar 模式下需要一个 DOM 元素作为 config.ai.container.element。
+     *
+     * @default false
+     */
+    @property({ type: Boolean }) aiSidebarEnabled = false;
     @property({ type: Boolean }) ghsEnabled = false;
     @property({ type: Boolean }) hideToolbar = false;
     @property({ type: Boolean }) sync = true;
@@ -241,6 +251,7 @@ export class VaadinCKEditor extends LitElement {
     // Internal state
     @state() private editor: Editor | null = null;
     @state() private cursorPosition: unknown = null;
+    @state() private aiSidebarCollapsed = true;
 
     // Modular components
     private themeManager = new ThemeManager();
@@ -270,14 +281,8 @@ export class VaadinCKEditor extends LitElement {
     private isCreating = false;
     private createPromise: Promise<void> | null = null;
 
-    // Command listener cleanup references (undo/redo/clipboard)
-    private undoExecuteListener?: { off: () => void };
-    private redoExecuteListener?: { off: () => void };
-    private clipboardInputListener?: { off: () => void };
-
-    // Collaboration tracking listener references for cleanup
-    private applyOperationListener?: { off: () => void };
-    private cloudServicesSyncListener?: { off: () => void };
+    // Listener cleanup functions (undo/redo/clipboard/collaboration)
+    private listenerCleanups: Array<() => void> = [];
 
     // Timer tracking for cleanup
     private toolbarRepaintTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -294,11 +299,14 @@ export class VaadinCKEditor extends LitElement {
     // Custom toolbar style element for cleanup
     private toolbarStyleElement?: HTMLStyleElement;
 
+    // AI sidebar collapse observer for cleanup
+    private aiSidebarCollapseObserver?: MutationObserver;
+
     // Server communication
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '5.0.5';
+    private readonly version = '5.1.0';
 
     constructor() {
         super();
@@ -631,15 +639,13 @@ export class VaadinCKEditor extends LitElement {
         }
 
         // Add annotation sidebar for collaboration features (Comments, TrackChanges, RevisionHistory)
-        if (this.editorType === 'decoupled' && this.annotationSidebarEnabled) {
+        // 支持 decoupled 和 balloon 编辑器类型的协作侧栏
+        if ((this.editorType === 'decoupled' || this.editorType === 'balloon') && this.annotationSidebarEnabled) {
             const sidebarContainer = this.querySelector('#annotation-sidebar');
             if (sidebarContainer) {
-                editorConfig = {
-                    ...editorConfig,
-                    sidebar: {
-                        container: sidebarContainer as HTMLElement,
-                        preventScrollOutOfView: true,
-                    },
+                (editorConfig as Record<string, unknown>).sidebar = {
+                    container: sidebarContainer as HTMLElement,
+                    preventScrollOutOfView: true,
                 };
                 logger.debug('Annotation sidebar container configured');
             } else {
@@ -648,11 +654,8 @@ export class VaadinCKEditor extends LitElement {
 
             const presenceListContainer = this.querySelector('#presence-list-container');
             if (presenceListContainer) {
-                editorConfig = {
-                    ...editorConfig,
-                    presenceList: {
-                        container: presenceListContainer as HTMLElement,
-                    },
+                (editorConfig as Record<string, unknown>).presenceList = {
+                    container: presenceListContainer as HTMLElement,
                 };
                 logger.debug('Presence list container configured');
             } else {
@@ -665,18 +668,37 @@ export class VaadinCKEditor extends LitElement {
             const revisionHistoryEditor = this.querySelector('#revision-history-editor');
             const revisionHistorySidebar = this.querySelector('#revision-history-sidebar');
             if (editorContainer && revisionHistoryContainer && revisionHistoryEditor && revisionHistorySidebar) {
-                editorConfig = {
-                    ...editorConfig,
-                    revisionHistory: {
-                        editorContainer: editorContainer as HTMLElement,
-                        viewerContainer: revisionHistoryContainer as HTMLElement,
-                        viewerEditorElement: revisionHistoryEditor as HTMLElement,
-                        viewerSidebarContainer: revisionHistorySidebar as HTMLElement,
-                    },
+                (editorConfig as Record<string, unknown>).revisionHistory = {
+                    editorContainer: editorContainer as HTMLElement,
+                    viewerContainer: revisionHistoryContainer as HTMLElement,
+                    viewerEditorElement: revisionHistoryEditor as HTMLElement,
+                    viewerSidebarContainer: revisionHistorySidebar as HTMLElement,
                 };
                 logger.debug('Revision history containers configured');
             } else {
                 logger.warn('Revision history containers not fully found in DOM');
+            }
+        }
+
+        // AI sidebar container: resolve ai.container.element to actual DOM element
+        // CKEditor AI plugin in sidebar mode requires config.ai.container.element to be an HTMLElement
+        if (this.editorType === 'decoupled' && this.aiSidebarEnabled) {
+            const aiConfig = (editorConfig as Record<string, unknown>).ai as Record<string, unknown> | undefined;
+            if (!aiConfig) {
+                logger.warn('aiSidebarEnabled is true but no "ai" config provided. AI plugins require config.ai with provider settings.');
+            } else {
+                const containerConfig = aiConfig.container as Record<string, unknown> | undefined;
+                if (containerConfig && containerConfig.type === 'sidebar') {
+                    const aiSidebarContainer = this.querySelector('#ai-sidebar-container');
+                    if (aiSidebarContainer) {
+                        containerConfig.element = aiSidebarContainer as HTMLElement;
+                        logger.debug('AI sidebar container configured');
+                    } else {
+                        logger.warn('AI sidebar enabled but container #ai-sidebar-container not found');
+                    }
+                } else {
+                    logger.debug('AI config present but container type is not "sidebar", skipping DOM binding');
+                }
             }
         }
 
@@ -1024,6 +1046,11 @@ export class VaadinCKEditor extends LitElement {
             this.setupAnnotationSidebarSync();
         }
 
+        // AI 侧栏折叠：监听 .ck-tabs 的 .ck-hidden class 切换，同步 CSS class 用于非 :has() 浏览器
+        if (this.aiSidebarEnabled) {
+            this.setupAiSidebarCollapseObserver();
+        }
+
         // Fire editor ready event to Java backend
         if (this.$server) {
             this.$server.fireEditorReady(initTimeMs);
@@ -1098,6 +1125,93 @@ export class VaadinCKEditor extends LitElement {
     }
 
     /**
+     * AI 侧栏折叠 :has() 回退。
+     * CKEditor AI tabs 组件在折叠时为 .ck-tabs 添加 .ck-hidden class。
+     * CSS 使用 :has(.ck-tabs.ck-hidden) 隐藏侧栏，但 :has() 在 Firefox < 121 不支持。
+     * 本方法通过 MutationObserver 监听 class 变化，在侧栏容器上切换 data-collapsed 属性
+     * 供 CSS 作为回退选择器使用。
+     */
+    private setupAiSidebarCollapseObserver(): void {
+        const aiSidebar = this.querySelector('#ai-sidebar-container') as HTMLElement;
+        if (!aiSidebar) return;
+
+        const syncCollapsed = () => {
+            const tabs = aiSidebar.querySelector('.ck-tabs');
+            if (!tabs) return;
+            const isCollapsed = tabs.classList.contains('ck-hidden');
+            // AI sidebar container collapse state
+            if (isCollapsed) {
+                // Move focus out of the collapsing sidebar before hiding it
+                if (aiSidebar.contains(document.activeElement)) {
+                    const editorEditable = this.querySelector('.ck-editor__editable') as HTMLElement;
+                    if (editorEditable) { editorEditable.focus(); }
+                }
+                aiSidebar.setAttribute('data-collapsed', '');
+                aiSidebar.setAttribute('aria-hidden', 'true');
+                aiSidebar.inert = true;
+                // Fallback for browsers without inert support: prevent tab focus
+                if (!('inert' in HTMLElement.prototype)) {
+                    aiSidebar.setAttribute('tabindex', '-1');
+                    aiSidebar.querySelectorAll<HTMLElement>(
+                        'button, input, textarea, select, a, [tabindex], [contenteditable]'
+                    ).forEach(el => {
+                        el.dataset.prevTabindex = el.getAttribute('tabindex') ?? '';
+                        el.setAttribute('tabindex', '-1');
+                    });
+                }
+            } else {
+                aiSidebar.removeAttribute('data-collapsed');
+                aiSidebar.removeAttribute('aria-hidden');
+                aiSidebar.inert = false;
+                // Restore tabindex for non-inert browsers
+                if (!('inert' in HTMLElement.prototype)) {
+                    aiSidebar.removeAttribute('tabindex');
+                    aiSidebar.querySelectorAll<HTMLElement>('[data-prev-tabindex]').forEach(el => {
+                        const prev = el.dataset.prevTabindex;
+                        if (prev) { el.setAttribute('tabindex', prev); } else { el.removeAttribute('tabindex'); }
+                        delete el.dataset.prevTabindex;
+                    });
+                }
+            }
+            // Update reactive state — Lit re-render will apply/remove editor-container--ai-active
+            this.aiSidebarCollapsed = isCollapsed;
+        };
+
+        // Initial sync — .ck-tabs may already have .ck-hidden at setup time
+        syncCollapsed();
+
+        const observeTabs = (tabs: Element) => {
+            // Narrow observer: watch only .ck-tabs class attribute changes
+            this.aiSidebarCollapseObserver = new MutationObserver(syncCollapsed);
+            this.aiSidebarCollapseObserver.observe(tabs, {
+                attributes: true,
+                attributeFilter: ['class'],
+            });
+        };
+
+        const tabs = aiSidebar.querySelector('.ck-tabs');
+        if (tabs) {
+            observeTabs(tabs);
+        } else {
+            // .ck-tabs not yet rendered — watch sidebar childList until it appears,
+            // then re-scope observer to .ck-tabs attribute changes only
+            this.aiSidebarCollapseObserver = new MutationObserver(() => {
+                syncCollapsed();
+                const newTabs = aiSidebar.querySelector('.ck-tabs');
+                if (newTabs) {
+                    // .ck-tabs appeared — disconnect broad observer, switch to narrow
+                    this.aiSidebarCollapseObserver?.disconnect();
+                    observeTabs(newTabs);
+                }
+            });
+            this.aiSidebarCollapseObserver.observe(aiSidebar, {
+                childList: true,
+                subtree: true,
+            });
+        }
+    }
+
+    /**
      * Setup event listeners for the editor
      * Listeners are saved as fields for proper cleanup during destroy
      */
@@ -1165,16 +1279,18 @@ export class VaadinCKEditor extends LitElement {
         const redoCommand = editor.commands.get('redo');
         const undoRedoHandler = () => { this.changeSource = 'UNDO_REDO'; };
         if (undoCommand) {
-            this.undoExecuteListener = undoCommand.on('execute', undoRedoHandler);
+            undoCommand.on('execute', undoRedoHandler);
+            this.listenerCleanups.push(() => undoCommand.off('execute', undoRedoHandler));
         }
         if (redoCommand) {
-            this.redoExecuteListener = redoCommand.on('execute', undoRedoHandler);
+            redoCommand.on('execute', undoRedoHandler);
+            this.listenerCleanups.push(() => redoCommand.off('execute', undoRedoHandler));
         }
 
         // Track paste operations for ChangeSource
-        this.clipboardInputListener = editor.editing.view.document.on('clipboardInput', () => {
-            this.changeSource = 'PASTE';
-        });
+        const pasteHandler = () => { this.changeSource = 'PASTE'; };
+        editor.editing.view.document.on('clipboardInput', pasteHandler);
+        this.listenerCleanups.push(() => editor.editing.view.document.off('clipboardInput', pasteHandler));
 
         // Track collaboration operations for ChangeSource (Premium feature)
         // Real-time collaboration uses a specific operation type
@@ -1195,28 +1311,27 @@ export class VaadinCKEditor extends LitElement {
                 logger.debug('Collaboration plugin detected, setting up change tracking');
 
                 // Listen to the model's applyOperation event to detect remote operations
-                // Remote operations from collaboration have a specific baseVersion pattern
-                this.applyOperationListener = editor.model.on('applyOperation', (_evt, args) => {
+                const applyOpHandler = (_evt: unknown, args: unknown[]) => {
                     const operation = args[0] as { baseVersion?: number; isLocal?: boolean };
-
-                    // Check if this is a remote operation (from collaboration)
-                    // Remote operations typically have isLocal = false or can be detected
-                    // by checking if the operation comes from the collaboration channel
                     if (operation && operation.isLocal === false) {
                         this.changeSource = 'COLLABORATION';
                     }
-                }, { priority: 'highest' }) as unknown as { off: () => void };
+                };
+                editor.model.on('applyOperation', applyOpHandler, { priority: 'highest' });
+                this.listenerCleanups.push(() => editor.model.off('applyOperation', applyOpHandler));
 
                 // Alternative: Listen to the collaboration channel directly if available
                 try {
-                    const cloudServices = editor.plugins.get('CloudServices') as {
-                        on?: (event: string, callback: () => void) => { off: () => void };
+                    const cloudServices = editor.plugins.get('CloudServices') as unknown as {
+                        on?: (event: string, callback: () => void) => void;
+                        off?: (event: string, callback: () => void) => void;
                     };
-                    if (cloudServices && cloudServices.on) {
-                        this.cloudServicesSyncListener = cloudServices.on('change:syncInProgress', () => {
-                            // When sync is in progress, next changes might be from collaboration
-                            this.changeSource = 'COLLABORATION';
-                        });
+                    if (cloudServices?.on) {
+                        const syncHandler = () => { this.changeSource = 'COLLABORATION'; };
+                        cloudServices.on('change:syncInProgress', syncHandler);
+                        if (cloudServices.off) {
+                            this.listenerCleanups.push(() => cloudServices.off!('change:syncInProgress', syncHandler));
+                        }
                     }
                 } catch {
                     // CloudServices not available, which is fine
@@ -1558,48 +1673,17 @@ export class VaadinCKEditor extends LitElement {
                     }
                 } catch (e) { /* ignore */ }
 
-                // Remove undo/redo/clipboard listeners
-                try {
-                    if (this.undoExecuteListener) {
-                        this.undoExecuteListener.off();
-                    }
-                } catch (e) { /* ignore */ }
-
-                try {
-                    if (this.redoExecuteListener) {
-                        this.redoExecuteListener.off();
-                    }
-                } catch (e) { /* ignore */ }
-
-                try {
-                    if (this.clipboardInputListener) {
-                        this.clipboardInputListener.off();
-                    }
-                } catch (e) { /* ignore */ }
-
-                // Remove collaboration tracking listeners
-                try {
-                    if (this.applyOperationListener) {
-                        this.applyOperationListener.off();
-                    }
-                } catch (e) { /* ignore */ }
-
-                try {
-                    if (this.cloudServicesSyncListener) {
-                        this.cloudServicesSyncListener.off();
-                    }
-                } catch (e) { /* ignore */ }
+                // Remove undo/redo/clipboard/collaboration listeners
+                for (const cleanup of this.listenerCleanups) {
+                    try { cleanup(); } catch { /* ignore */ }
+                }
+                this.listenerCleanups = [];
 
                 // Clear listener references
                 this.selectionChangeListener = undefined;
                 this.dataChangeListener = undefined;
                 this.focusChangeListener = undefined;
                 this.readOnlyChangeListener = undefined;
-                this.undoExecuteListener = undefined;
-                this.redoExecuteListener = undefined;
-                this.clipboardInputListener = undefined;
-                this.applyOperationListener = undefined;
-                this.cloudServicesSyncListener = undefined;
 
                 // Step 3: For decoupled editor, remove toolbar from DOM
                 if (this.editorType === 'decoupled') {
@@ -1682,23 +1766,55 @@ export class VaadinCKEditor extends LitElement {
             const includeOutlineClass = this.documentOutlineEnabled ? 'editor-container_include-outline' : '';
             const includeMinimapClass = this.minimapEnabled ? 'editor-container_include-minimap' : '';
             const includeAnnotationClass = this.annotationSidebarEnabled ? 'editor-container_include-annotations' : '';
+            // AI active class driven by reactive @state to survive Lit re-renders
+            const includeAiClass = (this.aiSidebarEnabled && !this.aiSidebarCollapsed) ? 'editor-container--ai-active' : '';
             // Apply custom editor height if specified (otherwise uses CSS default of 700px)
             const heightStyle = this.editorHeight && this.editorHeight !== 'auto'
                 ? `--ck-editor-height: ${this.editorHeight};`
                 : '';
             return html`
-                <div class="editor-container editor-container_document-editor ${includeOutlineClass} ${includeMinimapClass} ${includeAnnotationClass}"
+                <div class="editor-container editor-container_document-editor ${includeOutlineClass} ${includeMinimapClass} ${includeAnnotationClass} ${includeAiClass}"
                      id="editor-container"
                      style="${heightStyle}">
                     <div class="editor-container__menu-bar" id="menu-bar-container"></div>
                     <div class="editor-container__toolbar" id="toolbar-container"></div>
                     <div class="editor-container__editor-wrapper">
-                        <div class="editor-container__sidebar" id="editor-outline" style="display: ${this.documentOutlineEnabled ? 'block' : 'none'}"></div>
+                        <div class="editor-container__sidebar" id="editor-outline" role="navigation" aria-label="Document Outline" ?hidden="${!this.documentOutlineEnabled}"></div>
                         <div class="editor-container__editor">
                             <div id="${this.editorId}" class="editor-content"></div>
                         </div>
-                        <div class="minimap-container" style="display: ${this.minimapEnabled ? 'block' : 'none'}"></div>
-                        <div class="annotation-sidebar-wrapper" style="display: ${this.annotationSidebarEnabled ? 'flex' : 'none'}">
+                        <div class="editor-container__sidebar editor-container__sidebar_ckeditor-ai" id="ai-sidebar-container" role="complementary" aria-label="AI Assistant" ?hidden="${!this.aiSidebarEnabled}"></div>
+                        <div class="minimap-container" role="region" aria-label="Document Minimap" ?hidden="${!this.minimapEnabled}"></div>
+                        <div class="annotation-sidebar-wrapper" role="complementary" aria-label="Comments and Annotations" ?hidden="${!this.annotationSidebarEnabled}">
+                            <div class="presence-list-container" id="presence-list-container"></div>
+                            <div class="annotation-sidebar-container" id="annotation-sidebar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="revision-history" id="revision-history-container" style="display: none;">
+                    <div class="revision-history__wrapper">
+                        <div class="revision-history__editor" id="revision-history-editor"></div>
+                        <div class="revision-history__sidebar" id="revision-history-sidebar"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Balloon editor with annotation sidebar (for collaboration features)
+        if (this.editorType === 'balloon' && this.annotationSidebarEnabled) {
+            const includeAnnotationClass = 'editor-container_include-annotations';
+            const heightStyle = this.editorHeight && this.editorHeight !== 'auto'
+                ? `--ck-editor-height: ${this.editorHeight};`
+                : '';
+            return html`
+                <div class="editor-container editor-container_balloon-editor ${includeAnnotationClass}"
+                     id="editor-container"
+                     style="${heightStyle}">
+                    <div class="editor-container__editor-wrapper">
+                        <div class="editor-container__editor">
+                            <div id="${this.editorId}" class="editor-content"></div>
+                        </div>
+                        <div class="annotation-sidebar-wrapper" role="complementary" aria-label="Comments and Annotations">
                             <div class="presence-list-container" id="presence-list-container"></div>
                             <div class="annotation-sidebar-container" id="annotation-sidebar"></div>
                         </div>
@@ -2002,6 +2118,12 @@ export class VaadinCKEditor extends LitElement {
 
         // Clean up sticky panel observer
         this.cleanupStickyPanelObserver();
+
+        // Clean up AI sidebar collapse observer
+        if (this.aiSidebarCollapseObserver) {
+            this.aiSidebarCollapseObserver.disconnect();
+            this.aiSidebarCollapseObserver = undefined;
+        }
 
         // Clean up toolbar repaint timer
         if (this.toolbarRepaintTimeoutId) {

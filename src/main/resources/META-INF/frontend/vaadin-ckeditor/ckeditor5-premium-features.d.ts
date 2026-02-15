@@ -17,13 +17,25 @@ declare module 'ckeditor5-premium-features' {
     export const MergeFields: unknown;
     export const MultiLevelList: unknown;
     export const AIAssistant: unknown;
+    export const AIChat: unknown;
+    export const AIEditorIntegration: unknown;
+    export const AIQuickActions: unknown;
+    export const AIReviewMode: unknown;
+    export const AITranslate: unknown;
     export const Comments: unknown;
     export const TrackChanges: unknown;
     export const RevisionHistory: unknown;
     export const RealTimeCollaboration: unknown;
     export const PresenceList: unknown;
+    export const EmailConfigurationHelper: unknown;
+    export const SourceEditingEnhanced: unknown;
+    export const ExportInlineStyles: unknown;
+    export const TableLayout: unknown;
 
     // Allow any other exports
     const _default: Record<string, unknown>;
     export default _default;
 }
+
+/** CSS module — dynamic import resolves to void */
+declare module 'ckeditor5-premium-features/ckeditor5-premium-features.css' {}

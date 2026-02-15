@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "ckeditor5": "^47.4.0",
+    "ckeditor5": "^47.5.0",
     "lit": "^3.3.2"
   },
   "devDependencies": {
