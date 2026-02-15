@@ -21,7 +21,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 - **70+ Built-in Plugins** — Text formatting, headings, images, tables, lists, code blocks, find & replace, word count, and more
 - **4 Editor Types** — Classic, Inline, Balloon, and Decoupled
-- **5 Presets** — BASIC, STANDARD, FULL, DOCUMENT, COLLABORATIVE — or pick plugins individually
+- **7 Presets** — BASIC, STANDARD, FULL, DOCUMENT, EMAIL, NOTION, COLLABORATIVE — or pick plugins individually
 - **Premium Plugin Support** — Export PDF/Word, Import Word, Comments, Track Changes, Real-Time Collaboration, AI Assistant (requires CKEditor license)
 - **Custom Plugins** — Load third-party or local CKEditor 5 plugins via npm
 - **Vaadin Theme Integration** — Auto-syncs with Lumo light/dark mode
@@ -68,7 +68,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
-Available: ExportPdf, ExportWord, ImportWord, FormatPainter, Comments, TrackChanges, RevisionHistory, RealTimeCollaboration, AIAssistant, SlashCommand, Template, TableOfContents, CaseChange, Pagination, and more.
+Available: ExportPdf, ExportWord, ImportWord, FormatPainter, Comments, TrackChanges, RevisionHistory, RealTimeCollaboration, AIAssistant, AIChat, AIQuickActions, AIEditorIntegration, AIReviewMode, AITranslate, SlashCommand, Template, TableOfContents, CaseChange, Pagination, and more.
 
 ## Configuration
 

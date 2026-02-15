@@ -174,6 +174,11 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | Plugin | Class Name | Toolbar Item | Description |
 |--------|------------|--------------|-------------|
 | AI Assistant | `AIAssistant` | `aiAssistant` | AI-powered writing help |
+| AI Chat | `AIChat` | `toggleAi` | AI chat sidebar |
+| AI Editor Integration | `AIEditorIntegration` | - | AI integration with editor |
+| AI Quick Actions | `AIQuickActions` | `aiQuickActions` | Context-aware AI actions |
+| AI Review Mode | `AIReviewMode` | - | AI-assisted content review |
+| AI Translate | `AITranslate` | - | AI-powered translation |
 
 > ⚠️ **Security Warning**: Never hardcode API keys in source code. Use environment variables or secure configuration.
 

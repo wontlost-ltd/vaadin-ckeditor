@@ -32,14 +32,14 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.5</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```kotlin
-implementation("com.wontlost:ckeditor-vaadin:5.0.5")
+implementation("com.wontlost:ckeditor-vaadin:5.1.0")
 ```
 
 ## Quick Start
@@ -68,6 +68,8 @@ add(editor);
 | `STANDARD` | Common features (+ Headings, Images, Tables) | ~600KB |
 | `FULL` | All formatting features | ~700KB |
 | `DOCUMENT` | Professional document editing | ~800KB |
+| `EMAIL` | Email composition with image upload | ~500KB |
+| `NOTION` | Notion-style block editing | ~900KB |
 
 ### Custom Plugin Selection
 
@@ -220,6 +222,11 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | `MergeFields` | Mail merge fields | `mergeFields` |
 | `Pagination` | Page breaks | `pageBreak` |
 | `AIAssistant` | AI writing assistant | `aiAssistant` |
+| `AIChat` | AI chat sidebar | `toggleAi` |
+| `AIQuickActions` | AI quick actions | `aiQuickActions` |
+| `AIEditorIntegration` | AI editor integration | - |
+| `AIReviewMode` | AI review mode | - |
+| `AITranslate` | AI translation | - |
 
 ### Collaboration Features
 

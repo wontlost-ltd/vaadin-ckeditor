@@ -31,14 +31,14 @@ Vaadin CKEditor 5 is a rich text editor component for Vaadin applications, provi
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.5</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.wontlost:ckeditor-vaadin:5.0.5'
+implementation 'com.wontlost:ckeditor-vaadin:5.1.0'
 ```
 
 ---
@@ -132,6 +132,8 @@ Presets provide pre-configured plugin sets for common use cases:
 | `STANDARD` | ~600KB | Images, tables, media, find/replace |
 | `FULL` | ~700KB | Fonts, colors, code blocks, highlighting |
 | `DOCUMENT` | ~800KB | Professional document editing features |
+| `EMAIL` | ~500KB | Email composition with image upload (Base64) |
+| `NOTION` | ~900KB | Notion-style block editing with block toolbar |
 | `COLLABORATIVE` | ~850KB | Base for collaboration features |
 
 ```java
@@ -821,6 +823,11 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `Template` - Content templates
 - `TableOfContents` - Auto-generated TOC
 - `CaseChange` - Change text case
+- `AIChat` - AI chat sidebar
+- `AIEditorIntegration` - AI editor integration
+- `AIQuickActions` - AI quick actions
+- `AIReviewMode` - AI review mode
+- `AITranslate` - AI translation
 
 ---
 
@@ -933,7 +940,8 @@ window.VAADIN_CKEDITOR_DEBUG = true;
 
 | Version | CKEditor 5 | Vaadin | Notes           |
 |---------|------------|--------|-----------------|
-| 5.0.5   | 47.4.0 | 25.0.5 | Current release |
+| 5.1.0   | 47.4.0 | 25.0.5 | EMAIL/NOTION presets, AI plugins, slimmed build |
+| 5.0.5   | 47.4.0 | 25.0.5 | Premium plugins, upload improvements |
 | 5.0.3   | 47.4.0 | 25.0.4 | CI/CD workflows |
 | 5.0.1   | 47.4.0 | 25.0.4 | Bug fixes       |
 | 5.0.0   | 47.4.0 | 25.0.3 | Initial v5 release |

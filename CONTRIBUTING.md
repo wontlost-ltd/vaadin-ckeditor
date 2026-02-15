@@ -240,20 +240,19 @@ Releases are managed by maintainers:
 2. Update `CHANGELOG.md`
 3. Create release commit:
    ```bash
-   git commit -m "chore: release v5.0.2"
+   git commit -m "chore: release v5.1.0"
    ```
 4. Tag the release:
    ```bash
-   git tag -a v5.0.2 -m "Release 5.0.2"
+   git tag -a v5.1.0 -m "Release 5.1.0"
    ```
 5. Push with tags:
    ```bash
    git push origin main --tags
    ```
-6. Build and publish to Vaadin Directory:
-   ```bash
-   mvn clean install -Pdirectory
-   ```
+6. The `publish.yml` GitHub Actions workflow automatically:
+   - Publishes to Maven Central via `central-publishing-maven-plugin`
+   - Creates a GitHub Release with JAR artifacts
 
 ## Questions?
 

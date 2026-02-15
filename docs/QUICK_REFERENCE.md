@@ -6,7 +6,7 @@
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.0.5</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
@@ -38,6 +38,8 @@ editor.setValue("<p>Hello World</p>");
 | `STANDARD` | + Images, tables, media |
 | `FULL` | + Fonts, colors, code blocks |
 | `DOCUMENT` | + Page breaks, word count |
+| `EMAIL` | Email composition with image upload |
+| `NOTION` | Notion-style block editing |
 
 ## Common Plugins
 

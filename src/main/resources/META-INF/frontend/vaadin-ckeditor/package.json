@@ -1,6 +1,6 @@
 {
   "name": "vaadin-ckeditor",
-  "version": "5.0.5",
+  "version": "5.1.0",
   "description": "Vaadin CKEditor 5 Web Component",
   "type": "module",
   "scripts": {

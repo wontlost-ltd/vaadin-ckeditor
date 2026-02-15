@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-02-13
+
+### Added
+- EMAIL preset - curated plugin set for email composition with Base64 upload adapter
+- NOTION preset - Notion-style editing with block toolbar and collaboration-ready plugins
+- AI premium plugins: AIChat, AIEditorIntegration, AIQuickActions, AIReviewMode, AITranslate
+- AI sidebar with responsive layout, accessibility (inert attribute), and dark theme support
+- BLOCK_TOOLBAR dependency on WIDGET and WIDGET_TOOLBAR_REPOSITORY
+- CSS custom properties for AI sidebar sizing (`--ck-ai-sidebar-*`)
+- Container query height support with `100cqh` fallback
+
+### Changed
+- Minimum Vaadin version: 25.0.5
+- Slimmed pom.xml: removed legacy assembly profile, OSGi test infrastructure, snapshot repositories
+- Release process: Maven Central via `central-publishing-maven-plugin` (replaces legacy Vaadin Directory zip)
+- CI workflows streamlined
+
+### Removed
+- OSGi integration test (Pax Exam dependencies removed)
+- Legacy `directory` Maven profile and assembly descriptors
+- Snapshot/prerelease repository declarations
+
 ## [5.0.5] - 2025-02-13
 
 ### Added
@@ -91,7 +113,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.5...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.1.0...HEAD
+[5.1.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.5...v5.1.0
 [5.0.5]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.3...v5.0.5
 [5.0.3]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.0.1...v5.0.2
