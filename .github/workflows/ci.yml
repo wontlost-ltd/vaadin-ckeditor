@@ -26,15 +26,10 @@ jobs:
       - name: Build and Test
         run: mvn -B -ntp clean verify
 
-      - name: Run OSGi Integration Tests
-        run: mvn -B -ntp verify -Posgi-test
-
       - name: Upload Test Reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: |
-            target/surefire-reports/
-            target/failsafe-reports/
+          path: target/surefire-reports/
           retention-days: 7

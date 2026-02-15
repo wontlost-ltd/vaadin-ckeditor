@@ -1,4 +1,4 @@
-name: Publish Release
+name: Publish to Maven Central
 
 on:
   push:
@@ -7,24 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (e.g. 5.0.2) - required for manual trigger"
+        description: "Version to publish (e.g. 5.0.6) - must match pom.xml"
         type: string
         required: true
       draft:
-        description: "Create as draft release"
+        description: "Create GitHub release as draft"
         type: boolean
         required: false
         default: false
-      prerelease:
-        description: "Mark as pre-release"
-        type: boolean
-        required: false
-        default: false
-      releaseNotes:
-        description: "Release notes for this version"
-        type: string
-        required: false
-        default: ""
 
 permissions:
   contents: write
@@ -42,6 +32,11 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
 
       - name: Resolve version
         id: version
@@ -50,111 +45,59 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            # Manual trigger: use input version
             if [[ -z "${INPUT_VERSION:-}" ]]; then
               echo "::error::Version input is required for manual trigger."
               exit 1
             fi
             VERSION="${INPUT_VERSION}"
-            # Validate version format (semver-like)
             if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-              echo "::error::Invalid version format. Expected: X.Y.Z (e.g. 5.0.2)"
+              echo "::error::Invalid version format. Expected: X.Y.Z (e.g. 5.0.6)"
               exit 1
             fi
             TAG_NAME="v${VERSION}"
           else
-            # Tag trigger: extract from tag name
-            if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
-              echo "::error::This workflow must run on a tag ref (v*)."
-              exit 1
-            fi
             TAG_NAME="${GITHUB_REF_NAME}"
             if [[ ! "$TAG_NAME" =~ ^v[0-9] ]]; then
-              echo "::error::Tag must start with v followed by version (e.g. v5.0.2)."
+              echo "::error::Tag must start with v followed by version (e.g. v5.0.6)."
               exit 1
             fi
             VERSION="${TAG_NAME#v}"
           fi
+
+          # Verify pom.xml version matches
+          POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          if [[ "$POM_VERSION" != "$VERSION" ]]; then
+            echo "::error::pom.xml version ($POM_VERSION) does not match release version ($VERSION)"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
-          echo "Resolved version: $VERSION"
-          echo "Tag name: $TAG_NAME"
+          echo "Resolved version: $VERSION (matches pom.xml)"
 
-      - name: Build directory artifact
-        run: mvn -B -ntp clean install -Pdirectory
-
-      - name: Verify artifact exists
-        run: |
-          set -euo pipefail
-          ARTIFACT="target/ckeditor-vaadin-${VERSION}.zip"
-          if [[ ! -f "$ARTIFACT" ]]; then
-            echo "::error::Artifact not found: $ARTIFACT"
-            ls -la target/ || true
-            exit 1
-          fi
-          echo "ARTIFACT=$ARTIFACT" >> "$GITHUB_ENV"
-          echo "Artifact verified: $ARTIFACT"
-          ls -lh "$ARTIFACT"
-
-      - name: Generate release notes
-        id: notes
+      - name: Publish to Maven Central
+        run: mvn -B -ntp clean deploy -Prelease
         env:
-          INPUT_NOTES: ${{ inputs.releaseNotes }}
-        run: |
-          set -euo pipefail
-          if [[ -n "${INPUT_NOTES:-}" ]]; then
-            NOTES="${INPUT_NOTES}"
-          else
-            NOTES="## CKEditor for Vaadin ${VERSION}
-
-          ### Installation
-
-          Add to your \`pom.xml\`:
-          \`\`\`xml
-          <dependency>
-              <groupId>com.wontlost</groupId>
-              <artifactId>ckeditor-vaadin</artifactId>
-              <version>${VERSION}</version>
-          </dependency>
-          \`\`\`
-
-          ### Downloads
-          - **ckeditor-vaadin-${VERSION}.zip** - Complete distribution with sources and javadoc
-
-          See [CHANGELOG.md](https://github.com/wontlost-ltd/vaadin-ckeditor/blob/main/CHANGELOG.md) for details."
-          fi
-          # Use heredoc for multiline output
-          {
-            echo "notes<<EOF"
-            echo "$NOTES"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
           name: v${{ steps.version.outputs.version }}
-          body: ${{ steps.notes.outputs.notes }}
           draft: ${{ inputs.draft || false }}
-          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
           files: |
-            target/ckeditor-vaadin-${{ steps.version.outputs.version }}.zip
             target/ckeditor-vaadin-${{ steps.version.outputs.version }}.jar
             target/ckeditor-vaadin-${{ steps.version.outputs.version }}-sources.jar
             target/ckeditor-vaadin-${{ steps.version.outputs.version }}-javadoc.jar
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ckeditor-vaadin-${{ steps.version.outputs.version }}
-          path: target/ckeditor-vaadin-${{ steps.version.outputs.version }}.zip
-          retention-days: 90
 
       - name: Job Summary
         if: always()
@@ -166,10 +109,12 @@ jobs:
             echo "|-----------|-------|"
             echo "| Version | \`${VERSION:-n/a}\` |"
             echo "| Tag | \`${TAG_NAME:-n/a}\` |"
-            echo "| Artifact | \`${ARTIFACT:-n/a}\` |"
+            echo "| Maven Central | \`com.wontlost:ckeditor-vaadin:${VERSION:-n/a}\` |"
             echo "| Status | \`${{ job.status }}\` |"
             echo ""
             if [[ "${{ job.status }}" == "success" ]]; then
+              echo "Published to [Maven Central](https://central.sonatype.com/artifact/com.wontlost/ckeditor-vaadin/${VERSION})"
+              echo ""
               echo "Released to [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME})"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
