@@ -5,7 +5,7 @@
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
     <packaging>jar</packaging>
-    <version>5.0.5</version>
+    <version>5.1.0</version>
     <name>CKEditorVaadin</name>
     <description>Integration of CKEditor 5 for Vaadin</description>
     <url>https://github.com/wontlost-ltd/vaadin-ckeditor</url>
@@ -30,6 +30,14 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <developers>
+        <developer>
+            <name>WontLost Ltd</name>
+            <email>service@wontlost.com</email>
+            <organization>WontLost Ltd</organization>
+            <organizationUrl>https://github.com/wontlost-ltd</organizationUrl>
+        </developer>
+    </developers>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -42,40 +50,6 @@
 
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>Vaadin Directory</id>
-            <url>https://maven.vaadin.com/vaadin-addons</url>
-        </repository>
-        <!-- Repository needed for prerelease versions of Vaadin -->
-        <repository>
-            <id>Vaadin prereleases</id>
-            <url>https://maven.vaadin.com/vaadin-prereleases</url>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-        <!-- Repository needed for prerelease versions of Vaadin -->
-        <pluginRepository>
-            <id>Vaadin prereleases</id>
-            <url>https://maven.vaadin.com/vaadin-prereleases</url>
-        </pluginRepository>
-    </pluginRepositories>
 
     <dependencies>
         <!-- Vaadin (provided - supplied by consuming application) -->
@@ -122,75 +96,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- OSGi Integration Test dependencies (Pax Exam) -->
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam-container-native</artifactId>
-            <version>4.13.5</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam-junit4</artifactId>
-            <version>4.13.5</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam-link-mvn</artifactId>
-            <version>4.13.5</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.url</groupId>
-            <artifactId>pax-url-aether</artifactId>
-            <version>2.6.14</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.felix</groupId>
-            <artifactId>org.apache.felix.framework</artifactId>
-            <version>7.0.5</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.osgi</groupId>
-            <artifactId>osgi.core</artifactId>
-            <version>8.0.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-            <version>1</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- SLF4J for Pax Exam -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>2.0.16</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <release>21</release>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -228,87 +137,23 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
-                <configuration>
-                    <!-- 排除 OSGi 集成测试（需要单独运行） -->
-                    <excludes>
-                        <exclude>**/osgi/**</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
     <profiles>
-        <!-- Profile for OSGi integration tests -->
         <profile>
-            <id>osgi-test</id>
-            <dependencies>
-                <!-- JUnit Vintage for running JUnit 4 tests in JUnit 5 platform -->
-                <dependency>
-                    <groupId>org.junit.vintage</groupId>
-                    <artifactId>junit-vintage-engine</artifactId>
-                    <version>5.11.4</version>
-                    <scope>test</scope>
-                </dependency>
-            </dependencies>
+            <id>release</id>
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>3.5.2</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>integration-test</goal>
-                                    <goal>verify</goal>
-                                </goals>
-                                <configuration>
-                                    <includes>
-                                        <include>**/osgi/*Test.java</include>
-                                        <include>**/osgi/*IT.java</include>
-                                    </includes>
-                                    <systemPropertyVariables>
-                                        <project.version>${project.version}</project.version>
-                                    </systemPropertyVariables>
-                                    <!-- 增加超时时间（OSGi 容器启动较慢） -->
-                                    <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- Profile for Vaadin Directory assembly -->
-        <profile>
-            <id>directory</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>3.7.1</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.10.0</version>
+                        <extensions>true</extensions>
                         <configuration>
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <descriptors>
-                                <descriptor>assembly/assembly.xml</descriptor>
-                            </descriptors>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
                         </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>install</phase>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -317,15 +162,9 @@
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
-                                <phase>verify</phase>
                                 <goals>
                                     <goal>jar-no-fork</goal>
                                 </goals>
-                                <configuration>
-                                    <excludes>
-                                        <exclude>**/node_modules/**</exclude>
-                                    </excludes>
-                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
@@ -336,7 +175,6 @@
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
-                                <phase>verify</phase>
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>
@@ -346,6 +184,20 @@
                             <quiet>true</quiet>
                             <doclint>none</doclint>
                         </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
             </build>
