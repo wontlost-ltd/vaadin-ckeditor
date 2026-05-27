@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.4</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.wontlost.sample</groupId>
+    <artifactId>vaadin-ckeditor-sample</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Vaadin CKEditor Sample (E2E)</name>
+    <description>Minimal Spring Boot 4 + Vaadin 25.1.6 sample app driving the addon for Playwright E2E tests. NOT published.</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <vaadin.version>25.1.6</vaadin.version>
+        <!-- Keep in sync with the root pom's <version>. Pinned so the sample exercises a
+             specific addon build; bump together when the addon version changes. -->
+        <addon.version>5.1.0</addon.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.vaadin</groupId>
+                <artifactId>vaadin-bom</artifactId>
+                <version>${vaadin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.wontlost</groupId>
+            <artifactId>ckeditor-vaadin</artifactId>
+            <version>${addon.version}</version>
+        </dependency>
+
+        <!-- Vaadin dev server (only needed because we run with spring-boot:run, not production mode) -->
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-dev</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Production build: bake the frontend bundle into the jar so Playwright doesn't
+             pay the first-boot npm install cost. -->
+        <profile>
+            <id>production</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.vaadin</groupId>
+                    <artifactId>vaadin-core</artifactId>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>com.vaadin</groupId>
+                            <artifactId>vaadin-dev</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.vaadin</groupId>
+                        <artifactId>vaadin-maven-plugin</artifactId>
+                        <version>${vaadin.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>prepare-frontend</goal>
+                                    <goal>build-frontend</goal>
+                                </goals>
+                                <phase>compile</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
