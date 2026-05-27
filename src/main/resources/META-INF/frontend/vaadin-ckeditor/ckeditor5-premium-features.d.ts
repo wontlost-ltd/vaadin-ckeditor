@@ -32,6 +32,46 @@ declare module 'ckeditor5-premium-features' {
     export const ExportInlineStyles: unknown;
     export const TableLayout: unknown;
 
+    // CKEditor 48 AI configuration type placeholders
+    // 这些类型只覆盖项目主动消费的配置字段，未列出的字段保持运行时透传
+    export type AIContextItemType = 'content' | 'selection' | 'comment' | string;
+    export type AIChatShortcutType = 'command' | 'prompt' | string;
+    export type AIQuickActionCommandType = 'chat' | 'action';
+
+    export interface AIChatController {
+        executePrompt?: (prompt: string) => Promise<unknown>;
+        stop?: () => void;
+    }
+
+    // v48: AI Quick Actions 自定义命令配置
+    // - label 取代 displayedPrompt 作为按钮文案；chat 类型仍保留 displayedPrompt 作为完整提示词
+    // - action 类型不再使用 displayedPrompt
+    interface AIQuickActionsBaseCommandConfig {
+        id: string;
+        label: string;
+        prompt: string;
+        commandId?: string;
+        model?: string;
+    }
+
+    export interface AIQuickActionsChatCommandConfig extends AIQuickActionsBaseCommandConfig {
+        type: 'chat';
+        // v48: chat 命令必填 displayedPrompt（参见 CKEditor 48 update guide）
+        displayedPrompt: string;
+    }
+
+    export interface AIQuickActionsActionCommandConfig extends AIQuickActionsBaseCommandConfig {
+        type: 'action';
+    }
+
+    export type AIQuickActionsExtraCommandConfig =
+        | AIQuickActionsChatCommandConfig
+        | AIQuickActionsActionCommandConfig;
+
+    export interface AIQuickActionsConfig {
+        extraCommands?: AIQuickActionsExtraCommandConfig[];
+    }
+
     // Allow any other exports
     const _default: Record<string, unknown>;
     export default _default;

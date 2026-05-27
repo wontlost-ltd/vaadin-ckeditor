@@ -185,6 +185,30 @@ describe('ThemeManager CSS variable injection', () => {
     });
 });
 
+describe('DARK_THEME_VARS — CKEditor 48 AI tokens', () => {
+    const REQUIRED_V48_AI_TOKENS = [
+        '--ck-color-ai-chat-primary-button-background',
+        '--ck-color-ai-chat-primary-button-hover-background',
+        '--ck-color-ai-chat-primary-button-text',
+        '--ck-color-ai-chat-input-background',
+        '--ck-color-ai-chat-input-border',
+        '--ck-color-ai-chat-border-main',
+        '--ck-color-ai-header-icon',
+        '--ck-color-ai-notification-error-background',
+        '--ck-color-ai-suggestion-marker-insertion-background',
+        '--ck-color-ai-suggestion-marker-deletion-background',
+    ] as const;
+
+    it('should include all CKEditor 48 AI dark-mode tokens', async () => {
+        const { DARK_THEME_VARS } = await import('./theme-manager');
+
+        for (const token of REQUIRED_V48_AI_TOKENS) {
+            expect(DARK_THEME_VARS).toHaveProperty(token);
+            expect(DARK_THEME_VARS[token]).toMatch(/^hsla?\(/);
+        }
+    });
+});
+
 describe('ThemeManager edge cases', () => {
     let originalMatchMedia: typeof window.matchMedia;
 

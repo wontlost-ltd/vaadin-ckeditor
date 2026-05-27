@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Vaadin Platform: 25.0.5 → 25.1.6
+- CKEditor 5 (`ckeditor5`, `ckeditor5-premium-features`): 47.5.0 → 48.1.1
+- Jackson databind (`tools.jackson.core`): 3.0.3 → 3.1.3
+- Jakarta Servlet API: 6.0.0 → 6.1.0
+- JUnit Jupiter: 5.11.4 → 6.0.3 (PR #80 by @mstahv — forward compatible with Vaadin 25.2-SNAPSHOT)
+- `EditorConstructor.create(element, config)` 迁移到 CKEditor 48 单参数签名：
+  - ClassicEditor 使用顶层 `config.attachTo`（v48 官方契约）
+  - Balloon/Inline/Decoupled 使用 `config.root.element`
+
+### Added
+- 新增 `editor-config-normalizer.ts`：CKEditor 47 → 48 配置兼容层（纯函数模块，便于单测）
+  - `normalizeRootConfig` — 顶层 `initialData`/`placeholder`/`label` 自动迁移到 `root.*`；`root.*` 优先于顶层并产生迁移警告
+  - `normalizeAIConfig48` — AI 配置迁移：
+    - `ai.chat.shortcuts[].check` → `commandId`
+    - `ai.chat.models.modelSelectorAlwaysVisible` → `ai.models.showModelSelector`
+    - `ai.chat.models` → `ai.models`（已有 `ai.models` 时优先保留）
+    - `ai.reviewMode.translations` → `ai.translate.languages`
+    - `ai.quickActions.extraCommands[].type` `'CHAT'/'ACTION'` → `'chat'/'action'`
+    - `ai.quickActions.extraCommands[].displayedPrompt` → `label`（action 类型同时移除 displayedPrompt；chat 类型同时保留 displayedPrompt 与 label）
+  - `buildCreateConfig` — 按 editorType 构造 v48 create 配置；主动清理残留 attachTo/element 字段
+  - `stripInitialDataIfChannelSeeded` — 协作模式 channel seed 逻辑，依赖通过 `ChannelInitialDataDeps` 注入（storage / now / 回调）
+  - `cloneConfig` — `structuredClone` 失败时回退到 ai 子树深拷贝，兼容含 function/DOM 等非 JSON 值的用户配置
+  - Dev 模式（`window.VAADIN_CKEDITOR_DEBUG = true`）打印迁移警告
+- `ckeditor5-premium-features.d.ts`：新增 CKEditor 48 AI 配置类型契约
+  - `AIChatController`、`AIContextItemType`、`AIChatShortcutType`、`AIQuickActionCommandType`
+  - `AIQuickActionsExtraCommandConfig` 重构为判别联合（`AIQuickActionsChatCommandConfig` + `AIQuickActionsActionCommandConfig`）；chat 必填 `displayedPrompt`，action 仅用 `label`
+- `theme-manager.ts` DARK_THEME_VARS：新增 10 个 CKEditor 48 官方 `--ck-color-ai-*` 暗色 token 映射
+- `vitest.config.ts`：排除 `**/target/**` 防止 mvn package 后扫描副本；新增 regex alias 解决 premium CSS 子路径解析
+- `test-mocks/empty.css`：vitest 环境下 premium CSS 占位
+- 测试覆盖：normalizer 30 + theme-manager 17 + plugin-resolver 26 + upload-adapter 29 + comment-permission-enforcer 12 = 114 个前端测试全部通过；Java 488 个单测全部通过
+
+### Notes
+- 推荐消费端 Spring Boot 4.0.4+ 以匹配 Jackson 3.1
+- 顶层 `initialData`/`placeholder`/`label` 配置仍兼容，但建议迁移到 `root.*`
+- 旧 AI 配置会被前端自动 normalize 到 v48 字段，无需手动迁移
+
 ## [5.1.0] - 2026-02-13
 
 ### Added

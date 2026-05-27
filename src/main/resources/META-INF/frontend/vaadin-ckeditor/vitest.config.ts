@@ -19,8 +19,8 @@ export default defineConfig({
         // Test file patterns
         include: ['**/*.test.ts'],
 
-        // Exclude node_modules and build outputs
-        exclude: ['node_modules', 'dist', 'build'],
+        // Exclude node_modules, build outputs, and Maven target/ copies (mvn package 会复制源码副本)
+        exclude: ['node_modules', 'dist', 'build', '**/target/**'],
 
         // Coverage configuration
         coverage: {
@@ -31,6 +31,8 @@ export default defineConfig({
                 'upload-adapter.ts',
                 'theme-manager.ts',
                 'fallback-renderer.ts',
+                'editor-config-normalizer.ts',
+                'comment-permission-enforcer.ts',
             ],
             exclude: [
                 '**/*.test.ts',
@@ -47,9 +49,17 @@ export default defineConfig({
 
     // Resolve aliases for testing
     resolve: {
-        alias: {
-            // Mock ckeditor5-premium-features for testing
-            'ckeditor5-premium-features': './test-mocks/ckeditor5-premium-features.ts',
-        },
+        alias: [
+            // premium CSS 子路径（必须放在通用别名之前，避免被前缀匹配吞掉）
+            {
+                find: /^ckeditor5-premium-features\/ckeditor5-premium-features\.css$/,
+                replacement: new URL('./test-mocks/empty.css', import.meta.url).pathname,
+            },
+            // premium 模块本身：vitest 环境替换为 stub
+            {
+                find: /^ckeditor5-premium-features$/,
+                replacement: new URL('./test-mocks/ckeditor5-premium-features.ts', import.meta.url).pathname,
+            },
+        ],
     },
 });

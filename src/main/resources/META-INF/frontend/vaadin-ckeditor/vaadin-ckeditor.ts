@@ -16,6 +16,13 @@ import {
     registerCKEditorPlugin,
     type PluginConfig,
 } from './plugin-resolver';
+import {
+    buildCreateConfig,
+    normalizeAIConfig48,
+    normalizeRootConfig,
+    stripInitialDataIfChannelSeeded,
+    type RootConfig,
+} from './editor-config-normalizer';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -281,6 +288,9 @@ export class VaadinCKEditor extends LitElement {
     private isCreating = false;
     private createPromise: Promise<void> | null = null;
 
+    // CKEditor 48 root config built during buildConfig(), consumed by createEditorInstance()
+    private pendingRootConfig: RootConfig = {};
+
     // Listener cleanup functions (undo/redo/clipboard/collaboration)
     private listenerCleanups: Array<() => void> = [];
 
@@ -545,14 +555,22 @@ export class VaadinCKEditor extends LitElement {
         const translations = this.language !== 'en' ? TRANSLATION_REGISTRY[this.language] : undefined;
 
         // 协作模式下检查频道是否已有数据，有则移除 initialData 避免警告
-        const configWithInitialData = await this.stripInitialDataIfChannelExists(this.config);
+        const configAfterChannel = await this.stripInitialDataIfChannelExists(this.config);
+
+        // CKEditor 48 配置规范化：兼容旧顶层 initialData/placeholder/label 与 AI v47 字段
+        const { config: configAfterAi, warnings: aiWarnings } = normalizeAIConfig48(configAfterChannel);
+        const { rootConfig, remainingConfig, warnings: rootWarnings } =
+            normalizeRootConfig(configAfterAi, this.editorType);
+
+        this.pendingRootConfig = rootConfig;
+        this.warnConfigMigration([...aiWarnings, ...rootWarnings]);
 
         let editorConfig: EditorConfig = {
             licenseKey: this.licenseKey,
             plugins: resolvedPlugins as EditorConfig['plugins'],
             language: this.language,
             ...(translations ? { translations: [translations] } : {}),
-            ...configWithInitialData,
+            ...remainingConfig,
         };
 
         // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
@@ -710,50 +728,19 @@ export class VaadinCKEditor extends LitElement {
     }
 
     /**
-     * 协作模式下检查频道是否已被初始化
-     *
-     * 当 config 同时包含 cloudServices（协作模式）和 initialData 时，
-     * 通过 localStorage 记录已初始化的频道。首次加载时保留 initialData
-     * 用于种子数据；后续加载检测到已初始化则移除 initialData，
-     * 避免 "editor-initial-data-replaced-with-revision-data" 警告。
-     *
-     * localStorage key 格式: ck-channel-seeded:{channelId}
-     *
-     * @param config 原始编辑器配置
-     * @returns 处理后的配置（可能移除了 initialData）
+     * 协作模式下检查频道是否已被初始化，逻辑委托给纯函数以便单测覆盖。
      */
     private async stripInitialDataIfChannelExists(
         config: Record<string, unknown>
     ): Promise<Record<string, unknown>> {
-        // 仅在协作模式（有 cloudServices 配置）且设置了 initialData 时检查
-        const cloudServices = config.cloudServices as Record<string, unknown> | undefined;
-        const collaboration = config.collaboration as Record<string, unknown> | undefined;
-        const hasInitialData = 'initialData' in config && config.initialData != null;
-
-        if (!cloudServices?.tokenUrl || !collaboration?.channelId || !hasInitialData) {
-            return config;
-        }
-
-        const channelId = collaboration.channelId as string;
-        const storageKey = `ck-channel-seeded:${channelId}`;
-
-        try {
-            if (localStorage.getItem(storageKey)) {
-                // 频道已被初始化过，移除 initialData 让 Cloud Services 加载已有数据
-                logger.info(`频道 "${channelId}" 已初始化，移除 initialData 避免冲突`);
-                const { initialData: _, ...configWithoutInitialData } = config;
-                return configWithoutInitialData;
-            }
-
-            // 首次加载：标记频道为已初始化，保留 initialData 用于种子
-            localStorage.setItem(storageKey, String(Date.now()));
-            logger.info(`频道 "${channelId}" 首次初始化，使用 initialData 种子数据`);
-        } catch {
-            // localStorage 不可用（隐私模式等），保留 initialData 让 CKEditor 自行处理
-            logger.warn('localStorage 不可用，保留 initialData');
-        }
-
-        return config;
+        const result = stripInitialDataIfChannelSeeded(config, {
+            storage: localStorage,
+            now: () => Date.now(),
+            onSeeded: (channelId) => logger.info(`频道 "${channelId}" 首次初始化，使用 initialData 种子数据`),
+            onAlreadySeeded: (channelId) => logger.info(`频道 "${channelId}" 已初始化，移除 initialData 避免冲突`),
+            onStorageUnavailable: () => logger.warn('localStorage 不可用，保留 initialData'),
+        });
+        return result.config;
     }
 
     /**
@@ -872,7 +859,10 @@ export class VaadinCKEditor extends LitElement {
         logger.info(`Starting editor creation with ${this.plugins.length} plugins...`);
         const startTime = performance.now();
 
-        this.editor = await EditorConstructor.create(editorElement, config);
+        const createConfig = this.buildEditorCreateConfig(editorElement, config);
+        this.editor = await (EditorConstructor as unknown as {
+            create: (cfg: Record<string, unknown>) => Promise<Editor>;
+        }).create(createConfig);
 
         const endTime = performance.now();
         const initTimeMs = endTime - startTime;
@@ -882,6 +872,35 @@ export class VaadinCKEditor extends LitElement {
         (this.editor as unknown as { id: string }).id = this.editorId;
 
         return initTimeMs;
+    }
+
+    /**
+     * 构造 CKEditor 48 单参数 create 配置（委托纯函数实现，便于单测覆盖）。
+     */
+    private buildEditorCreateConfig(
+        editorElement: HTMLElement,
+        config: EditorConfig
+    ): Record<string, unknown> {
+        return buildCreateConfig(
+            editorElement,
+            config as unknown as Record<string, unknown>,
+            this.pendingRootConfig,
+            this.editorType
+        );
+    }
+
+    /**
+     * 在开发模式下打印 v47 → v48 配置迁移警告。
+     * 通过 window.VAADIN_CKEDITOR_DEBUG（与现有 DEBUG 标志一致）控制是否输出，避免生产环境噪音。
+     */
+    private warnConfigMigration(warnings: string[]): void {
+        if (warnings.length === 0 || !DEBUG) {
+            return;
+        }
+
+        for (const warning of warnings) {
+            logger.warn(`[CKEditor 48 migration] ${warning}`);
+        }
     }
 
     /**

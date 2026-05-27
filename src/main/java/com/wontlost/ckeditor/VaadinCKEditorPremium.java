@@ -79,7 +79,7 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  * @see CustomPlugin#fromPremium(String)
  * @since 5.0.0
  */
-@NpmPackage(value = "ckeditor5-premium-features", version = "47.5.0")
+@NpmPackage(value = "ckeditor5-premium-features", version = "48.1.1")
 public final class VaadinCKEditorPremium {
 
     private static volatile boolean enabled = false;
@@ -148,7 +148,7 @@ public final class VaadinCKEditorPremium {
      * @return the npm package version
      */
     public static String getVersion() {
-        return "47.5.0";
+        return "48.1.1";
     }
 
     /**
