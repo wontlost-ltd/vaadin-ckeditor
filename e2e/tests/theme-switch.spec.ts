@@ -10,12 +10,24 @@ test.describe('Dark theme + CKEditor 48 AI tokens', () => {
         const themeAttr = await page.evaluate(() => document.documentElement.getAttribute('theme'));
         expect(themeAttr).toContain('dark');
 
-        // theme-manager injects v48 --ck-color-ai-* tokens on the editor host
-        const buttonBg = await page.evaluate(() => {
-            const host = document.querySelector('vaadin-ckeditor#ckeditor');
-            if (!host) return '';
-            return getComputedStyle(host).getPropertyValue('--ck-color-ai-chat-primary-button-background');
+        // theme-manager sets v48 --ck-color-ai-* tokens via inline style on documentElement.
+        // initDarkTheme() runs after the editor is constructed; poll briefly.
+        await expect.poll(async () => {
+            return page.evaluate(() =>
+                document.documentElement.style.getPropertyValue('--ck-color-ai-chat-primary-button-background').trim()
+            );
+        }, { timeout: 5_000, message: 'v48 AI dark token never appeared on <html>' }).not.toBe('');
+
+        // Once the primary token is set, the rest of the v48 batch should be there too.
+        const tokens = await page.evaluate(() => {
+            const html = document.documentElement;
+            return {
+                primaryButtonBg: html.style.getPropertyValue('--ck-color-ai-chat-primary-button-background'),
+                inputBg: html.style.getPropertyValue('--ck-color-ai-chat-input-background'),
+                errorBg: html.style.getPropertyValue('--ck-color-ai-notification-error-background'),
+            };
         });
-        expect(buttonBg.trim()).not.toBe('');
+        expect(tokens.inputBg.trim()).not.toBe('');
+        expect(tokens.errorBg.trim()).not.toBe('');
     });
 });

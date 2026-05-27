@@ -12,6 +12,9 @@ export default defineConfig({
     fullyParallel: false,
     workers: 1,
     reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+    // Pin visual-regression baselines per platform + browser so font / AA
+    // differences between macOS dev and Linux CI don't cause false positives.
+    snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}-{projectName}-{platform}{ext}',
     use: {
         baseURL: BASE_URL,
         trace: 'on-first-retry',
