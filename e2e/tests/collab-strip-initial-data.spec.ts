@@ -40,12 +40,15 @@ test.describe('stripInitialDataIfChannelSeeded', () => {
             { key: STORAGE_KEY, value: seededMarker }
         );
 
-        // Capture warn-level migration messages so we can assert the strip ran.
-        const channelLogs: string[] = [];
+        // Capture the Java-side info message "频道 ... 已初始化，移除 initialData 避免冲突"
+        // emitted by stripInitialDataIfChannelSeeded when it removes seed data.
+        // The exact substring "移除 initialData" combined with the channel id is the
+        // tightest available proxy for the strip branch having executed.
+        const stripLogs: string[] = [];
         page.on('console', (msg) => {
             const text = msg.text();
-            if (text.includes('已初始化') || text.includes('移除 initialData') || text.includes('playwright-channel')) {
-                channelLogs.push(text);
+            if (text.includes('移除 initialData') && text.includes('playwright-channel')) {
+                stripLogs.push(text);
             }
         });
 
@@ -57,9 +60,8 @@ test.describe('stripInitialDataIfChannelSeeded', () => {
         const after = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
         expect(after).toBe(seededMarker);
 
-        // 2. The Java code logs "频道 xxx 已初始化，移除 initialData 避免冲突" via console.info.
-        //    Console message capture can race with page reload, so poll briefly.
-        await expect.poll(() => channelLogs.length, { timeout: 5_000 }).toBeGreaterThan(0);
-        expect(channelLogs.some((msg) => /移除 initialData|playwright-channel/.test(msg))).toBe(true);
+        // 2. The strip-branch info message must have fired.
+        //    Console capture can race with page reload, so poll briefly.
+        await expect.poll(() => stripLogs.length, { timeout: 5_000 }).toBeGreaterThan(0);
     });
 });

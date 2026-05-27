@@ -47,8 +47,9 @@ port, set `E2E_PORT=9090 npm test`; Playwright forwards it to Spring Boot via
 
 Baselines live under [`tests/__screenshots__/`](tests/__screenshots__/) and are
 pinned to **Linux x86_64** (the CI runner platform). The `visual-regression.spec.ts`
-file is skipped on other platforms via `test.skip(process.platform !== 'linux', …)`
-so local development on macOS / Windows stays green.
+file is skipped on every other platform/arch via
+`test.skip(!(process.platform === 'linux' && process.arch === 'x64'), …)` so
+local development on macOS / Windows / Linux-arm64 stays green.
 
 ### Regenerate baselines
 
