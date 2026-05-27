@@ -60,7 +60,7 @@ PNGs inside a Linux/amd64 container so the output matches CI:
 podman run --rm --platform linux/amd64 \
     -v "$PWD":/work:Z \
     -w /work \
-    mcr.microsoft.com/playwright:v1.50.0-jammy bash -c '
+    mcr.microsoft.com/playwright:v1.60.0-jammy bash -c '
         apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless curl
         curl -sL https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz | tar xz -C /opt
         export PATH=/opt/apache-maven-3.9.9/bin:$PATH
