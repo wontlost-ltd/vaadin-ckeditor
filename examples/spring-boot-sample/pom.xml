@@ -22,6 +22,9 @@
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <vaadin.version>25.1.6</vaadin.version>
+        <!-- Keep in sync with the root pom's <version>. Pinned so the sample exercises a
+             specific addon build; bump together when the addon version changes. -->
+        <addon.version>5.1.0</addon.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -46,7 +49,7 @@
         <dependency>
             <groupId>com.wontlost</groupId>
             <artifactId>ckeditor-vaadin</artifactId>
-            <version>5.1.0</version>
+            <version>${addon.version}</version>
         </dependency>
 
         <!-- Vaadin dev server (only needed because we run with spring-boot:run, not production mode) -->

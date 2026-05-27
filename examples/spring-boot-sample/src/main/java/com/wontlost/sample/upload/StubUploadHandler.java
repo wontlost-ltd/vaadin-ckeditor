@@ -12,6 +12,10 @@ import java.util.concurrent.CompletableFuture;
  * <p>Reads the stream into memory (small test files only) and returns a
  * {@code data:} URL so the editor can render the uploaded image without a
  * real backend file store.</p>
+ *
+ * <p><b>Not production code.</b> The route's {@code UploadConfig} is the
+ * authoritative size cap; this handler defends against truncation by
+ * verifying the stream is fully consumed within {@link #MAX_BYTES}.</p>
  */
 public class StubUploadHandler implements UploadHandler {
 
@@ -22,6 +26,10 @@ public class StubUploadHandler implements UploadHandler {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 byte[] data = inputStream.readNBytes(MAX_BYTES);
+                if (inputStream.read() != -1) {
+                    return UploadResult.failure(
+                        "Stub handler refuses uploads larger than " + MAX_BYTES + " bytes");
+                }
                 String mime = context.getMimeType() != null ? context.getMimeType() : "application/octet-stream";
                 String dataUrl = "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(data);
                 return new UploadResult(dataUrl);

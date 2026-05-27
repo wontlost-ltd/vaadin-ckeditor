@@ -6,17 +6,19 @@ test.describe('Upload adapter wires to StubUploadHandler', () => {
         await page.goto('/upload');
         await waitForCKEditorReady(page);
 
-        // Tiny 1x1 PNG fixture (transparent)
+        // Smallest valid 1x1 transparent PNG (8-byte signature + IHDR + IDAT + IEND).
+        // Used purely as fixture bytes — the assertion only checks the resulting
+        // data: URL prefix.
         const pngBytes = Buffer.from(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=',
             'base64'
         );
 
-        // Set up a one-shot file chooser handler before clicking the toolbar button
+        // Set up a one-shot file chooser handler before clicking the toolbar button.
+        // .ck-file-dialog-button is CKEditor's stable class for "open native file picker"
+        // (applied directly to the <button>, not a wrapper).
         const chooserPromise = page.waitForEvent('filechooser');
-        await page.locator('.ck-toolbar button[data-cke-tooltip-text*="image" i], .ck-toolbar .ck-file-dialog-button button')
-            .first()
-            .click();
+        await page.locator('.ck-toolbar button.ck-file-dialog-button').first().click();
 
         const chooser = await chooserPromise;
         await chooser.setFiles({

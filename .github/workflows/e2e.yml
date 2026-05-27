@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Cancel stale runs when a new commit is pushed to the same ref so PRs don't pile up CI minutes.
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     runs-on: ubuntu-latest

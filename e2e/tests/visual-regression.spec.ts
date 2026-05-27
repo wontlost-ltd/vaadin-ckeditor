@@ -1,56 +1,67 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { waitForCKEditorReady, waitForInlineEditorReady, waitForEditorHost } from '../helpers/ck';
 
 /**
  * Visual regression baselines.
  *
  * <p>Pixel rendering varies by OS, browser font stack, and CPU architecture.
- * We pin baselines to the CI runner (Linux x64 / Ubuntu Jammy) and skip
- * the spec elsewhere to keep them green during local development.</p>
+ * Baselines are produced on the CI runner (Linux x64 / Ubuntu Jammy) and the
+ * spec is skipped on any other platform/arch to keep local development green
+ * without false positives.</p>
  *
  * <p><b>How baselines are produced:</b></p>
  * <ol>
- *   <li>First CI run on a fresh branch fails the visual tests because no
- *       baselines exist. The CI job uploads the actual screenshots as the
- *       <code>playwright-test-results</code> artifact.</li>
- *   <li>Maintainer downloads the artifact, copies the <code>actual.png</code>
- *       files into <code>e2e/tests/__screenshots__/</code> renamed to the
- *       expected file name (without the <code>-actual</code> suffix), and
- *       commits them.</li>
+ *   <li>Run the spec in a Linux/amd64 Playwright container with
+ *       <code>--update-snapshots</code>. See e2e/README.md for the command.</li>
+ *   <li>Commit the generated PNGs under <code>__screenshots__/</code>.</li>
  *   <li>Subsequent CI runs compare against the committed baselines.</li>
  * </ol>
- *
- * <p>To regenerate baselines later, either:</p>
- * <ul>
- *   <li>delete the committed PNGs and let CI re-produce them, or</li>
- *   <li>run a Linux container locally: <code>podman run --rm --platform
- *       linux/amd64 -v $PWD:/work -w /work/e2e mcr.microsoft.com/playwright:v1.50.0-jammy
- *       npx playwright test visual-regression --update-snapshots</code></li>
- * </ul>
  *
  * <p>The spec is also skipped when <code>SKIP_VISUAL_REGRESSION=1</code> is
  * set, e.g. on first-time setup CI runs that intentionally produce baselines
  * without failing the build.</p>
  */
 test.describe('Visual regression', () => {
-    test.skip(process.platform !== 'linux', 'Baselines are pinned to Linux/CI');
+    // Baselines are produced on Linux x64. Skip on any other platform/arch so the
+    // committed PNGs don't false-positive against other OS/architectures.
+    test.skip(
+        !(process.platform === 'linux' && process.arch === 'x64'),
+        'Baselines are pinned to Linux x64 (the CI runner)'
+    );
     test.skip(
         process.env.SKIP_VISUAL_REGRESSION === '1',
         'Visual regression intentionally skipped (e.g. during baseline bootstrap)'
     );
 
-    // 0.25 means up to 25% of pixels may differ; CKEditor renders some non-deterministic
-    // pixels around the focus ring and toolbar tooltips that we don't want to chase.
+    // Sub-images of the editor host (the smallest baseline is ~75×30 px for inline);
+    // allow at most 200 differing pixels to absorb sub-pixel AA jitter without
+    // accepting a whole-row colour shift. maxDiffPixelRatio kept as a defence in
+    // depth for the larger baselines (e.g. decoupled).
     const SCREENSHOT_OPTIONS = {
         animations: 'disabled' as const,
-        maxDiffPixelRatio: 0.05,
+        maxDiffPixels: 200,
+        maxDiffPixelRatio: 0.02,
         fullPage: false,
     };
+
+    /**
+     * Wait for the page to be visually stable before snapshotting:
+     * fonts loaded + two animation frames flushed. Reduces dependence on
+     * arbitrary sleeps and the resulting flake.
+     */
+    async function waitForLayoutStable(page: Page): Promise<void> {
+        await page.evaluate(async () => {
+            if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+                await document.fonts.ready;
+            }
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        });
+    }
 
     test('classic editor visual baseline', async ({ page }) => {
         await page.goto('/classic');
         await waitForCKEditorReady(page);
-        await page.waitForTimeout(500);
+        await waitForLayoutStable(page);
 
         const host = await waitForEditorHost(page);
         await expect(host).toHaveScreenshot('classic.png', SCREENSHOT_OPTIONS);
@@ -59,7 +70,7 @@ test.describe('Visual regression', () => {
     test('balloon editor visual baseline', async ({ page }) => {
         await page.goto('/balloon');
         await waitForInlineEditorReady(page);
-        await page.waitForTimeout(500);
+        await waitForLayoutStable(page);
 
         const host = await waitForEditorHost(page);
         await expect(host).toHaveScreenshot('balloon.png', SCREENSHOT_OPTIONS);
@@ -68,7 +79,7 @@ test.describe('Visual regression', () => {
     test('inline editor visual baseline', async ({ page }) => {
         await page.goto('/inline');
         await waitForInlineEditorReady(page);
-        await page.waitForTimeout(500);
+        await waitForLayoutStable(page);
 
         const host = await waitForEditorHost(page);
         await expect(host).toHaveScreenshot('inline.png', SCREENSHOT_OPTIONS);
@@ -77,7 +88,7 @@ test.describe('Visual regression', () => {
     test('decoupled editor visual baseline', async ({ page }) => {
         await page.goto('/decoupled');
         await waitForInlineEditorReady(page);
-        await page.waitForTimeout(500);
+        await waitForLayoutStable(page);
 
         const host = await waitForEditorHost(page);
         await expect(host).toHaveScreenshot('decoupled.png', SCREENSHOT_OPTIONS);
@@ -86,7 +97,7 @@ test.describe('Visual regression', () => {
     test('dark theme visual baseline', async ({ page }) => {
         await page.goto('/dark');
         await waitForCKEditorReady(page);
-        await page.waitForTimeout(500);
+        await waitForLayoutStable(page);
 
         const host = await waitForEditorHost(page);
         await expect(host).toHaveScreenshot('dark.png', SCREENSHOT_OPTIONS);

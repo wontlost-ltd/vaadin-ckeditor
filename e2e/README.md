@@ -39,7 +39,9 @@ npm test
 ```
 
 The sample app jar is started/stopped automatically by Playwright's `webServer`
-configuration (`playwright.config.ts`). Override the port via `E2E_PORT=9090`.
+configuration (`playwright.config.ts`). To run the server on a non-default
+port, set `E2E_PORT=9090 npm test`; Playwright forwards it to Spring Boot via
+`--server.port`.
 
 ## Visual regression baselines
 

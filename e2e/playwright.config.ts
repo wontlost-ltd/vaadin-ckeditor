@@ -4,6 +4,8 @@ const SAMPLE_APP_DIR = '../examples/spring-boot-sample';
 const SAMPLE_JAR = `${SAMPLE_APP_DIR}/target/vaadin-ckeditor-sample-1.0.0-SNAPSHOT.jar`;
 const PORT = process.env.E2E_PORT ?? '8080';
 const BASE_URL = `http://localhost:${PORT}`;
+// Pass the port through to Spring Boot so E2E_PORT actually controls the server.
+const SAMPLE_COMMAND = `java -jar ${SAMPLE_JAR} --server.port=${PORT}`;
 
 export default defineConfig({
     testDir: './tests',
@@ -24,7 +26,8 @@ export default defineConfig({
     webServer: {
         // Boot the production jar. Tests assume `mvn package -Pproduction` ran
         // ahead of time (see README). Avoids paying the npm install cost per run.
-        command: `java -jar ${SAMPLE_JAR}`,
+        // E2E_PORT is forwarded to Spring Boot via --server.port.
+        command: SAMPLE_COMMAND,
         url: `${BASE_URL}/classic`,
         timeout: 180_000,
         reuseExistingServer: !process.env.CI,
