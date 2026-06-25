@@ -1427,6 +1427,11 @@ export class VaadinCKEditor extends LitElement {
      * Update read-only state
      */
     private updateReadOnly(): void {
+        // 在宿主元素上反映只读状态，便于外部 CSS 通过 vaadin-ckeditor[readonly]
+        // 或 .readonly 选择器定制只读外观（issue #44）。即使 editor 尚未就绪也先反映。
+        this.toggleAttribute('readonly', this.isReadOnly);
+        this.classList.toggle('readonly', this.isReadOnly);
+
         if (!this.editor) return;
 
         if (this.isReadOnly) {
