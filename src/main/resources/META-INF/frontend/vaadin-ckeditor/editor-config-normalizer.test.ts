@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+    applyPoweredByPosition,
     buildCreateConfig,
     normalizeAIConfig48,
     normalizeRootConfig,
@@ -491,6 +492,7 @@ describe('buildCreateConfig', () => {
             toolbar: ['bold'],
             attachTo: editorElement,
             root: { initialData: '<p>Seed</p>' },
+            ui: { poweredBy: { position: 'inside' } },
         });
         expect((result.root as Record<string, unknown>).attachTo).toBeUndefined();
         expect((result.root as Record<string, unknown>).element).toBeUndefined();
@@ -510,6 +512,7 @@ describe('buildCreateConfig', () => {
             expect(result).toEqual({
                 toolbar: ['bold'],
                 root: { initialData: '<p>Seed</p>', element: editorElement },
+                ui: { poweredBy: { position: 'inside' } },
             });
             expect(result.attachTo).toBeUndefined();
         }
@@ -660,5 +663,37 @@ describe('stripInitialDataIfChannelSeeded', () => {
 
         expect(config.initialData).toBe('<p>Seed</p>');
         expect(config.root.initialData).toBe('<p>Root</p>');
+    });
+});
+
+describe('applyPoweredByPosition (issue #62)', () => {
+    it('defaults ui.poweredBy.position to "inside" when unset', () => {
+        const result = applyPoweredByPosition({});
+        expect((result.ui as Record<string, Record<string, unknown>>).poweredBy.position).toBe('inside');
+    });
+
+    it('preserves an existing ui.poweredBy.position (respects user override)', () => {
+        const result = applyPoweredByPosition({ ui: { poweredBy: { position: 'border' } } });
+        expect((result.ui as Record<string, Record<string, unknown>>).poweredBy.position).toBe('border');
+    });
+
+    it('keeps other ui.poweredBy keys intact while adding position', () => {
+        const result = applyPoweredByPosition({ ui: { poweredBy: { label: 'My Project' } } });
+        const poweredBy = (result.ui as Record<string, Record<string, unknown>>).poweredBy;
+        expect(poweredBy.label).toBe('My Project');
+        expect(poweredBy.position).toBe('inside');
+    });
+
+    it('preserves unrelated ui keys', () => {
+        const result = applyPoweredByPosition({ ui: { viewportOffset: { top: 50 } } });
+        const ui = result.ui as Record<string, unknown>;
+        expect(ui.viewportOffset).toEqual({ top: 50 });
+        expect((ui.poweredBy as Record<string, unknown>).position).toBe('inside');
+    });
+
+    it('is applied by buildCreateConfig', () => {
+        const el = document.createElement('div');
+        const created = buildCreateConfig(el, {}, {}, 'classic');
+        expect((created.ui as Record<string, Record<string, unknown>>).poweredBy.position).toBe('inside');
     });
 });
