@@ -297,8 +297,12 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
     @Override
     public void setValue(String value) {
-        super.setValue(value);
-        this.editorData = value != null ? value : "";
+        // 先规范化 null 为 ""，再交给 super.setValue。
+        // 否则事件构造时 getValue() 会读到 null（presentation 阶段写入），
+        // 而方法返回后 getValue() 又变为 ""，导致监听器值与最终值不一致（与 issue #85 同源）。
+        String newValue = value != null ? value : "";
+        this.editorData = newValue;
+        super.setValue(newValue);
         getElement().setProperty("editorData", this.editorData);
         updateEditorData(this.editorData);
     }
@@ -311,10 +315,15 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         if (java.util.Objects.equals(oldValue, newValue)) {
             return;
         }
-        // super.setModelValue already fires ValueChangeEvent via Vaadin's AbstractField,
-        // so we must not call fireEvent again to avoid duplicate events
-        super.setModelValue(newValue, fromClient);
+        // 必须先更新 editorData，再调用 super.setModelValue。
+        // 原因：本类重写了 getValue() 返回 editorData，而 Vaadin 在
+        // ComponentValueChangeEvent 构造时会调用 getValue() 读取新值
+        // （见 AbstractField.ComponentValueChangeEvent，this.value = hasValue.getValue()）。
+        // 若先 fire 事件再赋值，监听器拿到的将是旧内容（issue #85）。
         this.editorData = newValue;
+        // super.setModelValue 会经由 Vaadin 的 AbstractField 触发 ValueChangeEvent，
+        // 因此不能再额外调用 fireEvent，避免重复事件。
+        super.setModelValue(newValue, fromClient);
     }
 
     @ClientCallable
