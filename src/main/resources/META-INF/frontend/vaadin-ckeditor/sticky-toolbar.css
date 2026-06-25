@@ -47,6 +47,24 @@ vaadin-ckeditor .ck.ck-editor .ck.ck-sticky-panel {
     position: static !important;
 }
 
+/* ==================== Dialog / Overlay Stacking (issue #56) ==================== */
+/*
+ * Inside a Vaadin Dialog/overlay the editor's floating panels (dropdowns,
+ * balloon toolbars, the image-alignment menu, etc.) derive their z-index from
+ * CKEditor's --ck-z-default / --ck-z-panel (default 1 / 1000). A Vaadin overlay
+ * sits at a comparable/higher stacking level, so those panels can render BELOW
+ * the dialog content and clicks pass through to the background.
+ *
+ * Raise --ck-z-default for editors nested inside a Vaadin overlay so every
+ * CKEditor panel (which is computed from it) stacks above the dialog.
+ * The editor body itself is left untouched; only floating panels are lifted.
+ */
+vaadin-dialog-overlay vaadin-ckeditor,
+vaadin-overlay vaadin-ckeditor,
+[popover] vaadin-ckeditor {
+    --ck-z-default: 2147483000;
+}
+
 /* ==================== Dark Theme Support ==================== */
 /*
  * Supports both:
