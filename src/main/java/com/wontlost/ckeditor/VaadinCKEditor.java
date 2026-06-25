@@ -394,6 +394,21 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         return readOnly;
     }
 
+    /**
+     * 同步 enabled 状态到前端（issue #46）。
+     *
+     * <p>沿用 Vaadin 推荐的 {@link com.vaadin.flow.component.Component#onEnabledStateChanged(boolean)}
+     * 钩子，而非覆写 {@code setEnabled}——Vaadin 自身负责 disabled 属性的传播，这里只把状态
+     * 推给 CKEditor 前端，使禁用时编辑器不可交互（CKEditor 5 通过只读锁实现禁用）。</p>
+     */
+    @Override
+    public void onEnabledStateChanged(boolean enabled) {
+        super.onEnabledStateChanged(enabled);
+        getElement().setProperty("isEnabled", enabled);
+        getId().ifPresent(id ->
+            getElement().executeJs("this.isEnabled = $0", enabled));
+    }
+
     @Override
     public void setWidth(String width) {
         super.setWidth(width);

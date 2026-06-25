@@ -186,6 +186,7 @@ export class VaadinCKEditor extends LitElement {
     @property({ type: String }) language = 'en';
     @property({ type: String }) overrideCssUrl = '';
     @property({ type: Boolean }) isReadOnly = false;
+    @property({ type: Boolean }) isEnabled = true;
     @property({ type: Boolean }) autosave = false;
     @property({ type: Number }) autosaveWaitingTime = 2000;
     @property({ type: Boolean }) minimapEnabled = false;
@@ -372,6 +373,10 @@ export class VaadinCKEditor extends LitElement {
 
         if (changedProperties.has('isReadOnly') && this.editor) {
             this.updateReadOnly();
+        }
+
+        if (changedProperties.has('isEnabled') && this.editor) {
+            this.updateEnabled();
         }
 
         if (changedProperties.has('hideToolbar') && this.editor) {
@@ -918,6 +923,9 @@ export class VaadinCKEditor extends LitElement {
         // Set read-only state
         this.updateReadOnly();
 
+        // Set enabled state (issue #46)
+        this.updateEnabled();
+
         // Set toolbar visibility
         this.updateToolbarVisibility();
 
@@ -1438,6 +1446,25 @@ export class VaadinCKEditor extends LitElement {
             this.editor.enableReadOnlyMode(this.editorId);
         } else {
             this.editor.disableReadOnlyMode(this.editorId);
+        }
+    }
+
+    /**
+     * 同步 enabled 状态（issue #46）。CKEditor 5 无独立的 disabled 概念，
+     * 用一个区别于 editorId 的只读锁实现 disable，避免与用户显式的 readOnly 互相覆盖；
+     * 同时在宿主元素上反映 disabled 属性/类，便于外部 CSS 定制。
+     */
+    private updateEnabled(): void {
+        this.toggleAttribute('disabled', !this.isEnabled);
+        this.classList.toggle('disabled', !this.isEnabled);
+
+        if (!this.editor) return;
+
+        const disabledLockId = `${this.editorId}--disabled`;
+        if (this.isEnabled) {
+            this.editor.disableReadOnlyMode(disabledLockId);
+        } else {
+            this.editor.enableReadOnlyMode(disabledLockId);
         }
     }
 
