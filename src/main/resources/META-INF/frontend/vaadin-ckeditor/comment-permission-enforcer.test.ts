@@ -91,8 +91,8 @@ const createMockEditor = (
 
 // --- MutationObserver mock ---
 let observerCallback: MutationCallback | null = null;
-let observeSpy: ReturnType<typeof vi.fn>;
-let disconnectSpy: ReturnType<typeof vi.fn>;
+let observeSpy: ReturnType<typeof vi.fn<(target: Node, options?: MutationObserverInit) => void>>;
+let disconnectSpy: ReturnType<typeof vi.fn<() => void>>;
 
 beforeEach(() => {
     observeSpy = vi.fn();
