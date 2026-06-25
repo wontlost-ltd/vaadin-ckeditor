@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CKEditor 5 (`ckeditor5`, `ckeditor5-premium-features`): 48.1.1 → 48.2.0
+  - `package-lock.json` regenerated via `npm install` (resolves `ckeditor5@48.2.0`)
+  - `tsc --noEmit` clean — no premium AI `.d.ts` type-contract drift; no source changes required
+  - Frontend vitest suite 114/114 green against 48.2.0
+
 ## [5.2.0] - 2026-05-27
 
 ### Changed

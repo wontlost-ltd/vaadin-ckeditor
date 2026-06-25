@@ -47,8 +47,8 @@ implementation("com.wontlost:ckeditor-vaadin:5.1.0")
 | 依赖 | 版本 | 备注 |
 |---|---|---|
 | Vaadin Platform | 25.1.6+ | 25.x 系列；前向兼容 25.2-SNAPSHOT |
-| CKEditor 5 (`ckeditor5`) | 48.1.1 | npm 精确版本 |
-| `ckeditor5-premium-features` | 48.1.1 | 与 `ckeditor5` 必须同版本 |
+| CKEditor 5 (`ckeditor5`) | 48.2.0 | npm 精确版本 |
+| `ckeditor5-premium-features` | 48.2.0 | 与 `ckeditor5` 必须同版本 |
 | Java | 21+ | Vaadin 25 baseline |
 | Jackson (`tools.jackson.core`) | 3.1.3+ | 由消费端提供 |
 | Jakarta Servlet API | 6.1.0+ | Vaadin 25.1 支持矩阵 |
