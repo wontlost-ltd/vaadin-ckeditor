@@ -235,63 +235,78 @@ public class UploadManager {
         timedFuture.handle((result, ex) -> {
             // Synchronize task state updates
             synchronized (task) {
-                // Double notification guard: if already notified or cancelled, return immediately
-                if (task.isNotified()) {
-                    logger.log(Level.FINE, "Upload {0} already notified, skipping duplicate callback", uploadId);
-                    activeTasks.remove(uploadId);
-                    return null;
-                }
-
-                if (task.getStatus() == UploadStatus.CANCELLED) {
-                    // Task was cancelled, ignore result
-                    logger.log(Level.FINE, "Upload {0} was cancelled, ignoring result", uploadId);
-                    activeTasks.remove(uploadId);
-                    return null;
-                }
-
-                long elapsedMs = task.getElapsedTimeMs();
-
-                if (ex != null) {
-                    // Exception handling - unwrap CompletionException to get root cause
-                    Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
-                        ? ex.getCause() : ex;
-                    task.setStatus(UploadStatus.FAILED);
-                    String errorMsg;
-                    if (cause instanceof TimeoutException) {
-                        errorMsg = "Upload timed out after " + uploadTimeoutSeconds + " seconds";
-                        logger.log(Level.WARNING, "Upload {0} timed out after {1}ms", new Object[]{uploadId, elapsedMs});
-                    } else {
-                        errorMsg = cause.getMessage();
-                        if (errorMsg == null || errorMsg.isEmpty()) {
-                            errorMsg = cause.getClass().getSimpleName() + " occurred during upload";
-                        }
-                        logger.log(Level.WARNING, "Upload {0} failed after {1}ms: {2}",
-                            new Object[]{uploadId, elapsedMs, errorMsg});
-                    }
-                    task.setErrorMessage(errorMsg);
-                    notifyResult(uploadId, task, null, errorMsg);
-                } else if (result != null && result.isSuccess()) {
-                    // Success
-                    task.setStatus(UploadStatus.COMPLETED);
-                    task.setResultUrl(result.getUrl());
-                    logger.log(Level.INFO, "Upload {0} completed successfully in {1}ms, url={2}",
-                        new Object[]{uploadId, elapsedMs, result.getUrl()});
-                    notifyResult(uploadId, task, result.getUrl(), null);
-                } else {
-                    // Failure
-                    task.setStatus(UploadStatus.FAILED);
-                    String errorMsg = result != null ? result.getErrorMessage() : "Unknown upload error";
-                    task.setErrorMessage(errorMsg);
-                    logger.log(Level.WARNING, "Upload {0} failed after {1}ms: {2}",
-                        new Object[]{uploadId, elapsedMs, errorMsg});
-                    notifyResult(uploadId, task, null, errorMsg);
-                }
-
-                // Clean up completed task
-                activeTasks.remove(uploadId);
+                processCompletion(uploadId, task, result, ex);
             }
             return null;
         });
+    }
+
+    /**
+     * 处理上传 Future 完成后的状态更新与回调通知（在 task 锁内调用）。
+     *
+     * 通过卫语句提前返回，将原本嵌套的成功/失败/重复分支拍平为单层分发。
+     */
+    private void processCompletion(String uploadId, UploadTask task,
+                                   UploadHandler.UploadResult result, Throwable ex) {
+        // 重复通知防护：已通知或已取消时直接返回
+        if (task.isNotified()) {
+            logger.log(Level.FINE, "Upload {0} already notified, skipping duplicate callback", uploadId);
+            activeTasks.remove(uploadId);
+            return;
+        }
+
+        if (task.getStatus() == UploadStatus.CANCELLED) {
+            logger.log(Level.FINE, "Upload {0} was cancelled, ignoring result", uploadId);
+            activeTasks.remove(uploadId);
+            return;
+        }
+
+        long elapsedMs = task.getElapsedTimeMs();
+
+        if (ex != null) {
+            String errorMsg = resolveFailureMessage(uploadId, ex, elapsedMs);
+            task.setStatus(UploadStatus.FAILED);
+            task.setErrorMessage(errorMsg);
+            notifyResult(uploadId, task, null, errorMsg);
+        } else if (result != null && result.isSuccess()) {
+            task.setStatus(UploadStatus.COMPLETED);
+            task.setResultUrl(result.getUrl());
+            logger.log(Level.INFO, "Upload {0} completed successfully in {1}ms, url={2}",
+                new Object[]{uploadId, elapsedMs, result.getUrl()});
+            notifyResult(uploadId, task, result.getUrl(), null);
+        } else {
+            String errorMsg = result != null ? result.getErrorMessage() : "Unknown upload error";
+            task.setStatus(UploadStatus.FAILED);
+            task.setErrorMessage(errorMsg);
+            logger.log(Level.WARNING, "Upload {0} failed after {1}ms: {2}",
+                new Object[]{uploadId, elapsedMs, errorMsg});
+            notifyResult(uploadId, task, null, errorMsg);
+        }
+
+        // 清理已完成的任务
+        activeTasks.remove(uploadId);
+    }
+
+    /**
+     * 从异常推导失败信息并记录日志。
+     * 解包 CompletionException 取根因；TimeoutException 给出超时文案，其余回退到异常消息或类名。
+     */
+    private String resolveFailureMessage(String uploadId, Throwable ex, long elapsedMs) {
+        Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
+            ? ex.getCause() : ex;
+
+        if (cause instanceof TimeoutException) {
+            logger.log(Level.WARNING, "Upload {0} timed out after {1}ms", new Object[]{uploadId, elapsedMs});
+            return "Upload timed out after " + uploadTimeoutSeconds + " seconds";
+        }
+
+        String errorMsg = cause.getMessage();
+        if (errorMsg == null || errorMsg.isEmpty()) {
+            errorMsg = cause.getClass().getSimpleName() + " occurred during upload";
+        }
+        logger.log(Level.WARNING, "Upload {0} failed after {1}ms: {2}",
+            new Object[]{uploadId, elapsedMs, errorMsg});
+        return errorMsg;
     }
 
     /**
