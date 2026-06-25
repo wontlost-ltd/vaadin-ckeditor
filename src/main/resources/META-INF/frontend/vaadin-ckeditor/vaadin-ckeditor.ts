@@ -23,6 +23,7 @@ import {
     stripInitialDataIfChannelSeeded,
     type RootConfig,
 } from './editor-config-normalizer';
+import { decideDataChange } from './data-change-decision';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -1257,20 +1258,31 @@ export class VaadinCKEditor extends LitElement {
         // Handle data changes
         this.dataChangeListener = () => {
             const activeEditor = this.editor;
-            if (!activeEditor) return;
+            if (!activeEditor || !this.$server) return;
             const newContent = activeEditor.getData();
 
-            // Fire content change event if content actually changed
-            if (this.$server && newContent !== this.lastKnownContent) {
-                // Use tracked change source, defaulting to USER_INPUT
-                const source = this.apiChangeDepth > 0 ? 'API' : this.changeSource;
-                this.$server.fireContentChange(this.lastKnownContent, newContent, source);
-                this.lastKnownContent = newContent;
-                // Reset change source after firing event
-                this.changeSource = 'USER_INPUT';
+            const decision = decideDataChange({
+                newContent,
+                lastKnownContent: this.lastKnownContent,
+                sync: this.sync,
+                apiChangeDepth: this.apiChangeDepth,
+                changeSource: this.changeSource,
+            });
+
+            if (decision.fireContentChange) {
+                this.$server.fireContentChange(this.lastKnownContent, newContent, decision.contentChangeSource);
+                if (decision.nextLastKnownContent !== null) {
+                    this.lastKnownContent = decision.nextLastKnownContent;
+                }
+                if (decision.resetChangeSource) {
+                    this.changeSource = 'USER_INPUT';
+                }
             }
 
-            if (this.sync && this.$server) {
+            // issue #38: 服务端回填（apiChangeDepth>0）不回写服务端，
+            // 否则 Binder.readBean() 会触发 fromClient=true 的 ValueChangeEvent，
+            // 使 Binder.hasChanges() 在无用户改动时误为 true。
+            if (decision.syncToServer) {
                 this.$server.setEditorData(newContent);
             }
         };
