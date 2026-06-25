@@ -7,15 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-06-26
+
 ### Changed
 - Vaadin Platform: 25.1.6 → 25.2.0 (root addon `pom.xml` + `examples/spring-boot-sample/pom.xml`)
-  - Companion `provided` dependencies verified against 25.2.0's `flow-server` BOM and kept unchanged
-    (no conflict): `jackson-databind`/`jackson-core` 3.1.3, `jakarta.servlet-api` 6.1.0 — these match the
-    versions Vaadin 25.2.0 itself manages, so no bump is needed.
+  - Companion `provided` dependencies verified against 25.2.0's `flow-server` BOM
+    (`jakarta.servlet-api` 6.1.0 matches and is kept).
 - CKEditor 5 (`ckeditor5`, `ckeditor5-premium-features`): 48.1.1 → 48.2.0
-  - `package-lock.json` regenerated via `npm install` (resolves `ckeditor5@48.2.0`)
-  - `tsc --noEmit` clean — no premium AI `.d.ts` type-contract drift; no source changes required
-  - Frontend vitest suite 114/114 green against 48.2.0
+  - `package-lock.json` regenerated; `tsc --noEmit` clean — no premium AI `.d.ts`
+    type-contract drift; no source changes required; frontend vitest 114/114 green
+  - `@NpmPackage` annotations on `VaadinCKEditor`/`VaadinCKEditorPremium` and
+    `VaadinCKEditorPremium.getVersion()` synced to 48.2.0 (these tell consuming
+    apps which npm version to install)
+- Jackson databind (`tools.jackson.core`): 3.1.3 → 3.1.4
+- `lit`: ^3.3.2 → ^3.3.3 (`package.json` + `@NpmPackage` annotation)
+- Frontend test tooling: `vitest` 3.2.4 → 4.1.9, `@vitest/coverage-v8` → ^4.1.9
+  (clears the dev-only vitest CVEs — `npm audit` now reports 0 vulnerabilities;
+  `vi.fn()` spy types adjusted for vitest 4's stricter `Mock` typing)
+- Addon version bumped to 5.3.0 and synced across all version references
+  (`pom.xml`, sample `addon.version`, Java `VERSION`, `vaadin-ckeditor.ts` version,
+  frontend `package.json`)
+
+### Fixed
+- `UploadManager` completion handler refactored: the upload `handle()` lambda
+  (previously 5 indent levels) extracted into `processCompletion()` +
+  `resolveFailureMessage()` with guard clauses (now ≤3 levels), removing
+  duplicated failure-message logic
+- `vaadin-ckeditor.ts`: collapsed 4 duplicated `try/catch` listener-removal blocks
+  into a single `safeOff()` helper
 
 ## [5.2.0] - 2026-05-27
 
