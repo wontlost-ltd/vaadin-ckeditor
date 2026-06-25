@@ -1597,11 +1597,20 @@ export class VaadinCKEditor extends LitElement {
      * Public API: Insert text at cursor position
      */
     public insertText(text: string): void {
-        if (this.editor && this.cursorPosition) {
-            this.editor.model.change(writer => {
-                this.editor!.model.insertContent(writer.createText(text), this.cursorPosition as Parameters<typeof this.editor.model.insertContent>[1]);
-            });
+        if (!this.editor) {
+            return;
         }
+        // cursorPosition 仅在 change:range 事件触发后才有值；编辑器为空或首次插入
+        // （光标在首字符前、尚未发生选区变化）时它仍为 null。回退到当前选区的首位置，
+        // 确保 insertText 在这些场景下也能工作（issue #69）。
+        const position = this.cursorPosition
+            ?? this.editor.model.document.selection.getFirstPosition();
+        if (!position) {
+            return;
+        }
+        this.editor.model.change(writer => {
+            this.editor!.model.insertContent(writer.createText(text), position as Parameters<typeof this.editor.model.insertContent>[1]);
+        });
     }
 
     /**
