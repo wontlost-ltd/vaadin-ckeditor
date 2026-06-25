@@ -23,6 +23,7 @@ import {
     stripInitialDataIfChannelSeeded,
     type RootConfig,
 } from './editor-config-normalizer';
+import { shouldRefreshSourceView } from './source-editing-refresh';
 import { decideDataChange } from './data-change-decision';
 
 // 内置插件
@@ -1620,6 +1621,9 @@ export class VaadinCKEditor extends LitElement {
             this.apiChangeDepth++;
             try {
                 this.editor.setData(value || '');
+                // issue #57: 源码视图下 setData 只更新 model，<textarea> 仍是旧快照。
+                // 退出并重新进入源码视图，强制源码 textarea 从新 model 重新填充。
+                this.refreshSourceViewIfActive();
             } finally {
                 // Decrement after a microtask to ensure change event fires first
                 queueMicrotask(() => {
@@ -1627,6 +1631,28 @@ export class VaadinCKEditor extends LitElement {
                 });
             }
         }
+    }
+
+    /**
+     * 若编辑器当前处于 SourceEditing 源码视图，toggle off→on 以刷新源码 textarea（issue #57）。
+     */
+    private refreshSourceViewIfActive(): void {
+        const editor = this.editor;
+        if (!editor || !editor.plugins.has('SourceEditing')) {
+            return;
+        }
+        const sourceEditing = editor.plugins.get('SourceEditing') as unknown as {
+            isSourceEditingMode: boolean;
+        };
+        if (!shouldRefreshSourceView({
+            hasSourceEditingPlugin: true,
+            isSourceEditingMode: sourceEditing.isSourceEditingMode,
+        })) {
+            return;
+        }
+        // 退出再进入源码视图，使 textarea 从刚更新的 model 重新填充
+        sourceEditing.isSourceEditingMode = false;
+        sourceEditing.isSourceEditingMode = true;
     }
 
     /**
