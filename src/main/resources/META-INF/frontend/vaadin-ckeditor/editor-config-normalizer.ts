@@ -260,7 +260,7 @@ export function buildCreateConfig(
     rootConfig: RootConfig,
     editorType: EditorType
 ): Record<string, unknown> {
-    const config: Record<string, unknown> = { ...baseConfig };
+    const config: Record<string, unknown> = applyPoweredByPosition({ ...baseConfig });
     const root: Record<string, unknown> = { ...rootConfig };
 
     delete config.attachTo;
@@ -279,6 +279,27 @@ export function buildCreateConfig(
         ...config,
         root: { ...root, element: editorElement },
     };
+}
+
+/**
+ * 默认把 'Powered By CKEditor' 徽标定位改为 'inside'（issue #62）。
+ *
+ * 徽标默认 position='border'，作为挂在 body 上的 balloon 用 JS 定位；在滚动容器内
+ * CKEditor 的重定位会滞后，导致徽标停在屏幕固定位置不随内容滚动消失。'inside' 让徽标
+ * 显示在编辑区边界内，随内容自然滚动，规避该问题。仅在消费端未显式配置 poweredBy.position
+ * 时设置默认值，尊重用户覆盖。
+ */
+export function applyPoweredByPosition(config: Record<string, unknown>): Record<string, unknown> {
+    const ui = isRecord(config.ui) ? { ...config.ui } : {};
+    const poweredBy = isRecord(ui.poweredBy) ? { ...ui.poweredBy } : {};
+
+    if (!hasOwn(poweredBy, 'position')) {
+        poweredBy.position = 'inside';
+    }
+
+    ui.poweredBy = poweredBy;
+    config.ui = ui;
+    return config;
 }
 
 function normalizeAIQuickActions(ai: Record<string, unknown>, warnings: string[]): void {
