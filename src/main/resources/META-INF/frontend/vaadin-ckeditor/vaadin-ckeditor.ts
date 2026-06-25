@@ -316,7 +316,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '5.1.0';
+    private readonly version = '5.3.0';
 
     constructor() {
         super();
@@ -1667,34 +1667,27 @@ export class VaadinCKEditor extends LitElement {
                 this.cursorPosition = null;
 
                 // Step 2: Remove all event listeners BEFORE destroy
-                // Use try-catch for each to ensure all get attempted
-                try {
-                    if (this.selectionChangeListener) {
-                        editor.model.document.selection.off('change:range', this.selectionChangeListener);
-                    }
-                } catch (e) { /* ignore */ }
+                // 每个 off() 独立 try，确保任一失败不影响后续清理
+                const safeOff = (remove: () => void): void => {
+                    try { remove(); } catch { /* ignore */ }
+                };
 
-                try {
-                    if (this.dataChangeListener) {
-                        editor.model.document.off('change:data', this.dataChangeListener);
-                    }
-                } catch (e) { /* ignore */ }
-
-                try {
-                    if (this.focusChangeListener) {
-                        editor.editing.view.document.off('change:isFocused', this.focusChangeListener);
-                    }
-                } catch (e) { /* ignore */ }
-
-                try {
-                    if (this.readOnlyChangeListener) {
-                        editor.off('change:isReadOnly', this.readOnlyChangeListener);
-                    }
-                } catch (e) { /* ignore */ }
+                if (this.selectionChangeListener) {
+                    safeOff(() => editor.model.document.selection.off('change:range', this.selectionChangeListener!));
+                }
+                if (this.dataChangeListener) {
+                    safeOff(() => editor.model.document.off('change:data', this.dataChangeListener!));
+                }
+                if (this.focusChangeListener) {
+                    safeOff(() => editor.editing.view.document.off('change:isFocused', this.focusChangeListener!));
+                }
+                if (this.readOnlyChangeListener) {
+                    safeOff(() => editor.off('change:isReadOnly', this.readOnlyChangeListener!));
+                }
 
                 // Remove undo/redo/clipboard/collaboration listeners
                 for (const cleanup of this.listenerCleanups) {
-                    try { cleanup(); } catch { /* ignore */ }
+                    safeOff(cleanup);
                 }
                 this.listenerCleanups = [];
 

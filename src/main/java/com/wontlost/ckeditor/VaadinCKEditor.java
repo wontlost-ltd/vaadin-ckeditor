@@ -90,13 +90,13 @@ import static com.wontlost.ckeditor.JsonUtil.*;
  */
 @Tag("vaadin-ckeditor")
 @JsModule("./vaadin-ckeditor/vaadin-ckeditor.ts")
-@NpmPackage(value = "ckeditor5", version = "48.1.1")
-@NpmPackage(value = "lit", version = "^3.3.2")
+@NpmPackage(value = "ckeditor5", version = "48.2.0")
+@NpmPackage(value = "lit", version = "^3.3.3")
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
     /** Keep in sync with version field in vaadin-ckeditor.ts */
-    private static final String VERSION = "5.1.0";
+    private static final String VERSION = "5.3.0";
 
     /**
      * Default autosave waiting time in milliseconds.
