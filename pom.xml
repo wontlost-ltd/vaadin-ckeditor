@@ -15,7 +15,7 @@
         <developerConnection>scm:git:git@github.com:wontlost-ltd/vaadin-ckeditor.git</developerConnection>
     </scm>
     <properties>
-        <vaadin.version>25.1.6</vaadin.version>
+        <vaadin.version>25.2.0</vaadin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
