@@ -46,12 +46,12 @@ implementation("com.wontlost:ckeditor-vaadin:5.1.0")
 
 | 依赖 | 版本 | 备注 |
 |---|---|---|
-| Vaadin Platform | 25.1.6+ | 25.x 系列；前向兼容 25.2-SNAPSHOT |
+| Vaadin Platform | 25.2.0+ | 25.x 系列 |
 | CKEditor 5 (`ckeditor5`) | 48.2.0 | npm 精确版本 |
 | `ckeditor5-premium-features` | 48.2.0 | 与 `ckeditor5` 必须同版本 |
 | Java | 21+ | Vaadin 25 baseline |
 | Jackson (`tools.jackson.core`) | 3.1.3+ | 由消费端提供 |
-| Jakarta Servlet API | 6.1.0+ | Vaadin 25.1 支持矩阵 |
+| Jakarta Servlet API | 6.1.0+ | Vaadin 25.2 支持矩阵 |
 | Spring Boot | 4.0.4+ | 推荐（匹配 Jackson 3.1） |
 
 > Unreleased 版本将 CKEditor 47 → 48 的配置兼容层下沉到前端 normalizer；旧顶层 `initialData`/`placeholder`/`label` 与 v47 AI 配置自动迁移到 v48 字段。详见 [CHANGELOG](CHANGELOG.md)。

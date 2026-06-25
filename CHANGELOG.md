@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Vaadin Platform: 25.1.6 → 25.2.0 (root addon `pom.xml` + `examples/spring-boot-sample/pom.xml`)
+  - Companion `provided` dependencies verified against 25.2.0's `flow-server` BOM and kept unchanged
+    (no conflict): `jackson-databind`/`jackson-core` 3.1.3, `jakarta.servlet-api` 6.1.0 — these match the
+    versions Vaadin 25.2.0 itself manages, so no bump is needed.
 - CKEditor 5 (`ckeditor5`, `ckeditor5-premium-features`): 48.1.1 → 48.2.0
   - `package-lock.json` regenerated via `npm install` (resolves `ckeditor5@48.2.0`)
   - `tsc --noEmit` clean — no premium AI `.d.ts` type-contract drift; no source changes required

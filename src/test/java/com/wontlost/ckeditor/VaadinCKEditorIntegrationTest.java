@@ -197,6 +197,96 @@ class VaadinCKEditorIntegrationTest {
             assertTrue(sanitized.contains("Text"));
             assertFalse(sanitized.contains("<script>"));
         }
+
+        @Test
+        @DisplayName("issue #85: ValueChangeListener should receive new value via getValue() on client change")
+        void testValueChangeListenerReceivesNewValueFromClient() {
+            // 回归测试 issue #85：客户端输入触发 setModelValue 时，
+            // 监听器内调用 event.getValue() 必须返回新内容而非旧内容。
+            AtomicReference<String> capturedValue = new AtomicReference<>();
+            editor.addValueChangeListener(event ->
+                capturedValue.set(event.getValue()));
+
+            // 模拟来自客户端的内容变更（@ClientCallable setEditorData 走的就是这条路径）
+            editor.setModelValue("<p>typed by user</p>", true);
+
+            // issue #85 的核心断言：监听器读到的必须是新内容，而非旧内容。
+            assertEquals("<p>typed by user</p>", capturedValue.get(),
+                "event.getValue() should return the new content, not the stale value");
+            // getValue() 在事件之外也应保持一致
+            assertEquals("<p>typed by user</p>", editor.getValue());
+        }
+
+        @Test
+        @DisplayName("issue #85: ValueChangeListener should receive new value via getValue() on setValue")
+        void testValueChangeListenerReceivesNewValueFromSetValue() {
+            // 服务端 setValue 路径同样必须保证监听器读到新值。
+            AtomicReference<String> capturedValue = new AtomicReference<>();
+            editor.addValueChangeListener(event -> capturedValue.set(event.getValue()));
+
+            editor.setValue("<p>set by server</p>");
+
+            assertEquals("<p>set by server</p>", capturedValue.get(),
+                "event.getValue() should return the new content on the setValue path");
+            assertEquals("<p>set by server</p>", editor.getValue());
+        }
+
+        @Test
+        @DisplayName("setModelValue should not fire event when value is unchanged")
+        void testSetModelValueNoEventOnUnchanged() {
+            editor.setValue("<p>same</p>");
+
+            AtomicInteger fireCount = new AtomicInteger(0);
+            editor.addValueChangeListener(event -> fireCount.incrementAndGet());
+
+            // 设置相同的值不应触发事件
+            editor.setModelValue("<p>same</p>", true);
+            assertEquals(0, fireCount.get(), "no event should fire when value is unchanged");
+
+            // 设置不同的值应触发一次事件
+            editor.setModelValue("<p>different</p>", true);
+            assertEquals(1, fireCount.get(), "exactly one event should fire on actual change");
+        }
+
+        @Test
+        @DisplayName("issue #85: setValue(null) listener value must match final getValue()")
+        void testSetValueNullListenerConsistency() {
+            // P1 边界（审查发现）：setValue(null) 时，事件内读到的值
+            // 必须与方法返回后 getValue() 保持一致，均为 ""，不得为 null。
+            editor.setValue("<p>existing</p>");
+
+            AtomicReference<String> capturedValue = new AtomicReference<>("SENTINEL");
+            editor.addValueChangeListener(event -> capturedValue.set(event.getValue()));
+
+            editor.setValue(null);
+
+            assertEquals("", capturedValue.get(),
+                "event.getValue() must be normalized to empty string, not null");
+            assertEquals("", editor.getValue(),
+                "getValue() must return empty string after setValue(null)");
+        }
+
+        @Test
+        @DisplayName("issue #85: consecutive client changes carry correct old/new values")
+        void testConsecutiveClientChangesOldNewValues() {
+            // 验证 oldValue/newValue 语义在连续变更下正确传递。
+            AtomicReference<String> lastOld = new AtomicReference<>();
+            AtomicReference<String> lastNew = new AtomicReference<>();
+            editor.addValueChangeListener(event -> {
+                lastOld.set(event.getOldValue());
+                lastNew.set(event.getValue());
+            });
+
+            editor.setModelValue("<p>first</p>", true);
+            assertEquals("<p>first</p>", lastNew.get());
+
+            editor.setModelValue("<p>second</p>", true);
+            // 第二次变更：旧值应为第一次的新值，新值应为第二次内容。
+            assertEquals("<p>first</p>", lastOld.get(),
+                "oldValue should carry the previous content on consecutive changes");
+            assertEquals("<p>second</p>", lastNew.get());
+            assertEquals("<p>second</p>", editor.getValue());
+        }
     }
 
     // ==================== Content Stats Tests ====================
