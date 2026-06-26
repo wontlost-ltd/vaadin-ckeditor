@@ -11,6 +11,7 @@ import {
     PluginResolver,
     PLUGIN_REGISTRY,
     registerCKEditorPlugin,
+    unregisterCKEditorPlugin,
     getGlobalPluginRegistry,
     type FilterOptions,
 } from './plugin-resolver';
@@ -228,6 +229,30 @@ describe('Global Plugin Registry', () => {
         expect((window as any)[key]).toBeDefined();
         expect((window as any)[key]['SymbolTest']).toEqual({ test: true });
     });
+
+    // review: registry had no cleanup path → unregister API
+    it('unregisterCKEditorPlugin removes a registered plugin and returns true', () => {
+        registerCKEditorPlugin('Removable', class R {});
+        expect(getGlobalPluginRegistry()['Removable']).toBeDefined();
+
+        expect(unregisterCKEditorPlugin('Removable')).toBe(true);
+        expect(getGlobalPluginRegistry()['Removable']).toBeUndefined();
+    });
+
+    it('unregisterCKEditorPlugin returns false when the plugin was not registered', () => {
+        expect(unregisterCKEditorPlugin('NeverRegistered')).toBe(false);
+    });
+
+    it('unregister only removes the named plugin, leaving others intact', () => {
+        registerCKEditorPlugin('KeepMe', class K {});
+        registerCKEditorPlugin('DropMe', class D {});
+
+        unregisterCKEditorPlugin('DropMe');
+
+        const registry = getGlobalPluginRegistry();
+        expect(registry['DropMe']).toBeUndefined();
+        expect(registry['KeepMe']).toBeDefined();
+    });
 });
 
 describe('PluginResolver', () => {
@@ -264,6 +289,24 @@ describe('PluginResolver', () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 'Plugin not found in registry: UnknownPlugin'
             );
+        });
+
+        it('records a missing standard plugin in loadErrors (review: parity with premium/custom)', async () => {
+            const configs = [
+                { name: 'Bold', premium: false },
+                { name: 'NotARealPlugin', premium: false },
+            ];
+
+            await resolver.resolvePlugins(configs);
+
+            expect(resolver.loadErrors).toContain(
+                'Plugin not found in registry: NotARealPlugin'
+            );
+        });
+
+        it('leaves loadErrors empty when all standard plugins resolve', async () => {
+            await resolver.resolvePlugins([{ name: 'Bold', premium: false }]);
+            expect(resolver.loadErrors).toHaveLength(0);
         });
 
         it('should respect filter options', async () => {
