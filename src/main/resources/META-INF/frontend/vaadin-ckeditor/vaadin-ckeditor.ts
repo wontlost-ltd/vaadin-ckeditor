@@ -25,6 +25,7 @@ import {
 } from './editor-config-normalizer';
 import { shouldRefreshSourceView } from './source-editing-refresh';
 import { decideDataChange } from './data-change-decision';
+import { replaceObserver, disposeObserver } from './observer-lifecycle';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -314,6 +315,7 @@ export class VaadinCKEditor extends LitElement {
 
     // AI sidebar collapse observer for cleanup
     private aiSidebarCollapseObserver?: MutationObserver;
+    private annotationSidebarObserver?: MutationObserver;
 
     // Server communication
     private $server?: VaadinServer;
@@ -1145,12 +1147,14 @@ export class VaadinCKEditor extends LitElement {
         editable.addEventListener('scroll', syncPositions);
         syncPositions();
 
-        // MutationObserver 监听侧栏变化（新增/删除评论），自动重新对齐
-        new MutationObserver(syncPositions).observe(sidebar, {
-            childList: true,
-            subtree: true,
-            attributes: true
-        });
+        // MutationObserver 监听侧栏变化（新增/删除评论），自动重新对齐。
+        // 用 replaceObserver 存为字段并在 disconnectedCallback 中断开，避免组件断开后泄漏、
+        // 重复 setup 时叠加（review 发现）。
+        this.annotationSidebarObserver = replaceObserver(
+            this.annotationSidebarObserver,
+            () => new MutationObserver(syncPositions),
+            (o) => o.observe(sidebar, { childList: true, subtree: true, attributes: true }),
+        );
     }
 
     /**
@@ -2215,6 +2219,9 @@ export class VaadinCKEditor extends LitElement {
             this.aiSidebarCollapseObserver.disconnect();
             this.aiSidebarCollapseObserver = undefined;
         }
+
+        // Clean up annotation sidebar observer (review: was never disconnected → leak)
+        this.annotationSidebarObserver = disposeObserver(this.annotationSidebarObserver);
 
         // Clean up toolbar repaint timer
         if (this.toolbarRepaintTimeoutId) {
