@@ -333,6 +333,14 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
     @ClientCallable
     private void saveEditorData(String data) {
+        saveEditorDataInternal(data);
+    }
+
+    /**
+     * autosave 落盘逻辑（package-private 测试缝隙）：调用回调，捕获其异常并产出成功/失败的
+     * AutosaveEvent。抽出以便在不经过客户端 RPC 的前提下直接测试回调一致性与异常处理（review）。
+     */
+    void saveEditorDataInternal(String data) {
         boolean success = true;
         String errorMessage = null;
 
