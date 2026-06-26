@@ -339,6 +339,75 @@ class VaadinCKEditorIntegrationTest {
         }
     }
 
+    // ==================== Autosave Tests ====================
+
+    @Nested
+    @DisplayName("Autosave Tests")
+    class AutosaveTests {
+
+        @Test
+        @DisplayName("autosave callback receives the saved data and fires a success event")
+        void autosaveCallbackReceivesDataAndFiresSuccess() {
+            AtomicReference<String> callbackData = new AtomicReference<>();
+            editor.setAutosaveCallback(callbackData::set);
+
+            AtomicReference<AutosaveEvent> firedEvent = new AtomicReference<>();
+            editor.addAutosaveListener(firedEvent::set);
+
+            editor.saveEditorDataInternal("<p>auto saved</p>");
+
+            // 回调收到正确数据
+            assertEquals("<p>auto saved</p>", callbackData.get());
+            // 触发一次成功的 AutosaveEvent，内容一致
+            assertNotNull(firedEvent.get());
+            assertTrue(firedEvent.get().isSuccess());
+            assertEquals("<p>auto saved</p>", firedEvent.get().getContent());
+            assertNull(firedEvent.get().getErrorMessage());
+        }
+
+        @Test
+        @DisplayName("autosave callback exception fires a failure event with a non-null message")
+        void autosaveCallbackExceptionFiresFailure() {
+            editor.setAutosaveCallback(data -> { throw new RuntimeException("disk full"); });
+
+            AtomicReference<AutosaveEvent> firedEvent = new AtomicReference<>();
+            editor.addAutosaveListener(firedEvent::set);
+
+            editor.saveEditorDataInternal("<p>x</p>");
+
+            assertNotNull(firedEvent.get());
+            assertFalse(firedEvent.get().isSuccess(), "exception in callback → failure event");
+            assertEquals("disk full", firedEvent.get().getErrorMessage());
+        }
+
+        @Test
+        @DisplayName("autosave exception with null message still yields a non-null error message")
+        void autosaveCallbackNullMessageExceptionGetsFallback() {
+            editor.setAutosaveCallback(data -> { throw new RuntimeException(); }); // message == null
+            AtomicReference<AutosaveEvent> firedEvent = new AtomicReference<>();
+            editor.addAutosaveListener(firedEvent::set);
+
+            editor.saveEditorDataInternal("<p>x</p>");
+
+            assertFalse(firedEvent.get().isSuccess());
+            assertNotNull(firedEvent.get().getErrorMessage());
+            assertFalse(firedEvent.get().getErrorMessage().isEmpty());
+        }
+
+        @Test
+        @DisplayName("autosave with no callback still fires a success event")
+        void autosaveNoCallbackStillFiresEvent() {
+            AtomicReference<AutosaveEvent> firedEvent = new AtomicReference<>();
+            editor.addAutosaveListener(firedEvent::set);
+
+            editor.saveEditorDataInternal("<p>no-callback</p>");
+
+            assertNotNull(firedEvent.get(), "AutosaveEvent should fire even without a callback");
+            assertTrue(firedEvent.get().isSuccess());
+            assertEquals("<p>no-callback</p>", firedEvent.get().getContent());
+        }
+    }
+
     // ==================== Content Stats Tests ====================
 
     @Nested
