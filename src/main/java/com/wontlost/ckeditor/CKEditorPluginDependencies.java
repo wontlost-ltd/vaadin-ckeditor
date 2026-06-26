@@ -497,9 +497,11 @@ public final class CKEditorPluginDependencies {
             List<CKEditorPlugin> sorted) {
 
         if (visiting.contains(plugin)) {
-            // Cycle detected - log a warning as this indicates a dependency graph issue
-            logger.log(Level.WARNING, "Circular dependency detected involving plugin: {0}", plugin.getJsName());
-            return;
+            // 检测到循环依赖：fail-fast 抛异常并指明涉及的插件，而非静默 log+return
+            // 返回残缺的排序结果（review 发现：静默失败会让用户拿到不完整的插件列表而不自知）。
+            throw new IllegalStateException(
+                "Circular plugin dependency detected involving '" + plugin.getJsName()
+                    + "'. The plugin dependency graph must be acyclic; check DEPENDENCIES for a cycle.");
         }
         if (visited.contains(plugin)) {
             return;
@@ -704,6 +706,40 @@ public final class CKEditorPluginDependencies {
         }
 
         return missing;
+    }
+
+    /**
+     * 协作类 premium 插件：可独立工作，但缺少 CloudServices 时实时同步会静默失效。
+     * 这些插件刻意不设为 CloudServices 的硬依赖（保留独立使用能力），
+     * 改为通过 {@link #getCollaborationPluginsMissingCloudServices} 给出软告警。
+     */
+    private static final Set<String> COLLABORATION_PLUGINS_SOFT_CLOUD =
+        Set.of("Comments", "TrackChanges");
+
+    /**
+     * 软校验：返回已启用但缺少 CloudServices 的协作类 premium 插件（Comments / TrackChanges）。
+     *
+     * <p>这些插件能独立工作，因此不作为硬依赖强制注入 CloudServices；但缺少 CloudServices 时
+     * 实时同步会静默失效（review 发现）。调用方（如 builder）可据此向用户发出告警，
+     * 而非让协作功能无声降级。</p>
+     *
+     * @param customPlugins 当前启用的自定义/premium 插件
+     * @param plugins 当前已解析的标准插件集合（用于判断是否已包含 CLOUD_SERVICES）
+     * @return 缺少 CloudServices 的协作插件名集合（可能为空）
+     */
+    public static Set<String> getCollaborationPluginsMissingCloudServices(
+            Collection<CustomPlugin> customPlugins,
+            Set<CKEditorPlugin> plugins) {
+        Set<String> result = new java.util.LinkedHashSet<>();
+        if (customPlugins == null || (plugins != null && plugins.contains(CKEditorPlugin.CLOUD_SERVICES))) {
+            return result;
+        }
+        for (CustomPlugin customPlugin : customPlugins) {
+            if (COLLABORATION_PLUGINS_SOFT_CLOUD.contains(customPlugin.getJsName())) {
+                result.add(customPlugin.getJsName());
+            }
+        }
+        return result;
     }
 
     /**
