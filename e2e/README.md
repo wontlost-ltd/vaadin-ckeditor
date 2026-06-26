@@ -19,7 +19,7 @@ Each spec runs against Chromium and Firefox.
 
 ## Local run
 
-Prerequisites: Java 21+, Maven, Node 22+, ~300 MB of disk for Playwright browsers.
+Prerequisites: Java 21+, Maven, Node 24+, ~300 MB of disk for Playwright browsers.
 
 ```bash
 # 1. Install the addon locally so the sample can resolve it
