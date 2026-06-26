@@ -561,6 +561,36 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     }
 
     /**
+     * Move the editor caret (collapsed selection) to the very start of the document
+     * and focus the editor.
+     *
+     * <p>Useful when leading block content (e.g. a table used as a letterhead) would
+     * otherwise be auto-selected/highlighted on focus (issue #52). Calling this places
+     * the caret before the first content so nothing is highlighted.</p>
+     */
+    public void setCaretToStart() {
+        getId().ifPresent(id ->
+            getElement().executeJs("this.setCaretToStart()"));
+    }
+
+    /**
+     * Move the editor caret (collapsed selection) to the very end of the document
+     * and focus the editor.
+     */
+    public void setCaretToEnd() {
+        getId().ifPresent(id ->
+            getElement().executeJs("this.setCaretToEnd()"));
+    }
+
+    /**
+     * Programmatically focus the editor's editable area.
+     */
+    public void focusEditor() {
+        getId().ifPresent(id ->
+            getElement().executeJs("this.focusEditor()"));
+    }
+
+    /**
      * Get plain text content (strip HTML tags)
      */
     public String getPlainText() {

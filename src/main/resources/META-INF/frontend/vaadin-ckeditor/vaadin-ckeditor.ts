@@ -1689,6 +1689,42 @@ export class VaadinCKEditor extends LitElement {
     }
 
     /**
+     * Public API: 把光标（折叠选区）移到文档起始/末尾并聚焦（issue #52）。
+     * @param edge - 'start' 移到文首，'end' 移到文末
+     */
+    private moveCaretTo(edge: 'start' | 'end'): void {
+        if (!this.editor) {
+            return;
+        }
+        const editor = this.editor;
+        const root = editor.model.document.getRoot();
+        if (!root) {
+            return;
+        }
+        // createPositionAt 的 offset：文首用 0，文末用 'end'
+        const offset = edge === 'start' ? 0 : 'end';
+        editor.model.change(writer => {
+            writer.setSelection(writer.createPositionAt(root, offset));
+        });
+        editor.editing.view.focus();
+    }
+
+    /** Public API: 光标移到文首并聚焦 */
+    public setCaretToStart(): void {
+        this.moveCaretTo('start');
+    }
+
+    /** Public API: 光标移到文末并聚焦 */
+    public setCaretToEnd(): void {
+        this.moveCaretTo('end');
+    }
+
+    /** Public API: 聚焦编辑器可编辑区 */
+    public focusEditor(): void {
+        this.editor?.editing.view.focus();
+    }
+
+    /**
      * Public API: Resolve a pending upload from server.
      * Called by server after processing the upload via UploadHandler.
      * Delegates to UploadAdapterManager.
