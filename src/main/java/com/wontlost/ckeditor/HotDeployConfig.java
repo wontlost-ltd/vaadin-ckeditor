@@ -83,6 +83,10 @@ public class HotDeployConfig implements VaadinServiceInitListener {
             return;
         }
 
+        // 双重检查锁定（double-checked locking）：仅首次初始化时进入 synchronized，
+        // 避免每次 serviceInit 都加锁。两处检查都必要——外层检查规避锁开销，
+        // 内层检查防止多线程同时通过外层检查后重复初始化。initialized 必须为 volatile
+        // 以保证可见性与禁止重排序。
         if (!initialized) {
             synchronized (HotDeployConfig.class) {
                 if (!initialized) {

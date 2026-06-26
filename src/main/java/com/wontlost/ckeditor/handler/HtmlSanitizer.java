@@ -122,7 +122,12 @@ public interface HtmlSanitizer {
     /**
      * A no-op sanitizer that passes content through unchanged.
      *
-     * @return a passthrough sanitizer
+     * <p>透传语义：原样返回输入，包括 {@code null}。与 {@link #withPolicy} / {@link #withSafelist}
+     * 不同（后者把 null/空串归一为 {@code ""}）；这是有意为之，以保持 passthrough 的透明性。
+     * 标准调用路径在 {@code ContentManager.getSanitizedValue} 中已先行守卫 null，因此实际不会
+     * 把 null 传入此处。</p>
+     *
+     * @return a passthrough sanitizer that returns its input verbatim (null in, null out)
      */
     static HtmlSanitizer passthrough() {
         return html -> html;

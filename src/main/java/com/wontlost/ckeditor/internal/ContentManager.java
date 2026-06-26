@@ -26,8 +26,12 @@ public class ContentManager {
     /**
      * Get sanitized HTML content.
      *
-     * @param html raw HTML
-     * @return sanitized HTML, or raw content if no sanitizer is set
+     * <p>null 语义：本方法对 null/空串原样透传（null in → null out），不归一为 {@code ""}；
+     * 这与 {@link #getSanitizedHtml}/{@link #sanitizeHtml}/{@link #getPlainText}（对 null 返回 {@code ""}）
+     * 不同，是有意的契约差异——本方法保留输入值的 null 语义。调用方若需要空串，应自行归一。</p>
+     *
+     * @param html raw HTML（可为 null）
+     * @return sanitized HTML；无 sanitizer 时原样返回；null/空串原样返回
      */
     public String getSanitizedValue(String html) {
         if (html == null || html.isEmpty()) {

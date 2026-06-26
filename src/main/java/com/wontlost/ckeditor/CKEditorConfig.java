@@ -268,7 +268,8 @@ public class CKEditorConfig {
             this.left = left;
         }
 
-        ObjectNode toJson() {
+        // review: 统一为 public，与其它内部配置类的 toJson()（HeadingOption/CodeBlockLanguage 等）一致
+        public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             if (top != null) obj.put("top", top);
             if (right != null) obj.put("right", right);

@@ -69,6 +69,9 @@ public interface ErrorHandler {
      * <p>This method is called <b>before</b> {@code EditorErrorEvent} is fired,
      * providing an opportunity to intercept and handle the error.</p>
      *
+     * <p>异常语义：本方法抛出的异常会被调度器捕获并以 WARNING 级别记录日志，<b>不</b>影响事件传播
+     * （效果等同于返回 {@code false}，仍会触发 {@code EditorErrorEvent}）。抛异常不能用来"吞掉"事件。</p>
+     *
      * @param error error details including error code, message, severity, etc.
      * @return {@code true} if the error is fully handled, stopping propagation (event not fired);
      *         {@code false} if the error is not handled or needs to continue propagating (fires {@code EditorErrorEvent})
