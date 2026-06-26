@@ -448,6 +448,64 @@ class CKEditorPluginDependenciesTest {
             .contains(CKEditorPlugin.WIDGET, CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY);
     }
 
+    // ==================== review: cycle fail-fast + collaboration soft-dep ====================
+
+    @Test
+    @DisplayName("topologicalSort returns a complete order for the (acyclic) real plugin graph")
+    void topologicalSortIsCompleteForRealGraph() {
+        // 真实静态依赖图无环，排序应返回全部输入插件，顺序中依赖先于被依赖者
+        Set<CKEditorPlugin> input = EnumSet.of(
+            CKEditorPlugin.BLOCK_TOOLBAR, CKEditorPlugin.WIDGET,
+            CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY, CKEditorPlugin.ESSENTIALS);
+        List<CKEditorPlugin> sorted = CKEditorPluginDependencies.topologicalSort(input);
+
+        assertThat(sorted).containsExactlyInAnyOrderElementsOf(input);
+        // 依赖必须排在被依赖者之前
+        assertThat(sorted.indexOf(CKEditorPlugin.WIDGET))
+            .isLessThan(sorted.indexOf(CKEditorPlugin.BLOCK_TOOLBAR));
+    }
+
+    @Test
+    @DisplayName("getCollaborationPluginsMissingCloudServices flags Comments/TrackChanges without CloudServices")
+    void collaborationMissingCloudServicesFlagged() {
+        Set<CKEditorPlugin> base = EnumSet.of(CKEditorPlugin.ESSENTIALS);
+        List<CustomPlugin> premium = List.of(
+            CustomPlugin.fromPremium("Comments"),
+            CustomPlugin.fromPremium("TrackChanges"));
+
+        Set<String> missing =
+            CKEditorPluginDependencies.getCollaborationPluginsMissingCloudServices(premium, base);
+
+        assertThat(missing).containsExactlyInAnyOrder("Comments", "TrackChanges");
+    }
+
+    @Test
+    @DisplayName("collaboration advisory is silent once CloudServices is present")
+    void collaborationAdvisorySilentWithCloudServices() {
+        Set<CKEditorPlugin> withCloud = EnumSet.of(CKEditorPlugin.ESSENTIALS, CKEditorPlugin.CLOUD_SERVICES);
+        List<CustomPlugin> premium = List.of(CustomPlugin.fromPremium("Comments"));
+
+        assertThat(CKEditorPluginDependencies.getCollaborationPluginsMissingCloudServices(premium, withCloud))
+            .isEmpty();
+    }
+
+    @Test
+    @DisplayName("collaboration advisory ignores non-collaboration premium plugins")
+    void collaborationAdvisoryIgnoresOtherPremium() {
+        Set<CKEditorPlugin> base = EnumSet.of(CKEditorPlugin.ESSENTIALS);
+        List<CustomPlugin> premium = List.of(CustomPlugin.fromPremium("ExportPdf"));
+
+        assertThat(CKEditorPluginDependencies.getCollaborationPluginsMissingCloudServices(premium, base))
+            .isEmpty();
+    }
+
+    @Test
+    @DisplayName("collaboration advisory is null-safe")
+    void collaborationAdvisoryNullSafe() {
+        assertThat(CKEditorPluginDependencies.getCollaborationPluginsMissingCloudServices(null, null))
+            .isEmpty();
+    }
+
     // ==================== OSGi Manifest Validation ====================
 
     @Test
