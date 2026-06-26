@@ -153,6 +153,69 @@ class CKEditorConfigTest {
     }
 
     @Test
+    @DisplayName("setMediaEmbedToolbar should write items to mediaEmbed.toolbar")
+    void setMediaEmbedToolbarShouldWriteItems() {
+        config.setMediaEmbedToolbar("mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight");
+        ObjectNode json = config.toJson();
+
+        assertThat(json.get("mediaEmbed").has("toolbar")).isTrue();
+        assertThat(json.get("mediaEmbed").get("toolbar")).hasSize(3);
+        assertThat(json.get("mediaEmbed").get("toolbar").get(0).asString())
+            .isEqualTo("mediaEmbed:alignLeft");
+    }
+
+    @Test
+    @DisplayName("setMediaEmbedToolbar should coexist with resizable on the same mediaEmbed object")
+    void setMediaEmbedToolbarShouldCoexistWithResizable() {
+        config.setMediaEmbedResizable(true)
+              .setMediaEmbedToolbar("mediaEmbed:alignCenter");
+        ObjectNode json = config.toJson();
+
+        assertThat(json.get("mediaEmbed").get("resizable").asBoolean()).isTrue();
+        assertThat(json.get("mediaEmbed").get("toolbar")).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("setMediaEmbedToolbar with empty/null does not write a toolbar field")
+    void setMediaEmbedToolbarEmptyShouldNotWriteField() {
+        config.setMediaEmbedToolbar();
+        ObjectNode json = config.toJson();
+        assertThat(json.has("mediaEmbed")).isFalse();
+
+        config.setMediaEmbedToolbar((String[]) null);
+        assertThat(config.toJson().has("mediaEmbed")).isFalse();
+    }
+
+    @Test
+    @DisplayName("setMediaEmbedToolbar coexists with setMediaEmbed regardless of call order")
+    void setMediaEmbedToolbarCoexistsWithSetMediaEmbedEitherOrder() {
+        // toolbar 先、previewsInData 后
+        config.setMediaEmbedToolbar("mediaEmbed:alignCenter").setMediaEmbed(true);
+        ObjectNode json = config.toJson();
+        assertThat(json.get("mediaEmbed").get("previewsInData").asBoolean()).isTrue();
+        assertThat(json.get("mediaEmbed").get("toolbar")).hasSize(1);
+
+        // 反向顺序：previewsInData 先、toolbar 后
+        CKEditorConfig reversed = new CKEditorConfig();
+        reversed.setMediaEmbed(false).setMediaEmbedToolbar("mediaEmbed:alignLeft");
+        ObjectNode rjson = reversed.toJson();
+        assertThat(rjson.get("mediaEmbed").get("previewsInData").asBoolean()).isFalse();
+        assertThat(rjson.get("mediaEmbed").get("toolbar")).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("setMediaEmbedToolbar last non-empty call overwrites previous toolbar")
+    void setMediaEmbedToolbarLastCallWins() {
+        config.setMediaEmbedToolbar("mediaEmbed:alignLeft")
+              .setMediaEmbedToolbar("mediaEmbed:alignCenter", "mediaEmbed:alignRight");
+        ObjectNode json = config.toJson();
+
+        assertThat(json.get("mediaEmbed").get("toolbar")).hasSize(2);
+        assertThat(json.get("mediaEmbed").get("toolbar").get(0).asString())
+            .isEqualTo("mediaEmbed:alignCenter");
+    }
+
+    @Test
     @DisplayName("setMediaEmbedResizable defaults to false when never set")
     void isMediaEmbedResizableDefaultsFalse() {
         assertThat(config.isMediaEmbedResizable()).isFalse();

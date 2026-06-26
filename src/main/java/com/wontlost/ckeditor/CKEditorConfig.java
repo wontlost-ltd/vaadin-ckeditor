@@ -249,6 +249,30 @@ public class CKEditorConfig {
         return this;
     }
 
+    /**
+     * 设置嵌入媒体的浮动工具栏按钮（写入 {@code config.mediaEmbed.toolbar}）。
+     *
+     * <p>{@code MediaEmbedStyle}（对齐/排版样式）注册的按钮（如
+     * {@code mediaEmbed:alignLeft} / {@code mediaEmbed:alignCenter} /
+     * {@code mediaEmbed:alignRight}）须放入 {@code config.mediaEmbed.toolbar}，
+     * 而非顶层 {@code config.toolbar}；配合 {@code MEDIA_EMBED_TOOLBAR} 插件，
+     * 选中媒体时这些按钮才会出现在浮动工具栏上。</p>
+     *
+     * <p>传入空数组或 {@code null} 不写入 toolbar 字段，避免产生空数组配置。</p>
+     *
+     * @param items 工具栏按钮名称
+     * @return this config for chaining
+     */
+    public CKEditorConfig setMediaEmbedToolbar(String... items) {
+        ArrayNode arr = toArrayNodeOrNull(items);
+        if (arr != null) {
+            ObjectNode mediaObj = getOrCreateMediaEmbed();
+            mediaObj.set("toolbar", arr);
+            configs.put("mediaEmbed", mediaObj);
+        }
+        return this;
+    }
+
     private ObjectNode getOrCreateMediaEmbed() {
         JsonNode existing = configs.get("mediaEmbed");
         if (existing != null && existing.isObject()) {

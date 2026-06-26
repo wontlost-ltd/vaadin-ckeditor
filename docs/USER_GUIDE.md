@@ -187,7 +187,13 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Media & Code:**
 - `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
-- 注：`MEDIA_EMBED_STYLE`（媒体对齐样式）的按钮属 `config.mediaEmbed.toolbar`，与 `MEDIA_EMBED_TOOLBAR` 配合使用
+- 注：`MEDIA_EMBED_STYLE`（媒体对齐样式）的按钮属 `config.mediaEmbed.toolbar`，须配合 `MEDIA_EMBED_TOOLBAR` 使用。
+  用 `CKEditorConfig#setMediaEmbedToolbar(...)` 设置这些按钮：
+
+```java
+config.setMediaEmbedToolbar(
+    "mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight");
+```
 
 **Special:**
 - `HORIZONTAL_LINE`, `PAGE_BREAK`, `SPECIAL_CHARACTERS`

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   itself is free (umbrella-exported); using it requires `config.ckfinder.uploadUrl` and
   a CKFinder server backend, so it is treated as a config-required plugin (filtered out
   of auto-select unless `setAllowConfigRequiredPlugins(true)` is set).
+- `CKEditorConfig.setMediaEmbedToolbar(String...)` — fluent setter that writes media
+  toolbar buttons to `config.mediaEmbed.toolbar` (where `MediaEmbedStyle`'s alignment
+  buttons such as `mediaEmbed:alignLeft` must live, not the top-level `config.toolbar`).
+  Empty/null input writes nothing (no empty-array noise).
 
 ### Changed
 - `media-embed-resize.ts`: the on-demand `MediaEmbedResize` loader now imports from the
