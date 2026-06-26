@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `setCaretToEnd()`, `focusEditor()`. Useful when leading block content (e.g. a
   table letterhead) would otherwise be auto-selected on focus — move the caret
   to the start so nothing is highlighted.
+- Resizable embedded media (issue #71): `CKEditorConfig.setMediaEmbedResizable(true)`
+  enables drag-to-resize handles on embedded media (videos). Backed by CKEditor's
+  `MediaEmbedResize` plugin, which 48.2.0 ships only in the `@ckeditor/ckeditor5-media-embed`
+  subpackage (not the `ckeditor5` umbrella); the frontend loads it on demand from the
+  same-version subpackage when the flag is enabled. Requires `CKEditorPlugin.MEDIA_EMBED`.
 
 ## [5.3.0] - 2026-06-26
 

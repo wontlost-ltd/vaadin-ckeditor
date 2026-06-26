@@ -141,6 +141,43 @@ class CKEditorConfigTest {
         assertThat(json.get("mediaEmbed").get("previewsInData").asBoolean()).isTrue();
     }
 
+    // issue #71: media embed drag-to-resize
+    @Test
+    @DisplayName("setMediaEmbedResizable should set the resizable flag")
+    void setMediaEmbedResizableShouldSetFlag() {
+        config.setMediaEmbedResizable(true);
+        ObjectNode json = config.toJson();
+
+        assertThat(json.get("mediaEmbed").get("resizable").asBoolean()).isTrue();
+        assertThat(config.isMediaEmbedResizable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("setMediaEmbedResizable defaults to false when never set")
+    void isMediaEmbedResizableDefaultsFalse() {
+        assertThat(config.isMediaEmbedResizable()).isFalse();
+        config.setMediaEmbed(true); // mediaEmbed exists but no resizable key
+        assertThat(config.isMediaEmbedResizable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("setMediaEmbed and setMediaEmbedResizable coexist in the same mediaEmbed object")
+    void mediaEmbedAndResizableCoexist() {
+        config.setMediaEmbed(true).setMediaEmbedResizable(true);
+        ObjectNode json = config.toJson();
+
+        // 两个 setter 写入同一个 mediaEmbed 对象，互不覆盖
+        assertThat(json.get("mediaEmbed").get("previewsInData").asBoolean()).isTrue();
+        assertThat(json.get("mediaEmbed").get("resizable").asBoolean()).isTrue();
+
+        // 反向顺序同样保留两者
+        CKEditorConfig c2 = new CKEditorConfig();
+        c2.setMediaEmbedResizable(true).setMediaEmbed(false);
+        ObjectNode j2 = c2.toJson();
+        assertThat(j2.get("mediaEmbed").get("resizable").asBoolean()).isTrue();
+        assertThat(j2.get("mediaEmbed").get("previewsInData").asBoolean()).isFalse();
+    }
+
     @Test
     @DisplayName("setMention should create mention config with feeds")
     void setMentionShouldCreateMentionConfig() {
