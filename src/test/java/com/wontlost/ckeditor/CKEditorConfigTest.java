@@ -1417,4 +1417,19 @@ class CKEditorConfigTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("private");
     }
+
+    // review: PaginationMargins.toJson() 现为 public（与其它内部配置类一致），且序列化正确
+    @Test
+    @DisplayName("PaginationMargins.toJson is public and serializes set margins")
+    void paginationMarginsToJsonPublicAndCorrect() {
+        CKEditorConfig.PaginationMargins margins =
+            new CKEditorConfig.PaginationMargins("10mm", "20mm", "10mm", null);
+
+        ObjectNode json = margins.toJson(); // 此前为 package-private，现可外部调用
+
+        assertThat(json.get("top").asString()).isEqualTo("10mm");
+        assertThat(json.get("right").asString()).isEqualTo("20mm");
+        assertThat(json.get("bottom").asString()).isEqualTo("10mm");
+        assertThat(json.has("left")).isFalse(); // null 不序列化
+    }
 }
