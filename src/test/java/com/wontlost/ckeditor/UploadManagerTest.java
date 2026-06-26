@@ -313,4 +313,62 @@ class UploadManagerTest {
         assertDoesNotThrow(() ->
             manager.handleUpload("timeout-4", "test.jpg", "image/jpeg", createBase64Data("test")));
     }
+
+    // review: base64 应在 decode 前按长度估算大小拦截，避免超大上传 OOM
+    @Test
+    @DisplayName("handleUpload should reject oversized base64 BEFORE decoding (OOM guard)")
+    void handleUploadRejectsOversizedBeforeDecode() throws Exception {
+        UploadHandler.UploadConfig config = new UploadHandler.UploadConfig().setMaxFileSize(16);
+        // 这个 handler 一旦被调用就说明数据已被 decode —— 不应发生
+        AtomicReference<Boolean> handlerInvoked = new AtomicReference<>(false);
+        UploadHandler handler = (ctx, stream) -> {
+            handlerInvoked.set(true);
+            return CompletableFuture.completedFuture(new UploadHandler.UploadResult("url"));
+        };
+        manager = new UploadManager(handler, config, createCallback());
+
+        // 远超 16 字节上限的内容
+        String big = createBase64Data("x".repeat(10_000));
+        manager.handleUpload("oom-1", "big.bin", "image/jpeg", big);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals("oom-1", lastUploadId.get());
+        assertNull(lastUrl.get());
+        assertNotNull(lastError.get());
+        assertTrue(lastError.get().toLowerCase().contains("size") || lastError.get().contains("exceeds"),
+            "error should mention size limit, got: " + lastError.get());
+        assertFalse(handlerInvoked.get(), "handler must not run — data should be rejected before decode");
+    }
+
+    @Test
+    @DisplayName("handleUpload should allow data within size limit")
+    void handleUploadAllowsWithinSizeLimit() throws Exception {
+        UploadHandler.UploadConfig config = new UploadHandler.UploadConfig().setMaxFileSize(1024);
+        manager = new UploadManager(createSuccessHandler("https://example.com/ok.jpg"), config, createCallback());
+
+        manager.handleUpload("ok-size", "ok.jpg", "image/jpeg", createBase64Data("small"));
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals("https://example.com/ok.jpg", lastUrl.get());
+        assertNull(lastError.get());
+    }
+
+    // review: double-notification 守卫此前在 task==null（early failure）时被绕过
+    @Test
+    @DisplayName("notifyResult must guard duplicates even on early-failure paths (no task)")
+    void earlyFailureNotifiesExactlyOnce() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger callbackCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        UploadManager.UploadResultCallback countingCallback = (id, url, err) -> callbackCount.incrementAndGet();
+
+        // 无 handler → 走 early-failure 路径（task==null）
+        manager = new UploadManager(null, null, countingCallback);
+
+        // 同一 uploadId 触发两次 early failure
+        manager.handleUpload("dup-1", "a.jpg", "image/jpeg", createBase64Data("x"));
+        manager.handleUpload("dup-1", "a.jpg", "image/jpeg", createBase64Data("x"));
+
+        // 即使 task==null，uploadId 守卫也保证只回调一次
+        assertEquals(1, callbackCount.get(),
+            "same uploadId must notify exactly once even without an UploadTask");
+    }
 }
