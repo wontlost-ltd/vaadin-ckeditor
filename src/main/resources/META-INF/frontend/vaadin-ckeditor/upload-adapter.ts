@@ -129,11 +129,16 @@ export class UploadAdapterManager {
 
     /**
      * Check if a MIME type is allowed for upload.
+     *
+     * 注意（review）：空白名单 = "allow all"（即禁用 MIME 过滤），而非 "reject all"。
+     * 这是有意的"禁用模式"设计，与后端 UploadConfig.validate 一致；前端校验仅为体验优化，
+     * 后端始终对上传做权威校验。
+     *
      * @param mimeType - The MIME type to check
      * @returns true if allowed, false otherwise
      */
     isMimeTypeAllowed(mimeType: string): boolean {
-        // Allow all types if whitelist is empty (disabled)
+        // Allow all types if whitelist is empty (disabled / allow-all mode, see doc above)
         if (this.allowedMimeTypes.size === 0) {
             return true;
         }
@@ -254,6 +259,9 @@ export class UploadAdapterManager {
                             manager.pendingUploads.delete(idToCancel);
                             resolver.reject(new Error('Upload cancelled'));
                         }
+                        // 通知服务端取消上传——尽力而为（best-effort，review）：
+                        // 该 RPC 不重试也不等待确认。若网络异常导致调用失败，前端 promise 已 reject，
+                        // 但服务端任务可能继续执行；服务端有超时保护（默认 6 分钟）兜底，资源不会无限占用。
                         // Notify server to cancel upload (type-safe check)
                         if (manager.server?.cancelUploadFromClient) {
                             manager.server.cancelUploadFromClient(idToCancel);
