@@ -149,4 +149,44 @@ class ContentManagerTest {
         String normalized = manager.normalizeForComparison(html);
         assertFalse(normalized.contains("  ")); // No double spaces
     }
+
+    // review (perf): countWords 抽为纯函数 + getContentStats 单次解析
+
+    @Test
+    @DisplayName("countWords(plain text) matches the existing word-count behavior")
+    void countWordsPureMatchesBehavior() {
+        assertEquals(0, ContentManager.countWords(null));
+        assertEquals(0, ContentManager.countWords(""));
+        assertEquals(0, ContentManager.countWords("   "));
+        assertEquals(4, ContentManager.countWords("Hello World from CKEditor"));
+        assertEquals(4, ContentManager.countWords("你好世界"));        // 每个 CJK 算一词
+        assertEquals(4, ContentManager.countWords("Hello 你好 World")); // 1 + 2 + 1
+        assertEquals(3, ContentManager.countWords("test中文test"));    // 2 CJK + 1 非CJK
+    }
+
+    @Test
+    @DisplayName("countWords still uses HAN classification (behavior unchanged), not isIdeographic")
+    void countWordsPreservesHanClassification() {
+        // 「々」(U+3005, 叠字符号) 属 HAN script 但 isIdeographic=false。
+        // 沿用 UnicodeScript.HAN → 算作 CJK 字，确保不破坏既有计数。
+        assertEquals(1, ContentManager.countWords("々"));
+    }
+
+    @Test
+    @DisplayName("getContentStats parses once and matches separate getCharacterCount/getWordCount")
+    void getContentStatsConsistentWithSeparateCalls() {
+        String html = "<p>Hello 你好 World</p>";
+        ContentManager.ContentStats stats = manager.getContentStats(html);
+
+        assertEquals(manager.getCharacterCount(html), stats.characterCount());
+        assertEquals(manager.getWordCount(html), stats.wordCount());
+    }
+
+    @Test
+    @DisplayName("getContentStats handles empty content")
+    void getContentStatsEmpty() {
+        ContentManager.ContentStats stats = manager.getContentStats("<p></p>");
+        assertEquals(0, stats.characterCount());
+        assertEquals(0, stats.wordCount());
+    }
 }
