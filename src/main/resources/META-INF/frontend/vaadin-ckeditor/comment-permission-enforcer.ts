@@ -66,7 +66,10 @@ export default class CommentPermissionEnforcer extends Plugin {
         this._enforcePermissions(sidebar as HTMLElement, currentUserId);
 
         // 监听侧栏 DOM 变化（评论渲染、菜单展开等）
-        // 使用 _enforcing 标志避免 MutationObserver 与 style 修改之间的无限循环
+        // 使用 _enforcing 标志避免 MutationObserver 与 style 修改之间的无限循环。
+        // 先断开既有 observer：_startObserving 可能因重复 'ready' 事件被多次调用，
+        // 不清理会叠加多个 observer 泄漏（review 发现）。
+        this._observer?.disconnect();
         this._observer = new MutationObserver(() => {
             if (this._enforcing) return;
             this._enforcePermissions(sidebar as HTMLElement, currentUserId!);

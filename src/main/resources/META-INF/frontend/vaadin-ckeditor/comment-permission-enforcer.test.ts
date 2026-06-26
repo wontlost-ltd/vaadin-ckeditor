@@ -159,6 +159,26 @@ describe('CommentPermissionEnforcer', () => {
             expect(disconnectSpy).toHaveBeenCalledTimes(1);
         });
 
+        it('重复 ready 事件不应叠加 observer（先断开旧的）', () => {
+            // review 回归：_startObserving 因重复 'ready' 被多次调用时，
+            // 必须先断开上一个 observer，否则泄漏多个 observer。
+            const { domRoot } = setupCommentDom();
+            const { editor, triggerReady } = createMockEditor(domRoot, 'user-1');
+            const plugin = new CommentPermissionEnforcer(editor as any);
+
+            plugin.init();
+            triggerReady(); // 第一次：注册 observer #1
+            triggerReady(); // 第二次：应先断开 #1，再注册 #2
+
+            // 两次 observe，但第二次注册前断开了第一个 → 不会叠加
+            expect(observeSpy).toHaveBeenCalledTimes(2);
+            expect(disconnectSpy).toHaveBeenCalledTimes(1);
+
+            // destroy 再断开当前 observer
+            plugin.destroy();
+            expect(disconnectSpy).toHaveBeenCalledTimes(2);
+        });
+
         it('Users 插件不可用时不应注册 observer', () => {
             const { domRoot } = setupCommentDom();
             const editor = {
