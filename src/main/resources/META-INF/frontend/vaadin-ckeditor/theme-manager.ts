@@ -7,6 +7,7 @@
  * - OS dark mode detection
  * - Theme reference counting for multi-instance support
  */
+import { createRefcount } from './dark-theme-refcount';
 
 /**
  * Dark theme CSS variables for CKEditor
@@ -78,7 +79,7 @@ export const DARK_THEME_VARS: Record<string, string> = {
  * Tracks how many editor instances are using dark theme to ensure
  * CSS variables are only removed when the last dark theme instance is destroyed.
  */
-let darkThemeRefCount = 0;
+let darkThemeRefcount = createRefcount();
 
 /**
  * Dark theme style element ID
@@ -214,9 +215,9 @@ export class ThemeManager {
             return;
         }
         this.isDarkThemeActive = true;
-        darkThemeRefCount++;
+        darkThemeRefcount = darkThemeRefcount.acquire();
 
-        if (darkThemeRefCount === 1) {
+        if (darkThemeRefcount.justApplied) {
             const rootStyle = document.documentElement.style;
             Object.entries(DARK_THEME_VARS).forEach(([key, value]) => {
                 rootStyle.setProperty(key, value);
@@ -240,9 +241,9 @@ export class ThemeManager {
             return;
         }
         this.isDarkThemeActive = false;
-        darkThemeRefCount = Math.max(0, darkThemeRefCount - 1);
+        darkThemeRefcount = darkThemeRefcount.release();
 
-        if (darkThemeRefCount === 0) {
+        if (darkThemeRefcount.justRemoved) {
             const rootStyle = document.documentElement.style;
             Object.keys(DARK_THEME_VARS).forEach((key) => {
                 rootStyle.removeProperty(key);
