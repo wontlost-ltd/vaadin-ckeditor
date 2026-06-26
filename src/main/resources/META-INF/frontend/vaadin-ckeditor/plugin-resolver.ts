@@ -370,6 +370,26 @@ export function registerCKEditorPlugin(name: string, plugin: unknown): void {
 }
 
 /**
+ * Remove a custom plugin from the global registry.
+ *
+ * The registry is a process-global (window-level) map: custom plugins registered
+ * via {@link registerCKEditorPlugin} live for the page lifetime. Long-lived apps that
+ * register plugins dynamically can call this to release entries they no longer need
+ * (review: the registry previously had no cleanup path → entries accumulated).
+ *
+ * @param name - The plugin name previously passed to registerCKEditorPlugin
+ * @returns true if an entry was removed, false if no entry existed
+ */
+export function unregisterCKEditorPlugin(name: string): boolean {
+    const registry = getGlobalPluginRegistry();
+    if (Object.prototype.hasOwnProperty.call(registry, name)) {
+        delete registry[name];
+        return true;
+    }
+    return false;
+}
+
+/**
  * Filter result from plugin conflict detection.
  */
 export interface FilterResult {
@@ -384,9 +404,13 @@ export interface FilterResult {
  */
 export interface FilterOptions {
     /**
-     * When true, disables automatic plugin filtering.
-     * Plugins requiring special configuration and unavailable plugins will still be loaded,
-     * which may cause runtime errors if not properly configured.
+     * ⚠️ Note the inverted sense of this flag (kept for backward compatibility):
+     * `strictPluginLoading = true` actually means "load everything verbatim, do NOT
+     * filter". When true, conflicting plugins, plugins requiring special configuration,
+     * and unavailable plugins are all left in the list, which may cause runtime errors
+     * if not properly configured. The default (`false`) applies the safety filtering.
+     *
+     * In short: `false` = filtered/safe (default), `true` = unfiltered/raw.
      *
      * @default false
      */
@@ -559,7 +583,11 @@ export class PluginResolver {
             if (plugin) {
                 resolvedPlugins.push(plugin);
             } else {
-                this.logger.warn(`Plugin not found in registry: ${pluginConfig.name}`);
+                // review: 缺失的 standard plugin 此前只 warn，不进 loadErrors，
+                // 与 premium/custom 失败的报告方式不一致。统一记入 loadErrors。
+                const errorMsg = `Plugin not found in registry: ${pluginConfig.name}`;
+                this.logger.warn(errorMsg);
+                this.loadErrors.push(errorMsg);
             }
         }
 
