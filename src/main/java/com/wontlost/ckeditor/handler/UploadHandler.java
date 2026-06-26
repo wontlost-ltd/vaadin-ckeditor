@@ -247,10 +247,15 @@ public interface UploadHandler {
                     context.getFileSize(), maxFileSize);
             }
 
-            // Empty allowed list means all types are permitted
-            if (!allowedMimeTypes.isEmpty() && !allowedMimeTypes.contains(context.getMimeType())) {
-                return String.format("MIME type '%s' is not allowed. Allowed types: %s",
-                    context.getMimeType(), String.join(", ", allowedMimeTypes));
+            // Empty allowed list means all types are permitted.
+            // null mimeType 显示为有意义的 "unknown" 而非字面 "null"（review 发现）。
+            if (!allowedMimeTypes.isEmpty()) {
+                String mimeType = context.getMimeType();
+                if (mimeType == null || !allowedMimeTypes.contains(mimeType)) {
+                    String shown = (mimeType != null) ? mimeType : "unknown";
+                    return String.format("MIME type '%s' is not allowed. Allowed types: %s",
+                        shown, String.join(", ", allowedMimeTypes));
+                }
             }
 
             return null;
