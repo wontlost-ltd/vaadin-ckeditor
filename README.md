@@ -32,14 +32,14 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.3.0</version>
+    <version>5.3.1</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```kotlin
-implementation("com.wontlost:ckeditor-vaadin:5.3.0")
+implementation("com.wontlost:ckeditor-vaadin:5.3.1")
 ```
 
 ### Compatibility Matrix
@@ -449,6 +449,35 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .withDependencyMode(DependencyMode.MANUAL)
     .build();
 ```
+
+---
+
+## Testing with TestBench (optional)
+
+An optional `ckeditor-vaadin-testbench` module provides `VaadinCKEditorElement`, a
+type-safe Vaadin TestBench page object for the `vaadin-ckeditor` component.
+
+> ⚠️ Vaadin TestBench is a **commercial (Premium)** feature. The module depends on
+> TestBench with `provided` scope and does not bundle it; you need your own TestBench
+> license to run tests. The core addon has no TestBench dependency.
+
+```xml
+<dependency>
+    <groupId>com.wontlost</groupId>
+    <artifactId>ckeditor-vaadin-testbench</artifactId>
+    <version>5.3.1</version>
+    <scope>test</scope>
+</dependency>
+```
+
+```java
+VaadinCKEditorElement editor = $(VaadinCKEditorElement.class).first();
+editor.setData("<p>Hello</p>");
+assertEquals("<p>Hello</p>", editor.getData());
+```
+
+See [`ckeditor-vaadin-testbench/README.md`](ckeditor-vaadin-testbench/README.md) for the
+full API and setup.
 
 ---
 

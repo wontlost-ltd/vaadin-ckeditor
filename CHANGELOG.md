@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.1] - 2026-06-26
+
 ### Added
 - Caret/focus control API on `VaadinCKEditor` (issue #52): `setCaretToStart()`,
   `setCaretToEnd()`, `focusEditor()`. Useful when leading block content (e.g. a
@@ -17,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MediaEmbedResize` plugin, which 48.2.0 ships only in the `@ckeditor/ckeditor5-media-embed`
   subpackage (not the `ckeditor5` umbrella); the frontend loads it on demand from the
   same-version subpackage when the flag is enabled. Requires `CKEditorPlugin.MEDIA_EMBED`.
+- Optional `ckeditor-vaadin-testbench` module providing `VaadinCKEditorElement` — a
+  type-safe Vaadin TestBench page object for the `vaadin-ckeditor` component
+  (`getData`/`setData`/`insertText`/`setReadOnly`/`focusEditor`/`setCaretToStart`/`End`
+  plus key property getters). Vaadin TestBench is a commercial (Premium) feature: the
+  module depends on `vaadin-testbench-core` with `provided` scope and does not bundle
+  TestBench at runtime, so the core addon stays free of the Premium dependency. Consumers
+  bring their own TestBench dependency and license to run tests.
 
 ## [5.3.0] - 2026-06-26
 

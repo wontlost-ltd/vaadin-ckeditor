@@ -1,0 +1,131 @@
+name: Publish TestBench Module to Maven Central
+
+# 独立发布可选的 ckeditor-vaadin-testbench 模块。
+# 与主模块 publish.yml 解耦：用 testbench-v* tag 或手动 dispatch 触发，
+# 不影响主模块的 v* 发布流程。复用同一套 Sonatype Central + GPG secrets。
+
+on:
+  push:
+    tags:
+      - "testbench-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 5.3.0) - must match ckeditor-vaadin-testbench/pom.xml"
+        type: string
+        required: true
+      draft:
+        description: "Create GitHub release as draft"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: ckeditor-vaadin-testbench
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ -z "${INPUT_VERSION:-}" ]]; then
+              echo "::error::Version input is required for manual trigger."
+              exit 1
+            fi
+            VERSION="${INPUT_VERSION}"
+            TAG_NAME="testbench-v${VERSION}"
+          else
+            TAG_NAME="${GITHUB_REF_NAME}"
+            if [[ ! "$TAG_NAME" =~ ^testbench-v ]]; then
+              echo "::error::Tag must start with testbench-v followed by version (e.g. testbench-v5.3.0)."
+              exit 1
+            fi
+            VERSION="${TAG_NAME#testbench-v}"
+          fi
+
+          # Strict SemVer validation of the resolved version (applies to both trigger paths).
+          # Full-string match avoids accepting partial/garbage versions like "5.3.0-typo".
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version format: '$VERSION'. Expected X.Y.Z or X.Y.Z-suffix (e.g. 5.3.0, 5.3.0-rc1)."
+            exit 1
+          fi
+
+          # Verify the testbench module pom.xml version matches
+          POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          if [[ "$POM_VERSION" != "$VERSION" ]]; then
+            echo "::error::ckeditor-vaadin-testbench/pom.xml version ($POM_VERSION) does not match release version ($VERSION)"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
+          echo "Resolved version: $VERSION (matches ckeditor-vaadin-testbench/pom.xml)"
+
+      - name: Publish to Maven Central
+        run: mvn -B -ntp clean deploy -Prelease
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: testbench-v${{ steps.version.outputs.version }}
+          draft: ${{ inputs.draft || false }}
+          generate_release_notes: true
+          files: |
+            ckeditor-vaadin-testbench/target/ckeditor-vaadin-testbench-${{ steps.version.outputs.version }}.jar
+            ckeditor-vaadin-testbench/target/ckeditor-vaadin-testbench-${{ steps.version.outputs.version }}-sources.jar
+            ckeditor-vaadin-testbench/target/ckeditor-vaadin-testbench-${{ steps.version.outputs.version }}-javadoc.jar
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Job Summary
+        if: always()
+        run: |
+          {
+            echo "## TestBench Module Release Summary"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| Version | \`${VERSION:-n/a}\` |"
+            echo "| Tag | \`${TAG_NAME:-n/a}\` |"
+            echo "| Maven Central | \`com.wontlost:ckeditor-vaadin-testbench:${VERSION:-n/a}\` |"
+            echo "| Status | \`${{ job.status }}\` |"
+            echo ""
+            if [[ "${{ job.status }}" == "success" ]]; then
+              echo "Published to [Maven Central](https://central.sonatype.com/artifact/com.wontlost/ckeditor-vaadin-testbench/${VERSION})"
+              echo ""
+              echo "Released to [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME})"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

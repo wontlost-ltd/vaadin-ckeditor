@@ -24,7 +24,7 @@
         <vaadin.version>25.2.0</vaadin.version>
         <!-- Keep in sync with the root pom's <version>. Pinned so the sample exercises a
              specific addon build; bump together when the addon version changes. -->
-        <addon.version>5.3.0</addon.version>
+        <addon.version>5.3.1</addon.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
