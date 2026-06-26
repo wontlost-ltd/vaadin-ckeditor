@@ -420,6 +420,9 @@ export interface FilterOptions {
      * When true, skips filtering of plugins that require special configuration.
      * Use this when you have properly configured plugins like Minimap or Title.
      *
+     * 受影响的完整插件清单见 `PLUGINS_REQUIRING_CONFIG` 常量；可用
+     * `PluginResolver.requiresConfiguration(name)` 以编程方式判断某插件是否需要配置。
+     *
      * @default false
      */
     allowConfigRequiredPlugins?: boolean;
