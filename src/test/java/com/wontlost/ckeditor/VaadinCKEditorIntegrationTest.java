@@ -176,6 +176,18 @@ class VaadinCKEditorIntegrationTest {
         }
 
         @Test
+        @DisplayName("caret/focus API (issue #52) is callable without throwing")
+        void testCaretAndFocusApi() {
+            // 这些方法委托给客户端 executeJs；无 UI 时安全 no-op，不应抛异常。
+            // 真实光标/聚焦行为由 e2e 在浏览器中验证。
+            assertDoesNotThrow(() -> {
+                editor.setCaretToStart();
+                editor.setCaretToEnd();
+                editor.focusEditor();
+            });
+        }
+
+        @Test
         @DisplayName("getPlainText should extract plain text")
         void testGetPlainText() {
             editor.setValue("<p>Hello <b>World</b></p>");

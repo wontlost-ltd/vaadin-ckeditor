@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Caret/focus control API on `VaadinCKEditor` (issue #52): `setCaretToStart()`,
+  `setCaretToEnd()`, `focusEditor()`. Useful when leading block content (e.g. a
+  table letterhead) would otherwise be auto-selected on focus — move the caret
+  to the start so nothing is highlighted.
+
 ## [5.3.0] - 2026-06-26
 
 ### Changed
