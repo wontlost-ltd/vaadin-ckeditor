@@ -18,6 +18,7 @@ src/main/resources/META-INF/frontend/vaadin-ckeditor/node_modules/
 
 # Claude/AI tools
 .claude/
+.ccg/
 .ace-tool/
 
 # OS files
