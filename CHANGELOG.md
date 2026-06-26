@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.1] - 2026-06-26
+
 ### Added
 - Caret/focus control API on `VaadinCKEditor` (issue #52): `setCaretToStart()`,
   `setCaretToEnd()`, `focusEditor()`. Useful when leading block content (e.g. a
@@ -14,9 +16,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the start so nothing is highlighted.
 - Resizable embedded media (issue #71): `CKEditorConfig.setMediaEmbedResizable(true)`
   enables drag-to-resize handles on embedded media (videos). Backed by CKEditor's
-  `MediaEmbedResize` plugin, which 48.2.0 ships only in the `@ckeditor/ckeditor5-media-embed`
-  subpackage (not the `ckeditor5` umbrella); the frontend loads it on demand from the
-  same-version subpackage when the flag is enabled. Requires `CKEditorPlugin.MEDIA_EMBED`.
+  `MediaEmbedResize` plugin. The frontend loads it on demand from the `ckeditor5`
+  umbrella package only when the flag is enabled; load failures (e.g. missing
+  commercial license — see below) degrade silently. Requires `CKEditorPlugin.MEDIA_EMBED`.
+- Free media-embed companion plugins, exported by the `ckeditor5` umbrella and now
+  registered as built-in `CKEditorPlugin` constants:
+  - `MEDIA_EMBED_STYLE` (`MediaEmbedStyle`) — alignment/styling for embedded media
+    (`mediaEmbed:alignLeft` / `alignCenter` / `alignRight` toolbar items); the sibling
+    feature of the resize support above. Not auto-loaded by `MEDIA_EMBED`, so it must
+    be selected explicitly.
+  - `MEDIA_EMBED_TOOLBAR` (`MediaEmbedToolbar`) — floating toolbar shown when an
+    embedded media widget is selected (hosts the style/alignment buttons).
+  - `AUTO_MEDIA_EMBED` (`AutoMediaEmbed`) — auto-converts pasted media links into embeds.
+- `CKFINDER` (`CKFinder`) — CKFinder file-manager integration plugin. The plugin class
+  itself is free (umbrella-exported); using it requires `config.ckfinder.uploadUrl` and
+  a CKFinder server backend, so it is treated as a config-required plugin (filtered out
+  of auto-select unless `setAllowConfigRequiredPlugins(true)` is set).
+- `CKEditorConfig.setMediaEmbedToolbar(String...)` — fluent setter that writes media
+  toolbar buttons to `config.mediaEmbed.toolbar` (where `MediaEmbedStyle`'s alignment
+  buttons such as `mediaEmbed:alignLeft` must live, not the top-level `config.toolbar`).
+  Empty/null input writes nothing (no empty-array noise).
+- Optional `ckeditor-vaadin-testbench` module providing `VaadinCKEditorElement` — a
+  type-safe Vaadin TestBench page object for the `vaadin-ckeditor` component
+  (`getData`/`setData`/`insertText`/`setReadOnly`/`focusEditor`/`setCaretToStart`/`End`
+  plus key property getters). Vaadin TestBench is a commercial (Premium) feature: the
+  module depends on `vaadin-testbench-core` with `provided` scope and does not bundle
+  TestBench at runtime, so the core addon stays free of the Premium dependency. Consumers
+  bring their own TestBench dependency and license to run tests.
+
+### Changed
+- `media-embed-resize.ts`: the on-demand `MediaEmbedResize` loader now imports from the
+  `ckeditor5` umbrella package instead of the `@ckeditor/ckeditor5-media-embed` subpackage.
+  Verified against the installed 48.2.0 artifacts: the umbrella re-exports the whole
+  media-embed subpackage (`export * from '@ckeditor/ckeditor5-media-embed'`), so
+  `import { MediaEmbedResize } from 'ckeditor5'` resolves. Importing from the umbrella
+  (rather than mixing umbrella + subpackage entry points) avoids the risk of resolving
+  two distinct class instances. Corrects the prior comment that claimed the plugin was
+  "free" and "not umbrella-exported": it *is* umbrella-exported, but its
+  `MediaEmbedResizeEditing` dependency has `isPremiumPlugin === true`, so loading it under
+  a GPL license triggers CKEditor's license check — it is effectively a premium feature.
+
+### Removed
+- **Breaking:** `CKEditorPlugin.LINE_HEIGHT` removed from the free built-in plugin enum.
+  `LineHeight` is a **premium** feature in CKEditor 48.x — it is not exported by the
+  `ckeditor5` umbrella package (only by `ckeditor5-premium-features`, where its class
+  reports `isPremiumPlugin === true`) and was never registered in the TypeScript
+  `PLUGIN_REGISTRY`, so `withPlugins(CKEditorPlugin.LINE_HEIGHT)` produced a
+  "Plugin not found in registry" error at runtime. The premium definition already exists
+  as `VaadinCKEditorPremium.PremiumPlugin.LINE_HEIGHT`.
+  - **Migration:** replace `withPlugins(CKEditorPlugin.LINE_HEIGHT)` with
+    `addCustomPlugin(CustomPlugin.fromPremium("LineHeight"))` and configure a commercial
+    license key.
 
 ## [5.3.0] - 2026-06-26
 

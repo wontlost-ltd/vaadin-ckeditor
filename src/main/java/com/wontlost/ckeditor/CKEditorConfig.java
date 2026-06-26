@@ -232,9 +232,11 @@ public class CKEditorConfig {
      * 启用/禁用嵌入媒体（视频等）的拖拽缩放（issue #71）。
      *
      * <p>启用后，选中嵌入媒体会显示四角缩放手柄，可按比例调整宽度。底层由 CKEditor 的
-     * {@code MediaEmbedResize} 插件实现——该插件在 48.2.0 中未由 umbrella {@code ckeditor5}
-     * 包导出，因此前端会在启用时按需从同版本 {@code @ckeditor/ckeditor5-media-embed} 子包
-     * 动态加载并注册，无需消费端额外配置。缩放数据以 {@code media_resized} class + 内联
+     * {@code MediaEmbedResize} 插件实现——该插件由 umbrella {@code ckeditor5} 包导出
+     * （48.2.0 通过 {@code export *} 透传 {@code @ckeditor/ckeditor5-media-embed}），
+     * 但属功能性 premium（其 {@code MediaEmbedResizeEditing} 依赖 {@code isPremiumPlugin=true}），
+     * 故前端在启用时才按需从 {@code ckeditor5} 动态加载，加载失败（如缺商业 license）静默降级，
+     * 无需消费端额外配置。缩放数据以 {@code media_resized} class + 内联
      * width 写入 {@code <figure>}，与 {@code previewsInData} 设置无关。</p>
      *
      * @param resizable true 启用拖拽缩放
@@ -244,6 +246,30 @@ public class CKEditorConfig {
         ObjectNode mediaObj = getOrCreateMediaEmbed();
         mediaObj.put("resizable", resizable);
         configs.put("mediaEmbed", mediaObj);
+        return this;
+    }
+
+    /**
+     * 设置嵌入媒体的浮动工具栏按钮（写入 {@code config.mediaEmbed.toolbar}）。
+     *
+     * <p>{@code MediaEmbedStyle}（对齐/排版样式）注册的按钮（如
+     * {@code mediaEmbed:alignLeft} / {@code mediaEmbed:alignCenter} /
+     * {@code mediaEmbed:alignRight}）须放入 {@code config.mediaEmbed.toolbar}，
+     * 而非顶层 {@code config.toolbar}；配合 {@code MEDIA_EMBED_TOOLBAR} 插件，
+     * 选中媒体时这些按钮才会出现在浮动工具栏上。</p>
+     *
+     * <p>传入空数组或 {@code null} 不写入 toolbar 字段，避免产生空数组配置。</p>
+     *
+     * @param items 工具栏按钮名称
+     * @return this config for chaining
+     */
+    public CKEditorConfig setMediaEmbedToolbar(String... items) {
+        ArrayNode arr = toArrayNodeOrNull(items);
+        if (arr != null) {
+            ObjectNode mediaObj = getOrCreateMediaEmbed();
+            mediaObj.set("toolbar", arr);
+            configs.put("mediaEmbed", mediaObj);
+        }
         return this;
     }
 

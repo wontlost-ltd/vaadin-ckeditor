@@ -94,8 +94,10 @@ public enum CKEditorPlugin {
     /** Block quotes */
     BLOCK_QUOTE("BlockQuote", Category.PARAGRAPH, "blockQuote"),
 
-    /** Line height */
-    LINE_HEIGHT("LineHeight", Category.PARAGRAPH, "lineHeight"),
+    // 注意：LineHeight 在 ckeditor5 48.x 属 premium，仅由 ckeditor5-premium-features 导出
+    // （其类 isPremiumPlugin=true），umbrella ckeditor5 包不导出。请改用
+    // CustomPlugin.fromPremium("LineHeight") 并配置商业 license key。
+    // 此处不再作为免费内置插件登记。
 
     // ==================== Lists ====================
 
@@ -156,6 +158,13 @@ public enum CKEditorPlugin {
     /** Simple upload adapter */
     SIMPLE_UPLOAD_ADAPTER("SimpleUploadAdapter", Category.UPLOAD),
 
+    /**
+     * CKFinder 文件管理集成（插件类本身免费，由 umbrella ckeditor5 导出）。
+     * 需要配置 config.ckfinder.uploadUrl 与服务端 CKFinder（商业后端产品），
+     * 因此在前端被归入"需配置插件"，自动全选时会被过滤，须显式配置后启用。
+     */
+    CKFINDER("CKFinder", Category.UPLOAD),
+
     // ==================== Tables ====================
 
     /** Basic table support */
@@ -183,6 +192,16 @@ public enum CKEditorPlugin {
 
     /** Embed media from URLs */
     MEDIA_EMBED("MediaEmbed", Category.MEDIA, "mediaEmbed"),
+
+    /** 粘贴链接自动转嵌入媒体（免费，不被 MediaEmbed 自动加载，需显式启用） */
+    AUTO_MEDIA_EMBED("AutoMediaEmbed", Category.MEDIA),
+
+    /** 嵌入媒体对齐/排版样式（免费，提供 mediaEmbed:alignLeft/Center/Right 等按钮） */
+    MEDIA_EMBED_STYLE("MediaEmbedStyle", Category.MEDIA,
+        "mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight"),
+
+    /** 选中嵌入媒体时的浮动工具栏（免费，承载 style/对齐按钮） */
+    MEDIA_EMBED_TOOLBAR("MediaEmbedToolbar", Category.MEDIA),
 
     /** Embed raw HTML */
     HTML_EMBED("HtmlEmbed", Category.MEDIA, "htmlEmbed"),

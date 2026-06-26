@@ -1,28 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <groupId>com.wontlost</groupId>
-    <artifactId>ckeditor-vaadin</artifactId>
+    <artifactId>ckeditor-vaadin-testbench</artifactId>
     <packaging>jar</packaging>
     <version>5.3.1</version>
-    <name>CKEditorVaadin</name>
-    <description>Integration of CKEditor 5 for Vaadin</description>
+    <name>CKEditorVaadin TestBench</name>
+    <description>
+        Optional Vaadin TestBench element API for the CKEditor 5 Vaadin integration.
+        Provides VaadinCKEditorElement for type-safe interaction in end-to-end tests.
+        Vaadin TestBench is a commercial (Premium) feature: consumers must supply their
+        own TestBench dependency and license to run tests. This module only provides the
+        compile-time element wrapper and does not bundle TestBench at runtime.
+    </description>
     <url>https://github.com/wontlost-ltd/vaadin-ckeditor</url>
+
     <scm>
         <url>https://github.com/wontlost-ltd/vaadin-ckeditor</url>
         <connection>scm:git:https://github.com/wontlost-ltd/vaadin-ckeditor.git</connection>
         <developerConnection>scm:git:git@github.com:wontlost-ltd/vaadin-ckeditor.git</developerConnection>
     </scm>
+
     <properties>
         <vaadin.version>25.2.0</vaadin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
+
     <organization>
         <name>WontLost Ltd</name>
     </organization>
+
     <licenses>
         <license>
             <name>Apache 2</name>
@@ -30,6 +42,7 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
     <developers>
         <developer>
             <name>WontLost Ltd</name>
@@ -38,8 +51,10 @@
             <organizationUrl>https://github.com/wontlost-ltd</organizationUrl>
         </developer>
     </developers>
+
     <dependencyManagement>
         <dependencies>
+            <!-- vaadin-bom 透传 vaadin-testbench-bom，统一管理 TestBench 各 artifact 版本 -->
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>
@@ -47,99 +62,41 @@
                 <scope>import</scope>
                 <version>${vaadin.version}</version>
             </dependency>
-
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-        <!-- Vaadin (provided - supplied by consuming application) -->
+        <!--
+            Vaadin TestBench core（Premium / 商业 license）。
+            scope=provided：仅编译期需要 TestBenchElement / @Element API；
+            运行测试的消费方自带 TestBench 依赖与 license，本模块不在 runtime 强加 TestBench。
+            版本由 vaadin-bom → vaadin-testbench-bom 管理，无需显式声明。
+        -->
         <dependency>
             <groupId>com.vaadin</groupId>
-            <artifactId>vaadin-core</artifactId>
+            <artifactId>vaadin-testbench-core</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Jackson JSON 3.x (provided - used by Vaadin 25+ for setPropertyJson) -->
-        <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>3.1.4</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- HTML Sanitization -->
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>1.18.3</version>
-        </dependency>
-
-        <!-- Jakarta Servlet API (provided - Vaadin 25+) -->
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>6.1.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Test dependencies -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>6.0.3</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <version>3.27.7</version>
-            <scope>test</scope>
-        </dependency>
-
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
                 <configuration>
-                    <archive>
-                        <index>true</index>
-                        <manifest>
-                            <addClasspath>false</addClasspath>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                        </manifest>
-                        <manifestEntries>
-                            <Vaadin-Package-Version>1</Vaadin-Package-Version>
-                        </manifestEntries>
-                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-                    </archive>
-                    <excludes>
-                        <exclude>META-INF/VAADIN/config/flow-build-info.json</exclude>
-                        <exclude>**/node_modules/**</exclude>
-                        <exclude>**/package-lock.json</exclude>
-                        <exclude>**/tsconfig.json</exclude>
-                    </excludes>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>biz.aQute.bnd</groupId>
-                <artifactId>bnd-maven-plugin</artifactId>
-                <version>7.2.1</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>bnd-process</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
 
+    <!--
+        release profile：与主模块一致，发布到 Maven Central（Sonatype Central Portal）。
+        激活方式：mvn -Prelease deploy。需要 CENTRAL_USERNAME/CENTRAL_PASSWORD 与 GPG 配置。
+        Maven Central 强制要求 source jar、javadoc jar 与 GPG 签名，故全部在此 profile 中附加。
+    -->
     <profiles>
         <profile>
             <id>release</id>

@@ -168,7 +168,8 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 - `FONT_SIZE`, `FONT_FAMILY`, `FONT_COLOR`, `FONT_BACKGROUND_COLOR`
 
 **Paragraph:**
-- `HEADING`, `ALIGNMENT`, `INDENT`, `INDENT_BLOCK`, `BLOCK_QUOTE`, `LINE_HEIGHT`
+- `HEADING`, `ALIGNMENT`, `INDENT`, `INDENT_BLOCK`, `BLOCK_QUOTE`
+- 注：`LINE_HEIGHT` 在 CKEditor 48.x 属 premium，请改用 `CustomPlugin.fromPremium("LineHeight")`（需商业 license）
 
 **Lists:**
 - `LIST`, `TODO_LIST`, `LIST_PROPERTIES`
@@ -185,7 +186,14 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 - `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`
 
 **Media & Code:**
-- `MEDIA_EMBED`, `HTML_EMBED`, `CODE_BLOCK`
+- `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
+- 注：`MEDIA_EMBED_STYLE`（媒体对齐样式）的按钮属 `config.mediaEmbed.toolbar`，须配合 `MEDIA_EMBED_TOOLBAR` 使用。
+  用 `CKEditorConfig#setMediaEmbedToolbar(...)` 设置这些按钮：
+
+```java
+config.setMediaEmbedToolbar(
+    "mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight");
+```
 
 **Special:**
 - `HORIZONTAL_LINE`, `PAGE_BREAK`, `SPECIAL_CHARACTERS`

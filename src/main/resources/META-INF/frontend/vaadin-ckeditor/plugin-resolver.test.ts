@@ -58,6 +58,23 @@ describe('filterConflictingPlugins', () => {
             expect(logger.warn).toHaveBeenCalledTimes(2);
         });
 
+        it('should remove CKFinder by default (requires uploadUrl/server config)', () => {
+            const plugins = ['Bold', 'CKFinder', 'Italic'];
+            const result = filterConflictingPlugins(plugins, logger);
+
+            expect(result.filtered).toEqual(['Bold', 'Italic']);
+            expect(result.removed).toContain('CKFinder');
+        });
+
+        it('should keep CKFinder when allowConfigRequiredPlugins is set', () => {
+            const plugins = ['Bold', 'CKFinder'];
+            const options: FilterOptions = { allowConfigRequiredPlugins: true };
+            const result = filterConflictingPlugins(plugins, logger, options);
+
+            expect(result.filtered).toContain('CKFinder');
+            expect(result.removed).not.toContain('CKFinder');
+        });
+
         it('should keep first plugin from mutually exclusive group', () => {
             const plugins = ['RestrictedEditingMode', 'StandardEditingMode'];
             const result = filterConflictingPlugins(plugins, logger);
@@ -355,6 +372,7 @@ describe('PluginResolver', () => {
 
         it('should check if plugin requires configuration', () => {
             expect(resolver.requiresConfiguration('Minimap')).toBe(true);
+            expect(resolver.requiresConfiguration('CKFinder')).toBe(true);
             expect(resolver.requiresConfiguration('Bold')).toBe(false);
         });
     });

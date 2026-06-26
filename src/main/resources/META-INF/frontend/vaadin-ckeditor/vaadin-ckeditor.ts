@@ -324,7 +324,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '5.3.0';
+    private readonly version = '5.3.1';
 
     constructor() {
         super();
@@ -563,15 +563,16 @@ export class VaadinCKEditor extends LitElement {
             logger.debug('CommentPermissionEnforcer plugin injected');
         }
 
-        // 嵌入媒体缩放（issue #71）：MediaEmbedResize 不在 umbrella ckeditor5 包，
-        // 启用时从同版本子包按需动态加载并注册。
+        // 嵌入媒体缩放（issue #71）：MediaEmbedResize 由 umbrella ckeditor5 导出，
+        // 但属功能性 premium（依赖的 editing 子插件 isPremiumPlugin=true），
+        // 故启用时才从 ckeditor5 按需动态加载，加载失败（如缺 license）静默降级。
         if (shouldLoadMediaEmbedResize(this.config)) {
             const resizePlugin = await loadMediaEmbedResizePlugin();
             if (resizePlugin) {
                 resolvedPlugins.push(resizePlugin);
                 logger.debug('MediaEmbedResize plugin injected');
             } else {
-                logger.warn('MediaEmbedResize requested but could not be loaded from @ckeditor/ckeditor5-media-embed');
+                logger.warn('MediaEmbedResize requested but could not be loaded from ckeditor5 (a commercial license may be required)');
             }
         }
 
