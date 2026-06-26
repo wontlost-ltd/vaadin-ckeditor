@@ -28,6 +28,7 @@ import { decideDataChange } from './data-change-decision';
 import { replaceObserver, disposeObserver } from './observer-lifecycle';
 import { createRefcount } from './dark-theme-refcount';
 import { isAllowedCssUrl } from './css-url-validator';
+import { shouldLoadMediaEmbedResize, loadMediaEmbedResizePlugin } from './media-embed-resize';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -560,6 +561,18 @@ export class VaadinCKEditor extends LitElement {
         if (this.commentPermissionEnforcerEnabled && this.annotationSidebarEnabled) {
             resolvedPlugins.push(CommentPermissionEnforcer);
             logger.debug('CommentPermissionEnforcer plugin injected');
+        }
+
+        // 嵌入媒体缩放（issue #71）：MediaEmbedResize 不在 umbrella ckeditor5 包，
+        // 启用时从同版本子包按需动态加载并注册。
+        if (shouldLoadMediaEmbedResize(this.config)) {
+            const resizePlugin = await loadMediaEmbedResizePlugin();
+            if (resizePlugin) {
+                resolvedPlugins.push(resizePlugin);
+                logger.debug('MediaEmbedResize plugin injected');
+            } else {
+                logger.warn('MediaEmbedResize requested but could not be loaded from @ckeditor/ckeditor5-media-embed');
+            }
         }
 
         // Get translations for the specified language

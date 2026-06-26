@@ -222,10 +222,37 @@ public class CKEditorConfig {
      * Set media embed configuration
      */
     public CKEditorConfig setMediaEmbed(boolean previewsInData) {
-        ObjectNode mediaObj = createObjectNode();
+        ObjectNode mediaObj = getOrCreateMediaEmbed();
         mediaObj.put("previewsInData", previewsInData);
         configs.put("mediaEmbed", mediaObj);
         return this;
+    }
+
+    /**
+     * 启用/禁用嵌入媒体（视频等）的拖拽缩放（issue #71）。
+     *
+     * <p>启用后，选中嵌入媒体会显示四角缩放手柄，可按比例调整宽度。底层由 CKEditor 的
+     * {@code MediaEmbedResize} 插件实现——该插件在 48.2.0 中未由 umbrella {@code ckeditor5}
+     * 包导出，因此前端会在启用时按需从同版本 {@code @ckeditor/ckeditor5-media-embed} 子包
+     * 动态加载并注册，无需消费端额外配置。缩放数据以 {@code media_resized} class + 内联
+     * width 写入 {@code <figure>}，与 {@code previewsInData} 设置无关。</p>
+     *
+     * @param resizable true 启用拖拽缩放
+     * @return this
+     */
+    public CKEditorConfig setMediaEmbedResizable(boolean resizable) {
+        ObjectNode mediaObj = getOrCreateMediaEmbed();
+        mediaObj.put("resizable", resizable);
+        configs.put("mediaEmbed", mediaObj);
+        return this;
+    }
+
+    private ObjectNode getOrCreateMediaEmbed() {
+        JsonNode existing = configs.get("mediaEmbed");
+        if (existing != null && existing.isObject()) {
+            return (ObjectNode) existing;
+        }
+        return createObjectNode();
     }
 
     /**
@@ -1161,6 +1188,19 @@ public class CKEditorConfig {
         JsonNode node = configs.get("mediaEmbed");
         if (node != null && node.isObject() && node.has("previewsInData")) {
             return node.get("previewsInData").asBoolean();
+        }
+        return false;
+    }
+
+    /**
+     * Check if media embed drag-to-resize is enabled.
+     *
+     * @return true if resizable is enabled, false otherwise
+     */
+    public boolean isMediaEmbedResizable() {
+        JsonNode node = configs.get("mediaEmbed");
+        if (node != null && node.isObject() && node.has("resizable")) {
+            return node.get("resizable").asBoolean();
         }
         return false;
     }
