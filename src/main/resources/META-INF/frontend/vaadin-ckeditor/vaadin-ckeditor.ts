@@ -26,6 +26,8 @@ import {
 import { shouldRefreshSourceView } from './source-editing-refresh';
 import { decideDataChange } from './data-change-decision';
 import { replaceObserver, disposeObserver } from './observer-lifecycle';
+import { createRefcount } from './dark-theme-refcount';
+import { isAllowedCssUrl } from './css-url-validator';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -1588,9 +1590,8 @@ export class VaadinCKEditor extends LitElement {
     private loadCustomCss(): void {
         if (!this.overrideCssUrl) return;
 
-        // Validate URL: only allow http(s) and relative paths (case-insensitive check)
-        const normalizedUrl = this.overrideCssUrl.trim().toLowerCase();
-        if (normalizedUrl.includes('javascript:') || normalizedUrl.includes('data:')) {
+        // 白名单校验：只允许 http/https 绝对地址与相对路径（review: 子串黑名单可被绕过）
+        if (!isAllowedCssUrl(this.overrideCssUrl)) {
             logger.warn('Rejected overrideCssUrl with unsafe protocol:', this.overrideCssUrl);
             return;
         }
@@ -1939,18 +1940,11 @@ export class VaadinCKEditor extends LitElement {
         logger.debug(' connectedCallback, editorId:', this.editorId);
         this.isDisconnected = false;
 
-        // Suppress CKEditor Pagination plugin internal errors (non-fatal)
-        if (!this.paginationErrorHandler) {
-            this.paginationErrorHandler = (event: PromiseRejectionEvent) => {
-                const err = event.reason;
-                if (err instanceof TypeError &&
-                    err.stack?.includes('PageStarterInfoToPageBreakInfo')) {
-                    event.preventDefault();
-                    logger.debug('Suppressed Pagination plugin internal error:', err.message);
-                }
-            };
-            window.addEventListener('unhandledrejection', this.paginationErrorHandler);
-        }
+        // Suppress CKEditor Pagination plugin internal errors (non-fatal).
+        // review: 单个全局 unhandledrejection listener 跨所有实例共享（带引用计数），
+        // 避免每个编辑器各注册一个、同一个 rejection 触发 N 次冗余回调。
+        VaadinCKEditor.acquirePaginationErrorHandler();
+        this.paginationHandlerAcquired = true;
 
         // Setup scroll handler for sticky panel (must be called on each connection)
         this.setupStickyPanelObserver();
@@ -1962,6 +1956,14 @@ export class VaadinCKEditor extends LitElement {
      */
     private static isSafeCssValue(value: string): boolean {
         return !/[{};]/.test(value);
+    }
+
+    /**
+     * 转义值以安全嵌入双引号 CSS 属性选择器 [attr="..."] 中。
+     * 去除可越出引号上下文的字符：反斜杠、双引号、右方括号（review: editorId 与 buttonName 统一处理）。
+     */
+    private static cssAttrValueSafe(value: string): string {
+        return value.replace(/[\\"\]]/g, '');
     }
 
     /**
@@ -1977,9 +1979,8 @@ export class VaadinCKEditor extends LitElement {
         this.removeToolbarStyles();
 
         const style = this.toolbarStyle;
-        // Escape editorId for safe use in CSS attribute selector
-        const safeEditorId = this.editorId.replace(/[\\"]/g, '');
-        const scope = `vaadin-ckeditor[editor-id="${safeEditorId}"]`;
+        // 统一用 cssAttrValueSafe 转义，防止值越出双引号属性选择器 [attr="..."]（review: 与 buttonName 保持一致）
+        const scope = `vaadin-ckeditor[editor-id="${VaadinCKEditor.cssAttrValueSafe(this.editorId)}"]`;
         const rules: string[] = [];
 
         // Helper to safely add a CSS value (rejects values with injection characters)
@@ -2020,7 +2021,7 @@ export class VaadinCKEditor extends LitElement {
         if (style.buttonStyles) {
             for (const [buttonName, buttonStyle] of Object.entries(style.buttonStyles)) {
                 // Sanitize buttonName to prevent CSS injection via attribute selector
-                const safeName = buttonName.replace(/[\\"\]]/g, '');
+                const safeName = VaadinCKEditor.cssAttrValueSafe(buttonName);
                 if (!safeName) continue;
                 const btnSelector = `${scope} .ck.ck-toolbar .ck-button[data-cke-tooltip-text*="${safeName}"]`;
                 if (buttonStyle.background && safe(buttonStyle.background)) {
@@ -2072,7 +2073,34 @@ export class VaadinCKEditor extends LitElement {
     // CKEditor 5 Pagination plugin has an internal bug in _mapElementPageStarterInfoToPageBreakInfo
     // that throws "Cannot read properties of undefined (reading 'parent')" during page break
     // recalculation after dimension changes. This is non-fatal — the editor works correctly.
-    private paginationErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
+    //
+    // review: 改为单个进程级共享 listener + 引用计数，避免每实例各注册一个导致冗余触发。
+    private paginationHandlerAcquired = false;
+    private static paginationRefcount = createRefcount();
+    private static paginationListener: ((event: PromiseRejectionEvent) => void) | null = null;
+
+    private static acquirePaginationErrorHandler(): void {
+        VaadinCKEditor.paginationRefcount = VaadinCKEditor.paginationRefcount.acquire();
+        if (VaadinCKEditor.paginationRefcount.justApplied) {
+            VaadinCKEditor.paginationListener = (event: PromiseRejectionEvent) => {
+                const err = event.reason;
+                if (err instanceof TypeError &&
+                    err.stack?.includes('PageStarterInfoToPageBreakInfo')) {
+                    event.preventDefault();
+                    logger.debug('Suppressed Pagination plugin internal error:', err.message);
+                }
+            };
+            window.addEventListener('unhandledrejection', VaadinCKEditor.paginationListener);
+        }
+    }
+
+    private static releasePaginationErrorHandler(): void {
+        VaadinCKEditor.paginationRefcount = VaadinCKEditor.paginationRefcount.release();
+        if (VaadinCKEditor.paginationRefcount.justRemoved && VaadinCKEditor.paginationListener) {
+            window.removeEventListener('unhandledrejection', VaadinCKEditor.paginationListener);
+            VaadinCKEditor.paginationListener = null;
+        }
+    }
 
     // Sticky panel scroll handler state
     private stickyPanelScrollHandler: (() => void) | null = null;
@@ -2205,10 +2233,10 @@ export class VaadinCKEditor extends LitElement {
         // Clean up theme manager (observers and dark theme)
         this.themeManager.cleanup();
 
-        // Clean up pagination error handler
-        if (this.paginationErrorHandler) {
-            window.removeEventListener('unhandledrejection', this.paginationErrorHandler);
-            this.paginationErrorHandler = null;
+        // Clean up pagination error handler (release shared global listener)
+        if (this.paginationHandlerAcquired) {
+            VaadinCKEditor.releasePaginationErrorHandler();
+            this.paginationHandlerAcquired = false;
         }
 
         // Clean up sticky panel observer
