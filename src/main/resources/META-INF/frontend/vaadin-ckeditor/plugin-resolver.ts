@@ -53,6 +53,7 @@ import {
     // Upload adapters
     Base64UploadAdapter,
     SimpleUploadAdapter,
+    CKFinder,
     // Tables
     Table,
     TableToolbar,
@@ -63,6 +64,9 @@ import {
     PlainTableOutput,
     // Media
     MediaEmbed,
+    AutoMediaEmbed,
+    MediaEmbedStyle,
+    MediaEmbedToolbar,
     HtmlEmbed,
     // Code
     CodeBlock,
@@ -207,6 +211,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     // Upload adapters
     'Base64UploadAdapter': Base64UploadAdapter,
     'SimpleUploadAdapter': SimpleUploadAdapter,
+    'CKFinder': CKFinder,
     // Tables
     'Table': Table,
     'TableToolbar': TableToolbar,
@@ -217,6 +222,9 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'PlainTableOutput': PlainTableOutput,
     // Media
     'MediaEmbed': MediaEmbed,
+    'AutoMediaEmbed': AutoMediaEmbed,
+    'MediaEmbedStyle': MediaEmbedStyle,
+    'MediaEmbedToolbar': MediaEmbedToolbar,
     'HtmlEmbed': HtmlEmbed,
     // Code
     'CodeBlock': CodeBlock,
@@ -304,6 +312,9 @@ const PLUGINS_REQUIRING_CONFIG: readonly string[] = [
     'CloudServicesCore',
     'CloudServicesUploadAdapter',
     'EasyImage',
+    // CKFinder 需要 config.ckfinder.uploadUrl / 服务端 CKFinder，缺配置会报错，
+    // 故从"全选"中过滤；显式配置后通过 allowConfigRequiredPlugins 放行。
+    'CKFinder',
 ];
 
 /**

@@ -103,4 +103,39 @@ class CKEditorPluginTest {
         assertThat(CKEditorPlugin.STYLE.getCategory()).isEqualTo(CKEditorPlugin.Category.HTML);
         assertThat(CKEditorPlugin.STYLE.getJsName()).isEqualTo("Style");
     }
+
+    @Test
+    @DisplayName("新增的免费 media-embed 配套插件应存在且分类正确")
+    void mediaEmbedCompanionFreePluginsShouldExist() {
+        assertThat(CKEditorPlugin.AUTO_MEDIA_EMBED.getJsName()).isEqualTo("AutoMediaEmbed");
+        assertThat(CKEditorPlugin.AUTO_MEDIA_EMBED.getCategory()).isEqualTo(CKEditorPlugin.Category.MEDIA);
+
+        assertThat(CKEditorPlugin.MEDIA_EMBED_STYLE.getJsName()).isEqualTo("MediaEmbedStyle");
+        assertThat(CKEditorPlugin.MEDIA_EMBED_STYLE.getCategory()).isEqualTo(CKEditorPlugin.Category.MEDIA);
+        assertThat(CKEditorPlugin.MEDIA_EMBED_STYLE.getToolbarItems())
+            .contains("mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight");
+
+        assertThat(CKEditorPlugin.MEDIA_EMBED_TOOLBAR.getJsName()).isEqualTo("MediaEmbedToolbar");
+        assertThat(CKEditorPlugin.MEDIA_EMBED_TOOLBAR.getCategory()).isEqualTo(CKEditorPlugin.Category.MEDIA);
+    }
+
+    @Test
+    @DisplayName("CKFinder 应作为免费上传类插件存在")
+    void ckFinderShouldExistAsUploadPlugin() {
+        assertThat(CKEditorPlugin.CKFINDER.getJsName()).isEqualTo("CKFinder");
+        assertThat(CKEditorPlugin.CKFINDER.getCategory()).isEqualTo(CKEditorPlugin.Category.UPLOAD);
+    }
+
+    @Test
+    @DisplayName("LineHeight 不应再出现在免费插件枚举中（实为 premium）")
+    void lineHeightShouldNotBeAFreePlugin() {
+        // LineHeight 在 ckeditor5 48.x 属 premium（见 VaadinCKEditorPremium.PremiumPlugin.LINE_HEIGHT），
+        // 不由 umbrella ckeditor5 导出，故不得作为免费内置插件存在。
+        assertThat(CKEditorPlugin.fromJsName("LineHeight")).isNull();
+        for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
+            assertThat(plugin.getJsName())
+                .as("免费枚举不应包含 LineHeight")
+                .isNotEqualTo("LineHeight");
+        }
+    }
 }
