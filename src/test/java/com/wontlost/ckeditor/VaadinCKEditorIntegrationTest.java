@@ -287,6 +287,56 @@ class VaadinCKEditorIntegrationTest {
             assertEquals("<p>second</p>", lastNew.get());
             assertEquals("<p>second</p>", editor.getValue());
         }
+
+        @Test
+        @DisplayName("rapid successive setValue calls keep the last value and listener stays consistent")
+        void testRapidSuccessiveSetValuePreservesLast() {
+            // 审查发现的测试盲区：快速连续 setValue 应保留最后一个值，
+            // 且监听器最终读到的值与 getValue() 一致。
+            AtomicReference<String> lastListenerValue = new AtomicReference<>();
+            editor.addValueChangeListener(event -> lastListenerValue.set(event.getValue()));
+
+            for (int i = 0; i < 50; i++) {
+                editor.setValue("<p>v" + i + "</p>");
+            }
+
+            assertEquals("<p>v49</p>", editor.getValue(), "last setValue wins");
+            assertEquals("<p>v49</p>", lastListenerValue.get(),
+                "listener's final value must equal getValue()");
+        }
+
+        @Test
+        @DisplayName("rapid identical setValue calls fire exactly one change event")
+        void testRapidIdenticalSetValueFiresOnce() {
+            // 连续设置相同值只应触发一次事件（首次 ""→值），其余被 equals 守卫拦截。
+            AtomicInteger fireCount = new AtomicInteger(0);
+            editor.addValueChangeListener(event -> fireCount.incrementAndGet());
+
+            for (int i = 0; i < 10; i++) {
+                editor.setValue("<p>same</p>");
+            }
+
+            assertEquals(1, fireCount.get(),
+                "only the first distinct value should fire; identical repeats are guarded");
+            assertEquals("<p>same</p>", editor.getValue());
+        }
+
+        @Test
+        @DisplayName("interleaved setValue (server) and setModelValue (client) keep last value consistent")
+        void testInterleavedServerClientChanges() {
+            // 混合服务端 setValue 与客户端 setModelValue，最终值与监听器读到的值必须一致。
+            AtomicReference<String> lastListenerValue = new AtomicReference<>();
+            editor.addValueChangeListener(event -> lastListenerValue.set(event.getValue()));
+
+            editor.setValue("<p>server-1</p>");
+            editor.setModelValue("<p>client-1</p>", true);
+            editor.setValue("<p>server-2</p>");
+            editor.setModelValue("<p>client-2</p>", true);
+
+            assertEquals("<p>client-2</p>", editor.getValue());
+            assertEquals("<p>client-2</p>", lastListenerValue.get(),
+                "listener's final value must match getValue() after interleaved changes");
+        }
     }
 
     // ==================== Content Stats Tests ====================

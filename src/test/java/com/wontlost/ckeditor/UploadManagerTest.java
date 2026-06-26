@@ -371,4 +371,50 @@ class UploadManagerTest {
         assertEquals(1, callbackCount.get(),
             "same uploadId must notify exactly once even without an UploadTask");
     }
+
+    // review (test-gap): 并发 cancel vs complete 必须只回调一次
+    @org.junit.jupiter.api.RepeatedTest(20)
+    @DisplayName("concurrent cancel and completion notify the callback exactly once")
+    void concurrentCancelAndCompleteNotifyOnce() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger callbackCount =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+        CountDownLatch done = new CountDownLatch(1);
+        UploadManager.UploadResultCallback countingCallback = (id, url, err) -> {
+            callbackCount.incrementAndGet();
+            done.countDown();
+        };
+
+        // handler 返回一个可被外部 race 完成的 future
+        CompletableFuture<UploadHandler.UploadResult> future = new CompletableFuture<>();
+        CountDownLatch handlerStarted = new CountDownLatch(1);
+        UploadHandler racingHandler = (ctx, stream) -> {
+            handlerStarted.countDown();
+            return future;
+        };
+
+        manager = new UploadManager(racingHandler, null, countingCallback);
+        manager.handleUpload("race-1", "r.jpg", "image/jpeg", createBase64Data("data"));
+        assertTrue(handlerStarted.await(2, TimeUnit.SECONDS));
+
+        // 同时从两个线程触发 complete 与 cancel，制造竞态
+        CountDownLatch go = new CountDownLatch(1);
+        Thread completer = new Thread(() -> {
+            try { go.await(); } catch (InterruptedException ignored) { }
+            future.complete(new UploadHandler.UploadResult("https://example.com/r.jpg"));
+        });
+        Thread canceller = new Thread(() -> {
+            try { go.await(); } catch (InterruptedException ignored) { }
+            manager.cancelUpload("race-1");
+        });
+        completer.start();
+        canceller.start();
+        go.countDown(); // 同时放行
+        completer.join(2000);
+        canceller.join(2000);
+
+        assertTrue(done.await(2, TimeUnit.SECONDS), "callback should fire");
+        // 关键断言：无论 cancel 还是 complete 先到，回调只能发生一次
+        assertEquals(1, callbackCount.get(),
+            "concurrent cancel/complete must notify exactly once, never twice");
+    }
 }
