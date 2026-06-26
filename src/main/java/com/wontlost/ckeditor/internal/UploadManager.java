@@ -5,6 +5,7 @@ import com.wontlost.ckeditor.handler.UploadHandler;
 import java.io.ByteArrayInputStream;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -112,6 +113,8 @@ public class UploadManager {
     private final UploadHandler.UploadConfig uploadConfig;
     private final UploadResultCallback resultCallback;
     private final Map<String, UploadTask> activeTasks = new ConcurrentHashMap<>();
+    // 已通知的 uploadId 集合：即使 early-failure 路径 task==null，也能防止同一上传重复回调（review 发现）。
+    private final Set<String> notifiedUploadIds = ConcurrentHashMap.newKeySet();
     private final long uploadTimeoutSeconds;
 
     /**
@@ -161,6 +164,22 @@ public class UploadManager {
             logger.log(Level.WARNING, "Upload {0} rejected: no upload handler configured", uploadId);
             notifyError(uploadId, null, "No upload handler configured");
             return;
+        }
+
+        // 在 decode 前按 base64 长度估算解码后大小，超过上限直接拒绝，
+        // 避免恶意超大 base64 先解码成巨大字节数组导致 OOM/DoS（review 发现）。
+        // base64 每 4 字符编码 3 字节，估算 = length/4*3，留足余量。
+        if (base64Data != null) {
+            long estimatedSize = (long) base64Data.length() / 4 * 3;
+            long maxFileSize = uploadConfig.getMaxFileSize();
+            if (estimatedSize > maxFileSize) {
+                logger.log(Level.INFO,
+                    "Upload {0} rejected before decode: estimated {1} bytes exceeds max {2} bytes",
+                    new Object[]{uploadId, estimatedSize, maxFileSize});
+                notifyError(uploadId, null,
+                    "File exceeds maximum allowed size of " + maxFileSize + " bytes");
+                return;
+            }
         }
 
         byte[] fileData;
@@ -391,6 +410,7 @@ public class UploadManager {
             cancelUpload(uploadId);
         }
         activeTasks.clear();
+        notifiedUploadIds.clear();
     }
 
     /**
@@ -405,13 +425,15 @@ public class UploadManager {
      * Notify upload result with double notification guard
      */
     private void notifyResult(String uploadId, UploadTask task, String url, String error) {
-        // Double notification guard
+        // Double notification guard：以 uploadId 集合作为唯一守卫，
+        // 即使 early-failure 路径 task==null 也能防止重复回调（review 发现）。
+        // add() 原子地"首次插入返回 true"，确保每个 uploadId 只通知一次。
+        if (!notifiedUploadIds.add(uploadId)) {
+            logger.log(Level.FINE, "Skipping duplicate notification for upload {0}", uploadId);
+            return;
+        }
         if (task != null) {
             synchronized (task) {
-                if (task.isNotified()) {
-                    logger.log(Level.FINE, "Skipping duplicate notification for upload {0}", uploadId);
-                    return;
-                }
                 task.setNotified(true);
             }
         }
