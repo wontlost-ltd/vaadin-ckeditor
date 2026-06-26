@@ -162,6 +162,29 @@ class UploadConfigTest {
         assertTrue(error.contains("null"));
     }
 
+    // review: null mimeType 应被拒绝，且错误信息显示 "unknown" 而非字面 "null"
+    @Test
+    @DisplayName("validate should reject null MIME type with a meaningful 'unknown' message")
+    void validateNullMimeType() {
+        config.setAllowedMimeTypes("image/jpeg", "image/png");
+        UploadHandler.UploadContext context = createMockContext(null, 1024);
+
+        String error = config.validate(context);
+
+        assertNotNull(error, "null mime type must be rejected when a whitelist is set");
+        assertTrue(error.contains("not allowed"), "should report disallowed: " + error);
+        assertTrue(error.contains("unknown"), "should show 'unknown' not 'null': " + error);
+        assertFalse(error.contains("'null'"), "must not print the literal 'null': " + error);
+    }
+
+    @Test
+    @DisplayName("validate should allow null MIME type when whitelist is empty")
+    void validateNullMimeTypeEmptyWhitelist() {
+        config.setAllowedMimeTypes(); // empty = allow all
+        UploadHandler.UploadContext context = createMockContext(null, 1024);
+        assertNull(config.validate(context));
+    }
+
     private UploadHandler.UploadContext createMockContext(String mimeType, long fileSize) {
         return new UploadHandler.UploadContext("test.file", mimeType, fileSize);
     }
