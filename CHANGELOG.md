@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Vaadin Platform：25.2.6 → 25.3.0**（根 `pom.xml`、`ckeditor-vaadin-testbench/pom.xml`、
+  `examples/spring-boot-sample/pom.xml`）。
+- **CKEditor 5（`ckeditor5`、`ckeditor5-premium-features`）：48.5.0 → 48.5.2**。
+  patch 版本升级。同步更新全部版本锚点：前端 `package.json` 与 `package-lock.json`、
+  `@NpmPackage` 注解（`VaadinCKEditor`、`VaadinCKEditorPremium`）、
+  `VaadinCKEditorPremium.getVersion()` 返回值、示例应用 `package.json`
+  （由 `vaadin:build-frontend` 重新生成）。
+  已复核 issue #122 的修复前提在 48.5.2 下依然成立：逐字节比对
+  `@ckeditor/ckeditor5-core` 48.5.0 与 48.5.2 的 `dist/index.js`，二者**完全相同**
+  （两版本间仅 `package.json` 与 `LICENSE.md` 有差异），故 `Context#_removeEditor`
+  与 `Collection#add` 的行为未变，该修复继续必要且有效。
+
+### Fixed
+- **Vaadin 25.3.0 的 `vaadin-bom` 不再 import `tools.jackson:jackson-bom`**，
+  导致本项目 `tools.jackson.core:jackson-databind`（不写 version，依赖 BOM 管理）
+  失去版本来源、Maven 构建直接失败（`'dependencies.dependency.version' ... is missing`）。
+  修复方式为在 `dependencyManagement` 中显式 import `tools.jackson:jackson-bom`，
+  版本由新增的 `${jackson3.version}` 属性单点控制，取值 3.1.5 —— 与
+  `vaadin-core:25.3.0` 传递引入的 Jackson 版本一致，保持跟随 Vaadin 的安全基线，
+  同时延续“不在依赖声明处写死版本”的既有约定（避免把消费端拉回旧版）。
+  该问题由 Matti Tahvonen 在 PR #129 中独立指出（"Vaadin 25.3 will stop declaring that"），
+  本处采用 BOM import 而非在依赖声明处写死版本，两者解析到的版本一致。
+- **`frontendHotdeploy=true` 下 UI 无限转圈**（issue #120）——**由 Vaadin 25.3.0 修复，本库无需改动**。
+  根因是 rolldown 会把 TS 装饰器降级为 `@oxc-project/runtime` 的辅助模块 import，
+  但该包此前**无人声明**（rolldown 只依赖 `@oxc-project/types`），dev server 模式下
+  辅助模块 404。Vaadin 25.3.0 起已在生成的 `package.json` 中自行声明
+  `@oxc-project/runtime`，该包现已存在于依赖树中。
+  已用示例应用的 `-Photdeploy` 档实机验证（Vite 8.3.0 / rolldown 1.2.9）：
+  连接器实际发出的 import 为 `.../@oxc-project+runtime@0.150.0/helpers/esm/decorate.js`，
+  返回 **200**；浏览器打开 `/classic` 后编辑器正常渲染并可输入，
+  无失败请求、无 console 错误。故先前考虑的 `@NpmPackage("@oxc-project/runtime")`
+  固定版本方案**不再需要**——那样反而会把版本钉死、与 Vaadin 自带声明冲突。
+
 ## [5.4.0] - 2026-09-06
 
 ### Changed
