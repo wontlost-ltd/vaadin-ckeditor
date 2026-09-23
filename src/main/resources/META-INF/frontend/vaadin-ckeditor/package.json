@@ -2,6 +2,9 @@
   "name": "vaadin-ckeditor",
   "version": "5.4.0",
   "description": "Vaadin CKEditor 5 Web Component",
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "test": "vitest run",

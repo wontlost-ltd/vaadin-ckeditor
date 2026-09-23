@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/wontlost-ltd/vaadin-ckeditor/security/advisories/new
+    about: 请勿通过公开 issue 报告安全问题，使用此私密通道。

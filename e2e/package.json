@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Playwright E2E smoke tests driving the Spring Boot sample app at examples/spring-boot-sample.",
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "test": "playwright test",
