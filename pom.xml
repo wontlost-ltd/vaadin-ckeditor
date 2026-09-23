@@ -15,7 +15,15 @@
         <developerConnection>scm:git:git@github.com:wontlost-ltd/vaadin-ckeditor.git</developerConnection>
     </scm>
     <properties>
-        <vaadin.version>25.2.6</vaadin.version>
+        <vaadin.version>25.3.0</vaadin.version>
+        <!--
+            Jackson 3 的版本基线。Vaadin 25.3.0 的 vaadin-bom 不再 import
+            tools.jackson:jackson-bom（25.2.x 时还会），故需在此显式导入，
+            否则 jackson-databind 无版本可解析、构建直接失败。
+            取值对齐 vaadin-core 25.3.0 传递引入的 jackson 版本，保持与
+            Vaadin 的安全基线一致。
+        -->
+        <jackson3.version>3.1.5</jackson3.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -48,6 +56,14 @@
                 <version>${vaadin.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <type>pom</type>
+                <scope>import</scope>
+                <version>${jackson3.version}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -61,9 +77,9 @@
 
         <!--
             Jackson JSON 3.x（provided - Vaadin 25+ 的 setPropertyJson 使用）。
-            不显式声明 version：vaadin-bom 已透传 tools.jackson:jackson-bom
-            （25.2.6 对应 3.1.5），由其统一管理版本。这样既跟随 Vaadin 的安全基线
-            自动获得补丁版本，也避免我们写死的版本反过来把消费端拉回旧版
+            此处不写 version：由上方 dependencyManagement 导入的
+            tools.jackson:jackson-bom 统一管理（见 ${jackson3.version} 注释）。
+            保持“单点声明版本”可避免我们写死的版本把消费端拉回旧版
             （此前写死 3.1.4 即触发 CVE-2026-59889）。
         -->
         <dependency>

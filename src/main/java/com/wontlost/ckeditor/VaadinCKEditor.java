@@ -90,7 +90,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
  */
 @Tag("vaadin-ckeditor")
 @JsModule("./vaadin-ckeditor/vaadin-ckeditor.ts")
-@NpmPackage(value = "ckeditor5", version = "48.5.0")
+@NpmPackage(value = "ckeditor5", version = "48.5.2")
 @NpmPackage(value = "lit", version = "^3.3.3")
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
 

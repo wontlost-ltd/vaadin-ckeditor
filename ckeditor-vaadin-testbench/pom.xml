@@ -25,7 +25,7 @@
     </scm>
 
     <properties>
-        <vaadin.version>25.2.6</vaadin.version>
+        <vaadin.version>25.3.0</vaadin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
