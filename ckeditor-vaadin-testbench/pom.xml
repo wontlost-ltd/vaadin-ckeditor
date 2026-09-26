@@ -7,7 +7,7 @@
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin-testbench</artifactId>
     <packaging>jar</packaging>
-    <version>5.4.0</version>
+    <version>5.4.1</version>
     <name>CKEditorVaadin TestBench</name>
     <description>
         Optional Vaadin TestBench element API for the CKEditor 5 Vaadin integration.

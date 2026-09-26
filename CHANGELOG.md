@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.1] - 2026-09-26
+
 ### Changed
 - **显式 import `junit-bom`**（置于 `vaadin-bom` 之前），JUnit 版本改由新增的
   `${junit.version}` 单点控制，依赖声明处不再写死版本。
