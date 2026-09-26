@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **`vitest`、`@vitest/coverage-v8`：4.1.9 → 4.1.11**（devDependency）。
+  修复 `@vitest/mocker` 的 Path Traversal / Arbitrary File Read 公告
+  （影响范围 2.1.0 – 4.1.10），`npm audit` 由 3 moderate 降为 **0**。
+  取 4.1.11 而非 Dependabot 提议的 5.0.1：前者是 4.x 线内的最小修复版本，
+  不跨 major，避免为一个仅影响开发期依赖的公告引入测试框架的破坏性变更。
+  该依赖不随 jar 分发，`npm audit --omit=dev` 此前即为 0 vulnerabilities，
+  故对消费端无影响。
+
 ### Changed
 - **Vaadin Platform：25.2.6 → 25.3.0**（根 `pom.xml`、`ckeditor-vaadin-testbench/pom.xml`、
   `examples/spring-boot-sample/pom.xml`）。
