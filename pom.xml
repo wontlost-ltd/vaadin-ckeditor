@@ -24,6 +24,16 @@
             Vaadin 的安全基线一致。
         -->
         <jackson3.version>3.1.5</jackson3.version>
+        <!--
+            JUnit 版本基线。显式 import junit-bom 并置于其他 BOM 之前，是为了让
+            JUnit 全部构件（api / params / engine / platform-*）始终由同一版本管理。
+            当前 vaadin-bom 不管理 JUnit，单写依赖声明也能工作；但只要将来引入任何
+            管理 JUnit 的 BOM（如 spring-boot-dependencies，其 junit-jupiter.version
+            会覆盖此处声明），版本就会分裂成混合状态，surefire 随即因 JUnit jar
+            版本不一致而 NoClassDefFoundError、一个测试都跑不起来。
+            该失败只在 mvn verify 下暴露，mvn test 不触发，故预先固化。
+        -->
+        <junit.version>6.0.3</junit.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -48,6 +58,14 @@
     </developers>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <type>pom</type>
+                <scope>import</scope>
+                <version>${junit.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>
@@ -112,7 +130,6 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.0.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>

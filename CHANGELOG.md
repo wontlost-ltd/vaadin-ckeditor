@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **显式 import `junit-bom`**（置于 `vaadin-bom` 之前），JUnit 版本改由新增的
+  `${junit.version}` 单点控制，依赖声明处不再写死版本。
+  这是**预防性加固，非缺陷修复**：已实测当前 `vaadin-bom` 25.3.0 不管理 JUnit，
+  单写依赖声明可正常工作，把版本提到 6.1.3 时六个构件也能齐平、563 项测试全通过。
+  加固的动机是将来一旦引入任何管理 JUnit 的 BOM（如 `spring-boot-dependencies`，
+  其 `junit-jupiter.version` 会覆盖依赖声明处的版本——同批次的 `vaadin-agui`
+  正因此把声明的 6.1.3 静默解析成 6.0.3），版本就会分裂成混合状态，
+  surefire 随即因 JUnit jar 版本不一致而 `NoClassDefFoundError`、测试一个都跑不起来。
+  该类失败只在 `mvn verify` 下暴露，`mvn test` 不触发，排查成本高，故预先固化。
+  本次解析版本维持 6.0.3 不变，无行为变更。
+
 ### Security
 - **`vitest`、`@vitest/coverage-v8`：4.1.9 → 4.1.11**（devDependency）。
   修复 `@vitest/mocker` 的 Path Traversal / Arbitrary File Read 公告
