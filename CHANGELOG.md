@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **卸载时泄漏整个编辑器**：组件从 DOM 断开时此前跳过 `editor.destroy()`、寄望 GC 回收，
+  但 CKEditor 挂在 window / document 上的定时器与监听器使其永远无法回收——每次导航、
+  每次把编辑器移出布局都泄漏一个完整实例（约 88 个 DOM 节点、88 个监听器、800 KB 堆）。
+  现在所有卸载路径都真正销毁实例（带超时兜底），且超时计时器在销毁完成后即被清除。
+- **大文档下发与回传重复传输**：`setValue()` 的内容此前经属性与 `executeJs` 各传一份，
+  客户端 `setData` 执行两次；客户端每次变更又把文档以「旧内容 + 新内容 + 新内容」三份回传。
+  现在下发与回传各只传一份（旧内容由服务端镜像补全；服务端改值或协作变更之后的第一次上报
+  仍显式携带旧内容，避免被 disabled / inert 丢弃的上报使镜像过期），
+  1 MB 文档 `setValue` 由约 5.5 s 降至约 1.4 s。
+- **`setMinimapEnabled(true)` 不生效**：Minimap 插件被「需要特殊配置」规则自动剔除，
+  而其必需配置正是由连接器注入的。现在 decoupled 编辑器启用 minimap 时自动加载该插件。
+- **组件无法随 Vaadin 会话序列化**：`CKEditorConfig`、内部管理器与处理器接口未实现
+  `Serializable`，会话持久化 / 集群复制时抛 `NotSerializableException`。现在可完整往返；
+  不可序列化的 autosave 回调会被丢弃并记录警告，而不再拖垮整个会话。
+
+### Changed
+- `ContentChangeEvent` 仅在注册了监听器时由客户端上报（此前无论有无监听器都发送整份文档）。
+  事件内容与触发顺序不变；客户端 ↔ 服务端的内部 RPC `fireContentChange` 由合并后的
+  `syncContent` 取代（同一 jar 内的前后端协议，无需迁移）。
+- `HtmlSanitizer`、`ErrorHandler`、`UploadHandler` 现继承 `Serializable`（源码兼容；
+  lambda 自动成为可序列化）。`HtmlSanitizer.withSafelist(...)` 因 jsoup `Safelist`
+  不可序列化，返回的净化器仍无法随会话序列化，已在 Javadoc 注明。
+
 ## [5.4.1] - 2026-09-26
 
 ### Changed

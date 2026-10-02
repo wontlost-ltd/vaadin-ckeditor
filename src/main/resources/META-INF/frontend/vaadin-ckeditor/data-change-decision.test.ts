@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decideDataChange, type DataChangeState } from './data-change-decision';
+import { decideDataChange, needsContent, type DataChangeState } from './data-change-decision';
 
 function state(overrides: Partial<DataChangeState> = {}): DataChangeState {
     return {
@@ -8,6 +8,8 @@ function state(overrides: Partial<DataChangeState> = {}): DataChangeState {
         sync: true,
         apiChangeDepth: 0,
         changeSource: 'USER_INPUT',
+        contentChangeEvents: true,
+        serverKnowsLastContent: true,
         ...overrides,
     };
 }
@@ -73,6 +75,76 @@ describe('decideDataChange', () => {
         it('preserves PASTE source when not API-originated', () => {
             const d = decideDataChange(state({ apiChangeDepth: 0, changeSource: 'PASTE' }));
             expect(d.contentChangeSource).toBe('PASTE');
+        });
+    });
+
+    describe('issue #137: contentChange 只在有监听器时上报，且旧内容按需携带', () => {
+        it('无监听器时不上报，但仍推进 lastKnownContent 并标记服务端镜像失配', () => {
+            const d = decideDataChange(state({ contentChangeEvents: false }));
+            expect(d.fireContentChange).toBe(false);
+            expect(d.nextLastKnownContent).toBe('<p>new</p>');
+            expect(d.nextServerKnowsLastContent).toBe(false);
+            expect(d.resetChangeSource).toBe(true);
+        });
+
+        it('无监听器不影响用户输入同步', () => {
+            const d = decideDataChange(state({ contentChangeEvents: false, sync: true }));
+            expect(d.syncToServer).toBe(true);
+        });
+
+        it('服务端镜像一致时不携带旧内容', () => {
+            const d = decideDataChange(state({ serverKnowsLastContent: true }));
+            expect(d.fireContentChange).toBe(true);
+            expect(d.sendOldContent).toBe(false);
+            expect(d.nextServerKnowsLastContent).toBe(true);
+        });
+
+        it('服务端镜像失配时携带旧内容，上报后恢复一致', () => {
+            const d = decideDataChange(state({ serverKnowsLastContent: false }));
+            expect(d.sendOldContent).toBe(true);
+            expect(d.nextServerKnowsLastContent).toBe(true);
+        });
+
+        it('内容未变时不改变镜像状态', () => {
+            for (const known of [true, false]) {
+                const d = decideDataChange(state({ newContent: '<p>x</p>', lastKnownContent: '<p>x</p>', serverKnowsLastContent: known }));
+                expect(d.sendOldContent).toBe(false);
+                expect(d.nextServerKnowsLastContent).toBe(known);
+            }
+        });
+    });
+
+    describe('needsContent', () => {
+        it('有监听器时总是需要内容', () => {
+            expect(needsContent({ contentChangeEvents: true, sync: false, apiChangeDepth: 1 })).toBe(true);
+        });
+
+        it('无监听器时，只有需同步的用户输入才需要内容', () => {
+            expect(needsContent({ contentChangeEvents: false, sync: true, apiChangeDepth: 0 })).toBe(true);
+            expect(needsContent({ contentChangeEvents: false, sync: true, apiChangeDepth: 1 })).toBe(false);
+            expect(needsContent({ contentChangeEvents: false, sync: false, apiChangeDepth: 0 })).toBe(false);
+        });
+    });
+
+    describe('issue #137 审查：可能被服务端丢弃的上报之后不信任镜像', () => {
+        it('API 回填的上报之后，下次必须携带旧内容', () => {
+            const d = decideDataChange(state({ apiChangeDepth: 1, serverKnowsLastContent: true }));
+            expect(d.fireContentChange).toBe(true);
+            expect(d.sendOldContent).toBe(false);
+            expect(d.nextServerKnowsLastContent).toBe(false);
+        });
+
+        it('协作变更的上报之后，下次必须携带旧内容', () => {
+            const d = decideDataChange(state({ changeSource: 'COLLABORATION' }));
+            expect(d.nextServerKnowsLastContent).toBe(false);
+        });
+
+        it('本地用户输入的上报之后信任镜像', () => {
+            for (const source of ['USER_INPUT', 'PASTE', 'UNDO_REDO']) {
+                const d = decideDataChange(state({ changeSource: source, serverKnowsLastContent: false }));
+                expect(d.sendOldContent).toBe(true);
+                expect(d.nextServerKnowsLastContent).toBe(true);
+            }
         });
     });
 });

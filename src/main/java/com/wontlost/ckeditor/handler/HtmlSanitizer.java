@@ -1,5 +1,7 @@
 package com.wontlost.ckeditor.handler;
 
+import java.io.Serializable;
+
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
@@ -22,7 +24,7 @@ import org.jsoup.safety.Safelist;
  * @see SanitizationPolicy
  */
 @FunctionalInterface
-public interface HtmlSanitizer {
+public interface HtmlSanitizer extends Serializable {
 
     /**
      * Sanitize HTML content.
@@ -96,6 +98,10 @@ public interface HtmlSanitizer {
 
     /**
      * Create a sanitizer with a custom safelist.
+     *
+     * <p>注意：jsoup 的 {@link Safelist} 不可序列化，因此本方法返回的净化器无法随
+     * Vaadin 会话序列化（会话复制 / 持久化）。需要会话序列化时请改用
+     * {@link #withPolicy(SanitizationPolicy)} 或自行实现可序列化的净化器。</p>
      *
      * @param safelist the Jsoup safelist configuration
      * @return a sanitizer instance

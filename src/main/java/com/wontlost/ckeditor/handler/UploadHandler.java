@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
  * </pre>
  */
 @FunctionalInterface
-public interface UploadHandler {
+public interface UploadHandler extends java.io.Serializable {
 
     /**
      * Handle file upload
@@ -132,7 +132,7 @@ public interface UploadHandler {
     /**
      * Upload configuration
      */
-    class UploadConfig {
+    class UploadConfig implements java.io.Serializable {
         /** Minimum allowed file size: 1 byte */
         public static final long MIN_FILE_SIZE = 1;
         /** Maximum allowed file size: 1GB */

@@ -153,6 +153,11 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
+> **Session serialization:** the callback is a `java.util.function.Consumer`, which is not
+> `Serializable`. If your sessions are persisted or replicated, pass a serializable callback
+> (for example `(Consumer<String> & Serializable) content -> ...`); a non-serializable one is
+> dropped with a warning when the session is serialized instead of failing the whole session.
+
 ### Read-Only Mode
 
 ```java

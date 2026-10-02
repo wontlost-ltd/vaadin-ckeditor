@@ -114,6 +114,11 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private static final String DEFAULT_LICENSE_KEY = "GPL";
 
     private String editorData;
+    /**
+     * 客户端上一次上报 contentChange 时的新内容（服务端镜像，issue #137）。
+     * 客户端在镜像可用时不再回传旧内容，由这里补全 {@link ContentChangeEvent#getOldContent()}。
+     */
+    private String lastContentChangeValue = "";
     private final Set<CKEditorPlugin> plugins = new LinkedHashSet<>();
     private final Set<CustomPlugin> customPlugins = new LinkedHashSet<>();
     private CKEditorConfig config;
@@ -124,7 +129,11 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private boolean readOnly = false;
     private boolean autosave = false;
     private int autosaveWaitingTime = DEFAULT_AUTOSAVE_WAITING_TIME;
-    private Consumer<String> autosaveCallback;
+    /**
+     * autosave 回调。公开 API 的参数类型是 {@link Consumer}，用户传入的 lambda 通常不可序列化，
+     * 因此由 {@link #writeObject} 按「可序列化才写入」处理，避免一个回调拖垮整个会话的序列化。
+     */
+    private transient Consumer<String> autosaveCallback;
     private String licenseKey = DEFAULT_LICENSE_KEY;
     private ErrorHandler errorHandler;
     private HtmlSanitizer htmlSanitizer;
@@ -138,7 +147,11 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
 
     // Internal managers
-    private UploadManager uploadManager;
+    /**
+     * 上传管理器持有进行中的任务与 Future，属于瞬态：不参与会话序列化，
+     * 反序列化后由 {@link #readObject} 按 uploadHandler / uploadConfig 重建。
+     */
+    private transient UploadManager uploadManager;
     private ContentManager contentManager;
     private EventDispatcher eventDispatcher;
 
@@ -224,33 +237,60 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
         // Initialize upload manager if upload handler is configured
         if (uploadHandler != null) {
-            // Use WeakReference to avoid memory leaks
-            // Lambda implicitly captures 'this', if UploadManager outlives VaadinCKEditor,
-            // it would prevent VaadinCKEditor from being garbage collected
-            final WeakReference<VaadinCKEditor> editorRef = new WeakReference<>(this);
+            this.uploadManager = createUploadManager();
+        }
+    }
 
-            this.uploadManager = new UploadManager(
-                uploadHandler,
-                uploadConfig, // Use configured upload params (defaults if null)
-                (uploadId, url, error) -> {
-                    // Get editor instance through WeakReference
-                    VaadinCKEditor editor = editorRef.get();
-                    if (editor == null) {
-                        // Editor has been garbage collected, ignore callback
-                        logger.fine("Upload callback ignored: editor has been garbage collected");
-                        return;
-                    }
+    private UploadManager createUploadManager() {
+        // Use WeakReference to avoid memory leaks
+        // Lambda implicitly captures 'this', if UploadManager outlives VaadinCKEditor,
+        // it would prevent VaadinCKEditor from being garbage collected
+        final WeakReference<VaadinCKEditor> editorRef = new WeakReference<>(this);
 
-                    // Execute callback in UI thread
-                    editor.getUI().ifPresent(ui -> ui.access(() -> {
-                        if (url != null) {
-                            editor.getElement().executeJs("this._resolveUpload($0, $1, null)", uploadId, url);
-                        } else {
-                            editor.getElement().executeJs("this._resolveUpload($0, null, $1)", uploadId, error);
-                        }
-                    }));
+        return new UploadManager(
+            uploadHandler,
+            uploadConfig, // Use configured upload params (defaults if null)
+            (uploadId, url, error) -> {
+                // Get editor instance through WeakReference
+                VaadinCKEditor editor = editorRef.get();
+                if (editor == null) {
+                    // Editor has been garbage collected, ignore callback
+                    logger.fine("Upload callback ignored: editor has been garbage collected");
+                    return;
                 }
-            );
+
+                // Execute callback in UI thread
+                editor.getUI().ifPresent(ui -> ui.access(() -> {
+                    if (url != null) {
+                        editor.getElement().executeJs("this._resolveUpload($0, $1, null)", uploadId, url);
+                    } else {
+                        editor.getElement().executeJs("this._resolveUpload($0, null, $1)", uploadId, error);
+                    }
+                }));
+            }
+        );
+    }
+
+    // ==================== Serialization ====================
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+        out.defaultWriteObject();
+        boolean serializable = autosaveCallback == null || autosaveCallback instanceof java.io.Serializable;
+        if (!serializable) {
+            logger.warning("autosave callback is not Serializable and will be lost when the session is "
+                + "serialized; pass a serializable callback to keep it across session replication");
+        }
+        out.writeObject(serializable ? autosaveCallback : null);
+        // 只记录「是否存在」：反序列化后仅重建原本存在的上传管理器，语义与序列化前一致
+        out.writeBoolean(uploadManager != null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        this.autosaveCallback = (Consumer<String>) in.readObject();
+        if (in.readBoolean() && uploadHandler != null) {
+            this.uploadManager = createUploadManager();
         }
     }
 
@@ -346,7 +386,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         this.editorData = newValue;
         super.setValue(newValue);
         getElement().setProperty("editorData", this.editorData);
-        updateEditorData(this.editorData);
+        updateEditorData();
     }
 
     @Override
@@ -413,8 +453,16 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         eventDispatcher.fireAutosave(data, success, errorMessage);
     }
 
-    private void updateEditorData(String content) {
-        getElement().executeJs("this.updateData($0)", content);
+    /**
+     * 让客户端编辑器应用最新的 {@code editorData} 属性。
+     *
+     * <p>不把内容作为参数再传一遍（issue #137）：同一次往返中属性变更先于 JS 调用生效，
+     * 客户端读到的 {@code this.editorData} 已是新值；属性值未变（服务端重设同一内容以覆盖
+     * 用户编辑）时 Vaadin 不会重发属性，而客户端属性仍保持该值，结果同样正确。
+     * 这样大文档只占一份报文体积，而不是属性与参数各一份。</p>
+     */
+    private void updateEditorData() {
+        getElement().executeJs("this.updateData(this.editorData)");
     }
 
     // ==================== Property Setters ====================
@@ -754,11 +802,27 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * Add content change event listener.
      * Fired when editor content changes.
      *
+     * <p>客户端只在存在监听器时才上报内容变更（issue #137）。注册后需一次服务端往返
+     * 客户端才会得知，在此之前发生的变更不会产生事件。</p>
+     *
      * @param listener the event listener
      * @return registration object for removing the listener
      */
     public Registration addContentChangeListener(ComponentEventListener<ContentChangeEvent> listener) {
-        return eventDispatcher.addContentChangeListener(listener);
+        Registration registration = eventDispatcher.addContentChangeListener(listener);
+        syncContentChangeEventsProperty();
+        return () -> {
+            registration.remove();
+            syncContentChangeEventsProperty();
+        };
+    }
+
+    /**
+     * 告知客户端当前是否有 ContentChange 监听器：没有时客户端既不上报 contentChange，
+     * 也不为它序列化文档（issue #137）。
+     */
+    private void syncContentChangeEventsProperty() {
+        getElement().setProperty("contentChangeEvents", eventDispatcher.hasContentChangeListeners());
     }
 
     /**
@@ -900,6 +964,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void cleanupListeners() {
         eventDispatcher.cleanup();
+        syncContentChangeEventsProperty();
         if (uploadManager != null) {
             uploadManager.cleanup();
         }
@@ -929,13 +994,36 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         eventDispatcher.fireEditorError(error);
     }
 
+    /**
+     * 客户端一次 change:data 的合并上报（issue #137）：新内容只传一次，
+     * 依次触发 ContentChangeEvent 与值同步，顺序与拆分前的两次 RPC 一致。
+     *
+     * @param newContent       编辑器当前内容
+     * @param oldContent       上次已知内容；为 null 时使用服务端镜像 {@link #lastContentChangeValue}
+     * @param source           变更来源标签
+     * @param fireChange       是否触发 ContentChangeEvent
+     * @param syncToServer     是否作为客户端输入写入字段值
+     */
     @ClientCallable
-    private void fireContentChange(String oldContent, String newContent, String source) {
-        // Use EnumParser to safely parse source
-        ChangeSource changeSource = EnumParser.parse(
-            source, ChangeSource.class, ChangeSource.UNKNOWN, "fireContentChange");
+    private void syncContent(String newContent, String oldContent, String source,
+                             boolean fireChange, boolean syncToServer) {
+        syncContentInternal(newContent, oldContent, source, fireChange, syncToServer);
+    }
 
-        eventDispatcher.fireContentChange(oldContent, newContent, changeSource);
+    /** {@link #syncContent} 的实现（package-private 测试缝隙，便于不经客户端 RPC 直接测试）。 */
+    void syncContentInternal(String newContent, String oldContent, String source,
+                             boolean fireChange, boolean syncToServer) {
+        String content = newContent != null ? newContent : "";
+        if (fireChange) {
+            ChangeSource changeSource = EnumParser.parse(
+                source, ChangeSource.class, ChangeSource.UNKNOWN, "syncContent");
+            String previous = oldContent != null ? oldContent : lastContentChangeValue;
+            lastContentChangeValue = content;
+            eventDispatcher.fireContentChange(previous, content, changeSource);
+        }
+        if (syncToServer) {
+            setModelValue(content, true);
+        }
     }
 
     @ClientCallable

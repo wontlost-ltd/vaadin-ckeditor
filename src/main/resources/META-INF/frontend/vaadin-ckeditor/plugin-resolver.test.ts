@@ -119,6 +119,24 @@ describe('filterConflictingPlugins', () => {
         });
     });
 
+    describe('configuredPlugins option（issue #137）', () => {
+        it('只放行列出的插件，其余需配置的插件仍被剔除', () => {
+            const plugins = ['Bold', 'Minimap', 'Title'];
+            const result = filterConflictingPlugins(plugins, logger, { configuredPlugins: ['Minimap'] });
+
+            expect(result.filtered).toContain('Minimap');
+            expect(result.filtered).not.toContain('Title');
+            expect(result.removed).toEqual(['Title']);
+        });
+
+        it('不影响不可用插件的剔除', () => {
+            const result = filterConflictingPlugins(['Typing', 'Minimap'], logger, { configuredPlugins: ['Typing', 'Minimap'] });
+
+            expect(result.filtered).toEqual(['Minimap']);
+            expect(result.removed).toEqual(['Typing']);
+        });
+    });
+
     describe('allowConfigRequiredPlugins option', () => {
         it('should allow config-required plugins when enabled', () => {
             const plugins = ['Bold', 'Minimap', 'Title'];

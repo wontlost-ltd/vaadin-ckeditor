@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  *   <li>Export name must match jsName</li>
  * </ul>
  */
-public class CustomPlugin {
+public class CustomPlugin implements java.io.Serializable {
 
     /**
      * Valid npm package name regex.

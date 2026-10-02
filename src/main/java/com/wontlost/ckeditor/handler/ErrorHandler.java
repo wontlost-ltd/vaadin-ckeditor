@@ -61,7 +61,7 @@ import com.wontlost.ckeditor.event.EditorErrorEvent.EditorError;
  * @see com.wontlost.ckeditor.event.EditorErrorEvent
  */
 @FunctionalInterface
-public interface ErrorHandler {
+public interface ErrorHandler extends java.io.Serializable {
 
     /**
      * Handle an editor error.
@@ -85,21 +85,7 @@ public interface ErrorHandler {
      * @return an error handler instance
      */
     static ErrorHandler logging(java.util.logging.Logger logger) {
-        return error -> {
-            switch (error.getSeverity()) {
-                case WARNING:
-                    logger.warning(() -> String.format("[%s] %s", error.getCode(), error.getMessage()));
-                    break;
-                case ERROR:
-                    logger.severe(() -> String.format("[%s] %s", error.getCode(), error.getMessage()));
-                    break;
-                case FATAL:
-                    logger.severe(() -> String.format("FATAL [%s] %s\n%s",
-                        error.getCode(), error.getMessage(), error.getStackTrace()));
-                    break;
-            }
-            return false; // Continue propagation
-        };
+        return new LoggingErrorHandler(logger);
     }
 
     /**
