@@ -12,6 +12,8 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
+    "test:perf": "playwright test -c playwright.perf.config.ts",
+    "test:perf:baseline": "PERF_BASELINE=1 playwright test -c playwright.perf.config.ts",
     "probe:devmode": "node tools/devmode-probe.mjs"
   },
   "devDependencies": {

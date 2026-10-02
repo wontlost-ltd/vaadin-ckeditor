@@ -48,6 +48,47 @@ npm run probe:devmode -- --json        # 机器可读输出
 > 前置条件：先在仓库根执行 `mvn -DskipTests install`。工具直接用
 > `mvn spring-boot:run` 启动 sample，首次运行会触发 npm install，可能耗时数分钟。
 
+## 性能测试
+
+[#137](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/137) 建立的性能套件位于
+`perf/`，与功能套件隔离（独立配置 `playwright.perf.config.ts`，仅 Chromium，串行、不重试），
+驱动 sample 的 `/perf` 夹具视图（查询参数控制实例数、编辑器类型、预设、minimap、文档体积）。
+
+| Spec | 测量 |
+|------|------|
+| `init.perf.ts` | 四种类型 × BASIC / STANDARD / FULL 的初始化耗时（`EditorReadyEvent` 的 initTimeMs 与端到端） |
+| `multi-instance.perf.ts` | 同页 N = 1 / 5 / 10 / 20 个实例的就绪耗时、GC 后堆与 DOM 节点、边际成本比例 |
+| `large-document.perf.ts` | 1 MB 文档 `setValue` 下发、按键回传、报文与文档体积之比、minimap 开关对比、有 ContentChange 监听器时的回传 |
+| `lifecycle-leak.perf.ts` | 反复移出 / 放回布局、反复新建实例后的 DOM 节点、事件监听器、堆的每轮增量 |
+| `first-load.perf.ts` | 冷启动 JS 传输体积、LCP、TBT（长任务近似）、首屏 UIDL 报文体积 |
+
+服务端开销（会话序列化体积、属性 JSON 体积、序列化往返）由 Java 测试
+`ServerFootprintTest` / `SerializationTest` 覆盖，随 `mvn test` 运行。
+
+```bash
+npm run test:perf            # 按 perf/budgets.json 判定
+npm run test:perf:baseline   # 只记录不判定，用于采集新基线后调整预算
+```
+
+每个指标写入 `perf-results/results.json`（可用 `PERF_RESULTS` 覆盖路径），CI 中作为 artifact 上传。
+预算集中在 [`perf/budgets.json`](perf/budgets.json)：计时类按本机基线放大 3–6 倍以容纳 CI 机器差异；
+泄漏、报文倍数、包体积、扩展比例与机器无关，设得较严。
+
+### 首轮测量发现并已修复的问题
+
+| 指标 | 修复前 | 修复后 | 原因 |
+|------|--------|--------|------|
+| 每轮卸载残留 DOM 节点 / 监听器（3 个实例） | 264 / 264 | 0 / 0 | 组件断开时跳过 `editor.destroy()`，CKEditor 在 window / document 上的定时器与监听器使整个编辑器无法回收 |
+| 每轮每实例堆增长 | 813 KB | 16–20 KB | 同上 |
+| 1 MB `setValue` 耗时 | 5466 ms | 1436 ms | 属性与 `executeJs` 各下发一份，客户端 `setData` 执行两次 |
+| 下发报文 / 文档体积 | 2.00× | 1.00× | 同上 |
+| 回传报文 / 文档体积 | 4.11× | 1.37× | 每次变更分两次 RPC 发送旧内容 + 新内容 + 新内容；超出 1 的部分为 JSON 转义。注册 ContentChange 监听器时，服务端改值后的第一次输入仍显式携带旧内容（约 2.74×），以免被丢弃的上报让服务端镜像过期 |
+| 服务端改值后客户端回传 | 4.3 MB | 0（无 ContentChange 监听器时） | contentChange 无论有无监听器都上报整份文档 |
+| minimap | 未加载 | 正常渲染 | Minimap 被「需要特殊配置」规则剔除，而该配置正由连接器注入 |
+| 会话序列化 | `NotSerializableException` | 可往返 | `CKEditorConfig` 等内部类与处理器接口未实现 `Serializable` |
+
+数值来自 Apple Silicon 本机（Chromium，production jar）；CI 运行器上计时类数值会更大。
+
 ## Local run
 
 Prerequisites: Java 21+, Maven, Node 24+, ~300 MB of disk for Playwright browsers.
@@ -108,3 +149,6 @@ Then commit the changed PNGs.
 
 GitHub Actions runs the full pipeline (including visual regression) on every
 PR and push to `main`. See [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml).
+
+性能套件由 [`.github/workflows/perf.yml`](../.github/workflows/perf.yml) 运行：
+改动连接器、Java 组件或性能套件的 PR、每周一定时、以及手动触发。

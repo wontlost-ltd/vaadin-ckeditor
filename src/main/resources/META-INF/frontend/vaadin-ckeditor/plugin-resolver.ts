@@ -437,6 +437,12 @@ export interface FilterOptions {
      * @default false
      */
     allowConfigRequiredPlugins?: boolean;
+
+    /**
+     * 配置由连接器自行提供的插件名（例如 decoupled 编辑器启用 minimap 时，
+     * 连接器会注入 `minimap.container`）。这些插件不受「需要特殊配置」规则的剔除。
+     */
+    configuredPlugins?: readonly string[];
 }
 
 /**
@@ -455,7 +461,8 @@ export function filterConflictingPlugins(
     logger: Logger,
     options: FilterOptions = {}
 ): FilterResult {
-    const { strictPluginLoading = false, allowConfigRequiredPlugins = false } = options;
+    const { strictPluginLoading = false, allowConfigRequiredPlugins = false, configuredPlugins = [] } = options;
+    const configuredSet = new Set(configuredPlugins);
 
     // If strict mode is enabled, skip all filtering except mutually exclusive plugins
     if (strictPluginLoading) {
@@ -478,7 +485,7 @@ export function filterConflictingPlugins(
         }
 
         // O(1) check for plugins requiring configuration (can be bypassed)
-        if (!allowConfigRequiredPlugins && PLUGINS_REQUIRING_CONFIG_SET.has(name)) {
+        if (!allowConfigRequiredPlugins && !configuredSet.has(name) && PLUGINS_REQUIRING_CONFIG_SET.has(name)) {
             removed.push(name);
             logger.warn(`Plugin '${name}' requires special configuration - removing from automatic selection`);
             continue;

@@ -9,6 +9,7 @@ import com.wontlost.ckeditor.handler.ErrorHandler;
 import com.wontlost.ckeditor.handler.HtmlSanitizer;
 import com.wontlost.ckeditor.handler.HtmlSanitizer.SanitizationPolicy;
 import com.wontlost.ckeditor.internal.EventDispatcher;
+import com.vaadin.flow.shared.Registration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -805,6 +806,87 @@ class VaadinCKEditorIntegrationTest {
 
             // Should be zero after cleanup
             assertEquals(0, editor.getListenerStats().total());
+        }
+    }
+
+    // ==================== Content Sync Tests (issue #137) ====================
+
+    @Nested
+    @DisplayName("Content Sync Tests (issue #137)")
+    class ContentSyncTests {
+
+        @Test
+        @DisplayName("显式旧内容优先，之后由服务端镜像补全旧内容")
+        void oldContentFallsBackToServerMirror() {
+            java.util.List<ContentChangeEvent> events = new java.util.ArrayList<>();
+            editor.addContentChangeListener(events::add);
+
+            editor.syncContentInternal("<p>a</p>", "<p>initial</p>", "USER_INPUT", true, false);
+            editor.syncContentInternal("<p>ab</p>", null, "PASTE", true, false);
+
+            assertEquals(2, events.size());
+            assertEquals("<p>initial</p>", events.get(0).getOldContent());
+            assertEquals("<p>a</p>", events.get(0).getNewContent());
+            assertEquals("<p>a</p>", events.get(1).getOldContent());
+            assertEquals("<p>ab</p>", events.get(1).getNewContent());
+            assertEquals(ChangeSource.PASTE, events.get(1).getChangeSource());
+        }
+
+        @Test
+        @DisplayName("同时上报与同步时，ContentChangeEvent 先于 ValueChangeEvent")
+        void contentChangeFiresBeforeValueChange() {
+            java.util.List<String> order = new java.util.ArrayList<>();
+            editor.addContentChangeListener(e -> order.add("content"));
+            editor.addValueChangeListener(e -> {
+                order.add("value");
+                assertTrue(e.isFromClient());
+            });
+
+            editor.syncContentInternal("<p>x</p>", "", "USER_INPUT", true, true);
+
+            assertEquals(java.util.List.of("content", "value"), order);
+            assertEquals("<p>x</p>", editor.getValue());
+        }
+
+        @Test
+        @DisplayName("只同步不上报时不触发 ContentChangeEvent，也不推进镜像")
+        void syncOnlyDoesNotTouchContentChange() {
+            AtomicInteger contentEvents = new AtomicInteger();
+            editor.addContentChangeListener(e -> contentEvents.incrementAndGet());
+
+            editor.syncContentInternal("<p>y</p>", null, "USER_INPUT", false, true);
+            assertEquals(0, contentEvents.get());
+            assertEquals("<p>y</p>", editor.getValue());
+
+            AtomicReference<String> old = new AtomicReference<>();
+            editor.addContentChangeListener(e -> old.set(e.getOldContent()));
+            editor.syncContentInternal("<p>z</p>", null, "USER_INPUT", true, false);
+            assertEquals("", old.get());
+        }
+
+        @Test
+        @DisplayName("contentChangeEvents 属性随监听器增删同步")
+        void contentChangeEventsPropertyTracksListeners() {
+            assertFalse(editor.getElement().getProperty("contentChangeEvents", false));
+
+            Registration first = editor.addContentChangeListener(e -> { });
+            Registration second = editor.addContentChangeListener(e -> { });
+            assertTrue(editor.getElement().getProperty("contentChangeEvents", false));
+
+            first.remove();
+            assertTrue(editor.getElement().getProperty("contentChangeEvents", false));
+            second.remove();
+            assertFalse(editor.getElement().getProperty("contentChangeEvents", false));
+        }
+
+        @Test
+        @DisplayName("cleanupListeners 清空监听器时同步关闭 contentChangeEvents")
+        void cleanupListenersResetsContentChangeEvents() {
+            editor.addContentChangeListener(e -> { });
+            assertTrue(editor.getElement().getProperty("contentChangeEvents", false));
+
+            editor.cleanupListeners();
+            assertFalse(editor.getElement().getProperty("contentChangeEvents", false));
         }
     }
 }

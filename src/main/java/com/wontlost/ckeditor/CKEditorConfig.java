@@ -16,7 +16,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
  * CKEditor configuration class.
  * Used to build JSON configuration passed to CKEditor.
  */
-public class CKEditorConfig {
+public class CKEditorConfig implements java.io.Serializable {
 
     /**
      * 配置项存储。

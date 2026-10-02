@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  *
  * <p>This class is an internal API and should not be used directly by external code.</p>
  */
-public class EventDispatcher {
+public class EventDispatcher implements java.io.Serializable {
 
     private static final Logger logger = Logger.getLogger(EventDispatcher.class.getName());
 
@@ -106,6 +106,15 @@ public class EventDispatcher {
     public Registration addContentChangeListener(ComponentEventListener<ContentChangeEvent> listener) {
         contentChangeListeners.add(listener);
         return () -> contentChangeListeners.remove(listener);
+    }
+
+    /**
+     * 是否存在 ContentChange 监听器。
+     *
+     * @return 至少注册了一个监听器时为 true
+     */
+    public boolean hasContentChangeListeners() {
+        return !contentChangeListeners.isEmpty();
     }
 
     /**

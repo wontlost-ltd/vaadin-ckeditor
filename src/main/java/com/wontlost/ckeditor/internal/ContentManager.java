@@ -10,7 +10,7 @@ import org.jsoup.safety.Safelist;
  *
  * <p>This class is an internal API and should not be used directly by external code.</p>
  */
-public class ContentManager {
+public class ContentManager implements java.io.Serializable {
 
     private final HtmlSanitizer htmlSanitizer;
 

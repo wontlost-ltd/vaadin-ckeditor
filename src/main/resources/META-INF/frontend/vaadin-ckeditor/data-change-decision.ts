@@ -21,11 +21,24 @@ export interface DataChangeState {
     apiChangeDepth: number;
     /** 用户态变更来源标签（USER_INPUT / UNDO_REDO / PASTE / COLLABORATION 等） */
     changeSource: string;
+    /**
+     * 服务端是否注册了 ContentChange 监听器（由服务端同步的 contentChangeEvents 属性）。
+     * 没有监听器时不发送 contentChange，避免每次变更都把整份文档传给无人接收的事件。
+     */
+    contentChangeEvents: boolean;
+    /**
+     * 服务端镜像的「上次已知内容」是否与 lastKnownContent 一致。
+     * 一致时 contentChange 只需携带新内容，旧内容由服务端自行补全；
+     * 编辑器（重新）创建后、或有变更未上报时为 false，此时必须带上旧内容。
+     */
+    serverKnowsLastContent: boolean;
 }
 
 export interface DataChangeDecision {
-    /** 是否触发 fireContentChange */
+    /** 是否向服务端上报 contentChange */
     fireContentChange: boolean;
+    /** 上报 contentChange 时是否需要携带旧内容（服务端镜像不可用） */
+    sendOldContent: boolean;
     /** fireContentChange 使用的来源标签（fireContentChange=false 时无意义） */
     contentChangeSource: string;
     /** 是否调用 $server.setEditorData() 把数据回写服务端 */
@@ -34,6 +47,24 @@ export interface DataChangeDecision {
     nextLastKnownContent: string | null;
     /** 处理完后 changeSource 是否应重置为 USER_INPUT */
     resetChangeSource: boolean;
+    /** 处理完后 serverKnowsLastContent 的新值 */
+    nextServerKnowsLastContent: boolean;
+}
+
+/** 判定一次 change:data 是否需要读取内容（不需要时可跳过代价随文档体积线性增长的 getData()）。 */
+export interface ContentNeedState {
+    sync: boolean;
+    apiChangeDepth: number;
+    contentChangeEvents: boolean;
+}
+
+/**
+ * 只有两种情况需要 editor.getData()：要上报 contentChange，或要把用户输入同步给服务端。
+ * 其余情况（无监听器的服务端回填、sync=false 时的用户输入）跳过，
+ * 对大文档可省下每次变更数百毫秒的序列化开销（issue #137）。
+ */
+export function needsContent(state: ContentNeedState): boolean {
+    return state.contentChangeEvents || (state.sync && state.apiChangeDepth === 0);
 }
 
 /**
@@ -47,17 +78,33 @@ export function decideDataChange(state: DataChangeState): DataChangeDecision {
     const isApiOriginated = state.apiChangeDepth > 0;
     const contentChanged = state.newContent !== state.lastKnownContent;
 
-    const fireContentChange = contentChanged;
+    const fireContentChange = contentChanged && state.contentChangeEvents;
     const contentChangeSource = isApiOriginated ? 'API' : state.changeSource;
 
     // 仅在用户态（非 API 回填）且开启同步时回写服务端，避免服务端回填的内容反向污染 Binder。
     const syncToServer = state.sync && !isApiOriginated;
 
+    // 服务端镜像只随上报的 contentChange 更新：上报后与本地一致；
+    // 内容变了却没上报（无监听器）则失配，下次上报必须带旧内容。
+    //
+    // 只有「本地用户」触发的上报才能认定已送达：组件 disabled 或被模态框置为 inert 时，
+    // Vaadin 会丢弃 @ClientCallable，而这两种状态下用户无法输入——会被丢弃的只可能是
+    // 服务端回填（API）或协作带来的变更。因此这两类上报之后不信任镜像，下次显式带旧内容。
+    const deliveryAssured = !isApiOriginated && state.changeSource !== 'COLLABORATION';
+    let nextServerKnowsLastContent = state.serverKnowsLastContent;
+    if (fireContentChange) {
+        nextServerKnowsLastContent = deliveryAssured;
+    } else if (contentChanged) {
+        nextServerKnowsLastContent = false;
+    }
+
     return {
         fireContentChange,
+        sendOldContent: fireContentChange && !state.serverKnowsLastContent,
         contentChangeSource,
         syncToServer,
-        nextLastKnownContent: fireContentChange ? state.newContent : null,
-        resetChangeSource: fireContentChange,
+        nextLastKnownContent: contentChanged ? state.newContent : null,
+        resetChangeSource: contentChanged,
+        nextServerKnowsLastContent,
     };
 }

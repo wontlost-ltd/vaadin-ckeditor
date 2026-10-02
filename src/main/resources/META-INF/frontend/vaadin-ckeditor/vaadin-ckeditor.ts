@@ -23,7 +23,7 @@ import {
     type RootConfig,
 } from './editor-config-normalizer';
 import { shouldRefreshSourceView } from './source-editing-refresh';
-import { decideDataChange } from './data-change-decision';
+import { decideDataChange, needsContent } from './data-change-decision';
 import { replaceObserver, disposeObserver } from './observer-lifecycle';
 import { shouldRecreateEditor } from './reconnect-decision';
 import { createRefcount } from './dark-theme-refcount';
@@ -61,11 +61,25 @@ const STICKY_PANEL_SETUP_DELAY_MS = 100;
 /** Timeout (ms) for requestIdleCallback during editor destruction */
 const DESTROY_IDLE_TIMEOUT_MS = 100;
 /**
- * 销毁「孤儿」编辑器时的最长等待时间。
- * 该场景下组件已从 DOM 断开，而 CKEditor 的 destroy() 在 detached 状态下可能永不 settle，
- * 因此必须设上界，避免创建锁与补偿重建被永久阻塞。
+ * 等待 CKEditor destroy() 的最长时间（孤儿销毁与常规销毁共用）。
+ * 正常情况下 destroy() 很快完成；设上界只是兜底，避免万一不 settle 时
+ * 创建锁、isDestroying 与补偿重建被永久阻塞。
  */
 const ORPHAN_DESTROY_TIMEOUT_MS = 2000;
+
+/**
+ * 在 ms 毫秒内等待 promise：先完成返回 true，超时返回 false；promise 的 reject 照常向上传播。
+ *
+ * 先完成时**必须清除计时器**：悬挂的 setTimeout 回调会经 V8 的闭包上下文链继续引用
+ * 调用方作用域里的编辑器实例，使已销毁的编辑器在超时到期前都无法被回收（issue #137）。
+ */
+function settleWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), ms);
+    });
+    return Promise.race([promise.then(() => true), timeout]).finally(() => clearTimeout(timer));
+}
 /**
  * 编辑器容器的 class。
  * 与 render() 中 `<div id="${editorId}" class="...">` 保持一致——
@@ -140,7 +154,12 @@ interface VaadinServer {
     // Enterprise event methods
     fireEditorReady(initTimeMs: number): void;
     fireEditorError(code: string, message: string, severity: string, recoverable: boolean, stackTrace: string): void;
-    fireContentChange(oldContent: string, newContent: string, source: string): void;
+    /**
+     * 一次 change:data 的合并上报：新内容只传一次（issue #137）。
+     * oldContent 为 null 时服务端用自己镜像的上次内容补全。
+     */
+    syncContent(newContent: string, oldContent: string | null, source: string,
+                fireContentChange: boolean, syncToServer: boolean): void;
     fireFallback(mode: string, reason: string, originalError: string): void;
     // Upload handler
     handleFileUpload(uploadId: string, fileName: string, mimeType: string, base64Data: string): void;
@@ -241,6 +260,7 @@ export class VaadinCKEditor extends LitElement {
         fallbackMode: { type: String },
         strictPluginLoading: { type: Boolean },
         allowConfigRequiredPlugins: { type: Boolean },
+        contentChangeEvents: { type: Boolean },
         // 内部状态（原 @state）
         editor: { state: true },
         cursorPosition: { state: true },
@@ -334,6 +354,14 @@ export class VaadinCKEditor extends LitElement {
      */
     declare allowConfigRequiredPlugins: boolean;
 
+    /**
+     * 服务端是否注册了 ContentChange 监听器（由 Java 端在增删监听器时同步）。
+     * 为 false 时不上报 contentChange，也不为它读取文档内容。
+     *
+     * @default false
+     */
+    declare contentChangeEvents: boolean;
+
     // Internal state
     private declare editor: Editor | null;
     private declare cursorPosition: unknown;
@@ -352,6 +380,14 @@ export class VaadinCKEditor extends LitElement {
 
     // Content change tracking
     private lastKnownContent = '';
+    // 服务端镜像的上次内容是否等于 lastKnownContent（见 decideDataChange）
+    private serverKnowsLastContent = false;
+    /**
+     * 最近一次由 updateData() 应用、且之后没有被其它变更覆盖的内容。
+     * 同一内容经属性与 executeJs 两条路径到达时，据此跳过重复的 setData 和比对用的 getData，
+     * 二者对大文档都是数百毫秒级的操作（issue #137）。任何非 API 的变更都会把它清空。
+     */
+    private lastAppliedData: string | null = null;
     // Track change source for ContentChangeEvent
     // Possible values: 'API', 'USER_INPUT', 'UNDO_REDO', 'PASTE', 'UNKNOWN'
     private changeSource: string = 'USER_INPUT';
@@ -437,6 +473,7 @@ export class VaadinCKEditor extends LitElement {
         this.fallbackMode = 'textarea';
         this.strictPluginLoading = false;
         this.allowConfigRequiredPlugins = false;
+        this.contentChangeEvents = false;
         this.editor = null;
         this.cursorPosition = null;
         this.aiSidebarCollapsed = true;
@@ -488,7 +525,7 @@ export class VaadinCKEditor extends LitElement {
     protected updated(changedProperties: PropertyValues): void {
         super.updated(changedProperties);
 
-        if (changedProperties.has('editorData') && this.editor) {
+        if (changedProperties.has('editorData') && this.editor && this.editorData !== this.lastAppliedData) {
             const currentData = this.editor.getData();
             if (currentData !== this.editorData) {
                 // 必须走 updateData 而不是直接 setData：
@@ -504,6 +541,12 @@ export class VaadinCKEditor extends LitElement {
 
         if (changedProperties.has('isReadOnly') && this.editor) {
             this.updateReadOnly();
+        }
+
+        // 监听器从无到有：此前为省开销没有跟踪内容，这里补一次快照作为下次事件的旧内容
+        if (changedProperties.has('contentChangeEvents') && this.contentChangeEvents && this.editor) {
+            this.lastKnownContent = this.editor.getData();
+            this.serverKnowsLastContent = false;
         }
 
         if (changedProperties.has('isEnabled') && this.editor) {
@@ -654,9 +697,17 @@ export class VaadinCKEditor extends LitElement {
      */
     private async resolvePlugins(): Promise<unknown[]> {
         const resolver = new PluginResolver(logger);
-        const resolved = await resolver.resolvePlugins(this.plugins, {
+        // decoupled 编辑器启用 minimap 时，minimap 的必需配置（container）由本组件注入，
+        // 因此 Minimap 插件既不应被「需要特殊配置」规则剔除，也应在缺失时自动补上——
+        // 否则 setMinimapEnabled(true) 只会留下一个空容器（issue #137 性能测试中发现）。
+        const minimapActive = this.editorType === 'decoupled' && this.minimapEnabled;
+        const plugins = minimapActive && !this.plugins.some((p) => p.name === 'Minimap')
+            ? [...this.plugins, { name: 'Minimap', premium: false }]
+            : this.plugins;
+        const resolved = await resolver.resolvePlugins(plugins, {
             strictPluginLoading: this.strictPluginLoading,
             allowConfigRequiredPlugins: this.allowConfigRequiredPlugins,
+            configuredPlugins: minimapActive ? ['Minimap'] : [],
         });
 
         // Report plugin load errors to backend (non-fatal)
@@ -981,14 +1032,9 @@ export class VaadinCKEditor extends LitElement {
         // 该结论，孤儿路径正因此加了超时）。若这里再无界 await 同一个 promise，
         // 挂起只是从「孤儿销毁」搬到了「补偿创建」：isCreating 被永久占用，
         // 重连后依旧空白——等于把第 4 轮修掉的问题换个入口重新引入。
-        const timedOut = Symbol('cleanup-timeout');
-        const result = await Promise.race([
-            this.destroyPromise.then(() => undefined),
-            new Promise<typeof timedOut>((resolve) =>
-                setTimeout(() => resolve(timedOut), ORPHAN_DESTROY_TIMEOUT_MS)),
-        ]);
+        const settled = await settleWithin(this.destroyPromise, ORPHAN_DESTROY_TIMEOUT_MS);
 
-        if (result === timedOut) {
+        if (!settled) {
             // 放弃等待，但必须先切断旧实例对 DOM 的所有权：
             // 迟到的 destroy() 会向 source element 写回，而新实例复用同一节点。
             // 这里把容器整个换成一个全新的空节点，旧销毁即便稍后完成，
@@ -1150,10 +1196,7 @@ export class VaadinCKEditor extends LitElement {
                 });
 
                 // 超时只用于「不阻塞解锁」，销毁本身仍在后台推进并被上面登记。
-                await Promise.race([
-                    destroyed,
-                    new Promise<void>((resolve) => setTimeout(resolve, ORPHAN_DESTROY_TIMEOUT_MS)),
-                ]);
+                await settleWithin(destroyed, ORPHAN_DESTROY_TIMEOUT_MS);
             } catch (e) {
                 logger.debug(' Orphan editor destroy failed (ignored):', e);
             }
@@ -1240,7 +1283,10 @@ export class VaadinCKEditor extends LitElement {
         if (this.editorData) {
             this.editor.setData(this.editorData);
         }
-        this.lastKnownContent = this.editor.getData();
+        this.lastAppliedData = null;
+        this.serverKnowsLastContent = false;
+        // 没有 ContentChange 监听器时无需快照（大文档下 getData 很贵）；监听器出现时再补
+        this.lastKnownContent = this.contentChangeEvents ? this.editor.getData() : '';
 
         // Set read-only state
         this.updateReadOnly();
@@ -1594,31 +1640,50 @@ export class VaadinCKEditor extends LitElement {
         this.dataChangeListener = () => {
             const activeEditor = this.editor;
             if (!activeEditor || !this.$server) return;
-            const newContent = activeEditor.getData();
 
+            // 非 API 变更（用户输入、协作、撤销等）之后，编辑器内容不再等于上次下发的值
+            if (this.apiChangeDepth === 0) {
+                this.lastAppliedData = null;
+            }
+
+            if (!needsContent({ sync: this.sync, apiChangeDepth: this.apiChangeDepth, contentChangeEvents: this.contentChangeEvents })) {
+                // 既不上报也不同步：跳过 getData()。lastKnownContent 不再可信，监听器出现时会重新快照
+                this.serverKnowsLastContent = false;
+                this.changeSource = 'USER_INPUT';
+                return;
+            }
+
+            const newContent = activeEditor.getData();
             const decision = decideDataChange({
                 newContent,
                 lastKnownContent: this.lastKnownContent,
                 sync: this.sync,
                 apiChangeDepth: this.apiChangeDepth,
                 changeSource: this.changeSource,
+                contentChangeEvents: this.contentChangeEvents,
+                serverKnowsLastContent: this.serverKnowsLastContent,
             });
 
-            if (decision.fireContentChange) {
-                this.$server.fireContentChange(this.lastKnownContent, newContent, decision.contentChangeSource);
-                if (decision.nextLastKnownContent !== null) {
-                    this.lastKnownContent = decision.nextLastKnownContent;
-                }
-                if (decision.resetChangeSource) {
-                    this.changeSource = 'USER_INPUT';
-                }
-            }
-
-            // issue #38: 服务端回填（apiChangeDepth>0）不回写服务端，
+            // issue #38: 服务端回填（apiChangeDepth>0）不回写服务端（decision.syncToServer 为 false），
             // 否则 Binder.readBean() 会触发 fromClient=true 的 ValueChangeEvent，
             // 使 Binder.hasChanges() 在无用户改动时误为 true。
-            if (decision.syncToServer) {
-                this.$server.setEditorData(newContent);
+            // issue #137: contentChange 与值同步合并为一次 RPC，新内容只传一次。
+            if (decision.fireContentChange || decision.syncToServer) {
+                this.$server.syncContent(
+                    newContent,
+                    decision.sendOldContent ? this.lastKnownContent : null,
+                    decision.contentChangeSource,
+                    decision.fireContentChange,
+                    decision.syncToServer,
+                );
+            }
+
+            if (decision.nextLastKnownContent !== null) {
+                this.lastKnownContent = decision.nextLastKnownContent;
+            }
+            this.serverKnowsLastContent = decision.nextServerKnowsLastContent;
+            if (decision.resetChangeSource) {
+                this.changeSource = 'USER_INPUT';
             }
         };
 
@@ -1740,10 +1805,8 @@ export class VaadinCKEditor extends LitElement {
 
                 // 该工厂闭包捕获了 this（Lit 元素），若不还原就会形成
                 // FileRepository 插件 -> 闭包 -> 组件 -> 整棵 DOM 子树 的引用链。
-                // destroyEditor() 在组件已断开时会跳过 editor.destroy()（交给 GC），
-                // 此时 CKEditor 自身不拆卸插件，这条链会把整个编辑器钉住，
-                // 每次路由往返泄漏一个实例。登记到 listenerCleanups——
-                // 它在 destroyEditor() 的 isDisconnected 提前 return **之前**无条件执行。
+                // 登记到 listenerCleanups，在 destroyEditor() 调用 editor.destroy() 之前执行，
+                // 即使 destroy() 超时未完成，这条引用链也已切断。
                 this.listenerCleanups.push(() => {
                     fileRepository.createUploadAdapter = originalFactory;
                 });
@@ -1962,9 +2025,18 @@ export class VaadinCKEditor extends LitElement {
      */
     public updateData(value: string): void {
         if (this.editor) {
+            // 先规范化：null / undefined 视为空串，避免与初始的 lastAppliedData(null) 误判相等
+            const data = value || '';
+            // 同一内容已应用且之后没有其它变更：跳过重复的 setData（issue #137）。
+            // 源码视图例外：textarea 里的编辑不触发 change:data，lastAppliedData 无法感知，
+            // 必须照常 setData 并刷新源码视图（issue #57）。
+            if (data === this.lastAppliedData && !this.isSourceEditingActive()) {
+                return;
+            }
             this.apiChangeDepth++;
             try {
-                this.editor.setData(value || '');
+                this.editor.setData(data);
+                this.lastAppliedData = data;
                 // issue #57: 源码视图下 setData 只更新 model，<textarea> 仍是旧快照。
                 // 退出并重新进入源码视图，强制源码 textarea 从新 model 重新填充。
                 this.refreshSourceViewIfActive();
@@ -1980,6 +2052,14 @@ export class VaadinCKEditor extends LitElement {
     /**
      * 若编辑器当前处于 SourceEditing 源码视图，toggle off→on 以刷新源码 textarea（issue #57）。
      */
+    private isSourceEditingActive(): boolean {
+        const editor = this.editor;
+        if (!editor || !editor.plugins.has('SourceEditing')) {
+            return false;
+        }
+        return (editor.plugins.get('SourceEditing') as unknown as { isSourceEditingMode: boolean }).isSourceEditingMode;
+    }
+
     private refreshSourceViewIfActive(): void {
         const editor = this.editor;
         if (!editor || !editor.plugins.has('SourceEditing')) {
@@ -2166,13 +2246,12 @@ export class VaadinCKEditor extends LitElement {
                     } catch (e) { /* ignore */ }
                 }
 
-                // Step 4: If component is disconnected from DOM, skip destroy()
-                // CKEditor's destroy() can hang when the DOM is already detached
-                if (this.isDisconnected) {
-                    logger.debug(' Skipping editor.destroy() - component already disconnected, letting GC handle cleanup');
-                    return;
-                }
-
+                // Step 4: 组件已断开时**同样必须**调用 editor.destroy()（issue #137）。
+                // 「交给 GC」行不通：CKEditor 的 SelectionObserver 在 window 上挂着 setInterval，
+                // 其它 observer 在 document 上挂着监听器，它们会一直引用整个编辑器
+                // （DOM 子树、模型、监听器），每次卸载都泄漏一个完整实例。
+                // 早年「detached 时 destroy() 会卡死」的真正原因是覆盖 editor.id 引发的
+                // 递归（issue #122，已修复）；这里仍以 ORPHAN_DESTROY_TIMEOUT_MS 设上界兜底。
                 logger.debug(' About to call requestIdleCallback/setTimeout for editor.destroy()');
 
                 // Step 5: Use requestIdleCallback (or setTimeout fallback) to defer destroy
@@ -2182,8 +2261,29 @@ export class VaadinCKEditor extends LitElement {
                         try {
                             // Check editor state before destroying
                             if (editor.state === 'ready') {
-                                await editor.destroy();
-                                logger.debug(' Editor destroyed successfully');
+                                // 给 destroy() 挂自己的 catch：超时胜出后已无人 await 它，
+                                // 迟到的 reject 不能变成 unhandled rejection。
+                                const destroyed: Promise<void> = editor.destroy().then(
+                                    () => undefined,
+                                    (e: unknown) => {
+                                        logger.warn('Error during destroy (non-fatal):', e);
+                                    },
+                                );
+                                const settled = await settleWithin(destroyed, ORPHAN_DESTROY_TIMEOUT_MS);
+                                if (settled) {
+                                    logger.debug(' Editor destroyed successfully');
+                                } else {
+                                    logger.warn(`editor.destroy() did not settle within ${ORPHAN_DESTROY_TIMEOUT_MS}ms; continuing cleanup`);
+                                    // 超时只是停止等待，底层 destroy() 仍在推进，且结束时会向 source element
+                                    // 写回内容——而重连复用的正是同一个节点。与孤儿销毁路径一致：把真正的
+                                    // 销毁登记为 destroyPromise，后续创建先等它，再超时就换掉容器。
+                                    this.destroyPromise = destroyed;
+                                    void destroyed.finally(() => {
+                                        if (this.destroyPromise === destroyed) {
+                                            this.destroyPromise = null;
+                                        }
+                                    });
+                                }
                             } else {
                                 logger.debug(' Editor not in ready state, skipping destroy');
                             }

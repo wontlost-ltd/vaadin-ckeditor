@@ -15,6 +15,7 @@ Playwright E2E smoke tests under [`e2e/`](../../e2e/). **Not published.**
 | `/upload` | `UploadView` | Wires a `StubUploadHandler` that returns base64 data URLs |
 | `/collab-seed` | `CollabSeedView` | Exercises `stripInitialDataIfChannelSeeded` with `cloudServices` + `collaboration.channelId` + `initialData` |
 | `/binding` | `BindingView` | 值双向绑定与只读切换；把服务端 `getValue()` / 事件计数投影到 DOM 供断言 |
+| `/perf` | `PerfView` | 性能套件夹具（[#137](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/137)）：查询参数控制实例数 / 类型 / 预设 / minimap / 文档体积，见 `e2e/README.md`「性能测试」 |
 
 ## Run locally
 
