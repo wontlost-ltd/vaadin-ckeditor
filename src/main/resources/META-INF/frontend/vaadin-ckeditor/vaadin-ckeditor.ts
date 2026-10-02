@@ -200,9 +200,16 @@ export class VaadinCKEditor extends LitElement {
      * 产物**不含任何装饰器**，也就不会生成那个 helper 导入 —— 与消费者的
      * context path / Vite 版本无关，从根上消除这一类 404。
      *
-     * 字段初值仍以类字段写法保留（`useDefineForClassFields: false`，Lit 据此
-     * 取默认值）；此处的 `properties` 只声明**类型与反应性**。新增反应式字段
-     * 时务必两处同步：字段初值 + 本表。
+     * 反应式字段一律以 `declare` 声明（不产生任何运行时代码），默认值在
+     * `constructor()` 里 `super()` 之后赋值。赋值经过 Lit 在原型上安装的访问器，
+     * 从而进入反应式系统。**不要**写成带初值的类字段：连接器源文件由消费者的
+     * Vite 转译，生效的 tsconfig 不受本仓库控制（Vaadin 25.2 及更早没有为
+     * `jar-resources` 生成 tsconfig）。一旦按 `useDefineForClassFields: true`
+     * （[[Define]] 语义）转译，类字段会在实例上定义同名 own property，遮蔽 Lit
+     * 访问器，属性变更不再触发更新。`declare` + 构造器赋值在两种语义下都正确。
+     *
+     * 新增反应式字段时务必三处同步：本表 + `declare` 声明 + 构造器默认值。
+     * `reactive-properties.test.ts` 会校验本表与转译产物。
      */
     static properties = {
         editorId: { type: String },
@@ -248,33 +255,33 @@ export class VaadinCKEditor extends LitElement {
     static styles = css``;
 
     // Properties synced from Java backend
-    editorId = '';
-    editorType: 'classic' | 'balloon' | 'inline' | 'decoupled' = 'classic';
-    themeType: 'auto' | 'light' | 'dark' = 'auto';
-    editorData = '';
-    editorWidth = 'auto';
-    editorHeight = 'auto';
-    language = 'en';
-    overrideCssUrl = '';
-    isReadOnly = false;
-    isEnabled = true;
-    autosave = false;
-    autosaveWaitingTime = 2000;
-    minimapEnabled = false;
+    declare editorId: string;
+    declare editorType: 'classic' | 'balloon' | 'inline' | 'decoupled';
+    declare themeType: 'auto' | 'light' | 'dark';
+    declare editorData: string;
+    declare editorWidth: string;
+    declare editorHeight: string;
+    declare language: string;
+    declare overrideCssUrl: string;
+    declare isReadOnly: boolean;
+    declare isEnabled: boolean;
+    declare autosave: boolean;
+    declare autosaveWaitingTime: number;
+    declare minimapEnabled: boolean;
     /**
      * When true, minimap renders content as simple boxes for better performance.
      * Use this option if the minimap updates too slowly with large documents.
      *
      * @default false
      */
-    minimapSimplePreview = false;
+    declare minimapSimplePreview: boolean;
     /**
      * When true, enables Document Outline sidebar for decoupled editor.
      * Requires DocumentOutline plugin to be loaded.
      *
      * @default false
      */
-    documentOutlineEnabled = false;
+    declare documentOutlineEnabled: boolean;
     /**
      * When true, enables annotation sidebar for collaboration features (decoupled editor only).
      * Provides container for Comments, TrackChanges, and RevisionHistory sidebar panels.
@@ -282,7 +289,7 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    annotationSidebarEnabled = false;
+    declare annotationSidebarEnabled: boolean;
     /**
      * 当启用时，对非当前用户的评论隐藏 Edit/Remove 下拉菜单，
      * 使前端 UI 与 CKEditor Cloud Services 的 comment:write 权限模型保持一致。
@@ -290,23 +297,23 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    commentPermissionEnforcerEnabled = false;
+    declare commentPermissionEnforcerEnabled: boolean;
     /**
      * 当启用时，为 AI Chat/Assistant 插件创建侧栏容器（仅 decoupled 编辑器）。
      * AI 插件在 sidebar 模式下需要一个 DOM 元素作为 config.ai.container.element。
      *
      * @default false
      */
-    aiSidebarEnabled = false;
-    ghsEnabled = false;
-    hideToolbar = false;
-    sync = true;
-    plugins: PluginConfig[] = [];
-    toolbar: string[] = [];
-    config: Record<string, unknown> = {};
-    licenseKey = 'GPL';
-    toolbarStyle?: ToolbarStyleConfig;
-    fallbackMode: 'textarea' | 'readonly' | 'error' | 'hidden' = 'textarea';
+    declare aiSidebarEnabled: boolean;
+    declare ghsEnabled: boolean;
+    declare hideToolbar: boolean;
+    declare sync: boolean;
+    declare plugins: PluginConfig[];
+    declare toolbar: string[];
+    declare config: Record<string, unknown>;
+    declare licenseKey: string;
+    declare toolbarStyle?: ToolbarStyleConfig;
+    declare fallbackMode: 'textarea' | 'readonly' | 'error' | 'hidden';
 
     /**
      * When true, disables automatic plugin filtering.
@@ -316,7 +323,7 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    strictPluginLoading = false;
+    declare strictPluginLoading: boolean;
 
     /**
      * When true, allows loading plugins that require special configuration
@@ -325,12 +332,12 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    allowConfigRequiredPlugins = false;
+    declare allowConfigRequiredPlugins: boolean;
 
     // Internal state
-    private editor: Editor | null = null;
-    private cursorPosition: unknown = null;
-    private aiSidebarCollapsed = true;
+    private declare editor: Editor | null;
+    private declare cursorPosition: unknown;
+    private declare aiSidebarCollapsed: boolean;
 
     // Modular components
     private themeManager = new ThemeManager();
@@ -400,6 +407,39 @@ export class VaadinCKEditor extends LitElement {
 
     constructor() {
         super();
+        // 反应式属性默认值：经 Lit 访问器赋值（见 `static properties` 注释）。
+        // 升级前已由服务端设置的值由 Lit 在 super() 中暂存，首次更新时覆盖这里的默认值。
+        this.editorId = '';
+        this.editorType = 'classic';
+        this.themeType = 'auto';
+        this.editorData = '';
+        this.editorWidth = 'auto';
+        this.editorHeight = 'auto';
+        this.language = 'en';
+        this.overrideCssUrl = '';
+        this.isReadOnly = false;
+        this.isEnabled = true;
+        this.autosave = false;
+        this.autosaveWaitingTime = 2000;
+        this.minimapEnabled = false;
+        this.minimapSimplePreview = false;
+        this.documentOutlineEnabled = false;
+        this.annotationSidebarEnabled = false;
+        this.commentPermissionEnforcerEnabled = false;
+        this.aiSidebarEnabled = false;
+        this.ghsEnabled = false;
+        this.hideToolbar = false;
+        this.sync = true;
+        this.plugins = [];
+        this.toolbar = [];
+        this.config = {};
+        this.licenseKey = 'GPL';
+        this.fallbackMode = 'textarea';
+        this.strictPluginLoading = false;
+        this.allowConfigRequiredPlugins = false;
+        this.editor = null;
+        this.cursorPosition = null;
+        this.aiSidebarCollapsed = true;
     }
 
     /**
@@ -928,7 +968,7 @@ export class VaadinCKEditor extends LitElement {
         // 只要存在未完成的销毁就必须等待，不能再以 (editor || isDestroying) 为前置条件。
         // 孤儿销毁场景下 editor 已为 null、isDestroying 也为 false（那条路径不走
         // destroyEditor），但后台仍有一个 destroy() 在跑，且它结束时会向 source element
-        // 写回内容——而重连复用的正是同一个 DOM 节点（editorId 是 @property，不变）。
+        // 写回内容——而重连复用的正是同一个 DOM 节点（editorId 是反应式属性，不变）。
         // 若不等它就创建新实例，迟到的销毁会把新编辑器的 DOM 清空。
         // 直接以 destroyPromise 是否存在为准，可同时覆盖常规销毁与孤儿销毁两条路径。
         if (!this.destroyPromise) {
@@ -1097,7 +1137,7 @@ export class VaadinCKEditor extends LitElement {
 
                 // 记录这次销毁，**不能只是不等它**。
                 // 关键：Promise.race 只停止等待，并不取消底层 destroy()；而 editorId 是
-                // @property，重连后复用的是同一个 DOM 节点。CKEditor 的
+                // 反应式属性，重连后复用的是同一个 DOM 节点。CKEditor 的
                 // Balloon/Inline/Decoupled 在 destroy() 末尾会向 source element 写回内容，
                 // 若放任迟到的销毁与新实例并发，它会把刚建好的编辑器 DOM 清空。
                 // 因此这里把销毁 promise 存起来，由后续创建流程的
@@ -2206,7 +2246,7 @@ export class VaadinCKEditor extends LitElement {
             const includeOutlineClass = this.documentOutlineEnabled ? 'editor-container_include-outline' : '';
             const includeMinimapClass = this.minimapEnabled ? 'editor-container_include-minimap' : '';
             const includeAnnotationClass = this.annotationSidebarEnabled ? 'editor-container_include-annotations' : '';
-            // AI active class driven by reactive @state to survive Lit re-renders
+            // AI active class driven by reactive internal state to survive Lit re-renders
             const includeAiClass = (this.aiSidebarEnabled && !this.aiSidebarCollapsed) ? 'editor-container--ai-active' : '';
             // Apply custom editor height if specified (otherwise uses CSS default of 700px)
             const heightStyle = this.editorHeight && this.editorHeight !== 'auto'
@@ -2705,10 +2745,17 @@ export class VaadinCKEditor extends LitElement {
  * 元素注册（原 `@customElement('vaadin-ckeditor')`）。
  * 改用显式 `define` 以避免装饰器（见类内 `static properties` 注释 / issue #120）。
  * 守卫重复注册：同一包被加载两次（dev server HMR / 多 bundle）时
- * `define` 会抛 `NotSupportedError`，这里先查再定义。
+ * `define` 会抛 `NotSupportedError`，这里先查再定义。已注册的若是另一个类
+ * （多份 add-on 并存或模块被重复求值），页面沿用先注册的那个，这里打警告便于排查。
  */
-if (!customElements.get('vaadin-ckeditor')) {
+const registeredCKEditor = customElements.get('vaadin-ckeditor');
+if (!registeredCKEditor) {
     customElements.define('vaadin-ckeditor', VaadinCKEditor);
+} else if (registeredCKEditor !== VaadinCKEditor) {
+    logger.warn(
+        '<vaadin-ckeditor> is already defined by another class; keeping the existing definition.'
+        + ' Multiple copies of the add-on may be loaded on this page.',
+    );
 }
 
 declare global {
