@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **性能测试套件**（[#137](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/137)）：
+  Playwright 性能套件（初始化、同页多实例、大文档、挂载 / 卸载泄漏、首屏）、
+  `perf/budgets.json` 集中预算、`perf.yml` CI 工作流，以及服务端开销测试
+  `ServerFootprintTest` / `SerializationTest`。详见 `e2e/README.md`「性能测试」。
+
 ### Fixed
 - **卸载时泄漏整个编辑器**：组件从 DOM 断开时此前跳过 `editor.destroy()`、寄望 GC 回收，
   但 CKEditor 挂在 window / document 上的定时器与监听器使其永远无法回收——每次导航、

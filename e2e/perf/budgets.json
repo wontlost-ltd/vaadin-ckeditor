@@ -1,0 +1,232 @@
+{
+  "_comment": "性能预算（issue #137）。计时类按本机基线放大 3–6 倍以容纳 CI 机器差异；泄漏、报文倍数、包体积、扩展比例与机器无关，设得较严。基线见 e2e/README.md「性能测试」。",
+  "budgets": {
+    "init.classic.BASIC.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.classic.STANDARD.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.classic.FULL.createMs": {
+      "max": 250,
+      "unit": "ms"
+    },
+    "init.balloon.BASIC.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.balloon.STANDARD.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.balloon.FULL.createMs": {
+      "max": 250,
+      "unit": "ms"
+    },
+    "init.inline.BASIC.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.inline.STANDARD.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.inline.FULL.createMs": {
+      "max": 250,
+      "unit": "ms"
+    },
+    "init.decoupled.BASIC.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.decoupled.STANDARD.createMs": {
+      "max": 200,
+      "unit": "ms"
+    },
+    "init.decoupled.FULL.createMs": {
+      "max": 250,
+      "unit": "ms"
+    },
+    "init.classic.BASIC.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.classic.STANDARD.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.classic.FULL.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.balloon.BASIC.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.balloon.STANDARD.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.balloon.FULL.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.inline.BASIC.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.inline.STANDARD.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.inline.FULL.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.decoupled.BASIC.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.decoupled.STANDARD.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "init.decoupled.FULL.endToEndMs": {
+      "max": 800,
+      "unit": "ms"
+    },
+    "multi.n1.readyMs": {
+      "max": 1500,
+      "unit": "ms"
+    },
+    "multi.n5.readyMs": {
+      "max": 1500,
+      "unit": "ms"
+    },
+    "multi.n10.readyMs": {
+      "max": 2500,
+      "unit": "ms"
+    },
+    "multi.n20.readyMs": {
+      "max": 3500,
+      "unit": "ms"
+    },
+    "multi.marginalRatio": {
+      "max": 3,
+      "unit": "x",
+      "note": "10→20 与 1→5 的每实例边际耗时之比；O(N²) 行为会使其显著增大"
+    },
+    "multi.heapPerEditorMB": {
+      "max": 1.5,
+      "unit": "MB"
+    },
+    "multi.domNodesPerEditor": {
+      "max": 120,
+      "unit": "nodes"
+    },
+    "largeDoc.classic.setValueMs": {
+      "max": 8000,
+      "unit": "ms"
+    },
+    "largeDoc.classic.clientSyncMs": {
+      "max": 4000,
+      "unit": "ms"
+    },
+    "largeDoc.decoupled.noMinimap.setValueMs": {
+      "max": 8000,
+      "unit": "ms"
+    },
+    "largeDoc.decoupled.minimap.setValueMs": {
+      "max": 10000,
+      "unit": "ms"
+    },
+    "largeDoc.decoupled.minimapSimple.setValueMs": {
+      "max": 10000,
+      "unit": "ms"
+    },
+    "largeDoc.downstreamBytesPerDocByte": {
+      "max": 1.3,
+      "unit": "x",
+      "note": "修复前为 2.0（属性与 executeJs 各传一份）"
+    },
+    "largeDoc.upstreamBytesPerDocByte": {
+      "max": 1.6,
+      "unit": "x",
+      "note": "修复前为 4.11（每次变更三份文档）；超出 1 的部分是 JSON 转义"
+    },
+    "largeDoc.upstreamBytesPerDocByte.withContentEvents": {
+      "max": 1.6,
+      "unit": "x",
+      "note": "连续输入的稳态：contentChange 与值同步合并为一次 RPC，旧内容由服务端镜像补全（服务端改值后的第一次输入显式带旧内容，单独记录为 firstAfterApi）"
+    },
+    "leak.toggle.domNodesPerCycle": {
+      "max": 5,
+      "unit": "nodes",
+      "note": "修复前每轮 264（每个编辑器整棵 DOM 被保留）"
+    },
+    "leak.toggle.listenersPerCycle": {
+      "max": 5,
+      "unit": "listeners"
+    },
+    "leak.toggle.heapKBPerCyclePerEditor": {
+      "max": 200,
+      "unit": "KB",
+      "note": "修复前每轮每编辑器约 813 KB"
+    },
+    "leak.remount.domNodesPerCycle": {
+      "max": 5,
+      "unit": "nodes"
+    },
+    "leak.remount.listenersPerCycle": {
+      "max": 5,
+      "unit": "listeners"
+    },
+    "leak.remount.heapKBPerCyclePerEditor": {
+      "max": 200,
+      "unit": "KB"
+    },
+    "firstLoad.BASIC.readyMs": {
+      "max": 3000,
+      "unit": "ms"
+    },
+    "firstLoad.BASIC.lcpMs": {
+      "max": 3000,
+      "unit": "ms"
+    },
+    "firstLoad.BASIC.tbtMs": {
+      "max": 500,
+      "unit": "ms"
+    },
+    "firstLoad.BASIC.jsTransferKB": {
+      "max": 900,
+      "unit": "KB",
+      "note": "压缩后的 JS 传输体积，基线约 664 KB"
+    },
+    "firstLoad.BASIC.uidlResponseKB": {
+      "max": 25,
+      "unit": "KB"
+    },
+    "firstLoad.FULL.readyMs": {
+      "max": 3000,
+      "unit": "ms"
+    },
+    "firstLoad.FULL.lcpMs": {
+      "max": 3000,
+      "unit": "ms"
+    },
+    "firstLoad.FULL.tbtMs": {
+      "max": 500,
+      "unit": "ms"
+    },
+    "firstLoad.FULL.jsTransferKB": {
+      "max": 900,
+      "unit": "KB"
+    },
+    "firstLoad.FULL.uidlResponseKB": {
+      "max": 25,
+      "unit": "KB"
+    }
+  }
+}
