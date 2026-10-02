@@ -96,7 +96,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
     /** Keep in sync with version field in vaadin-ckeditor.ts */
-    private static final String VERSION = "5.4.1";
+    private static final String VERSION = "5.5.0";
 
     /**
      * Default autosave waiting time in milliseconds.

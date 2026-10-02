@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.0] - 2026-10-03
+
 ### Added
 - **性能测试套件**（[#137](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/137)）：
   Playwright 性能套件（初始化、同页多实例、大文档、挂载 / 卸载泄漏、首屏）、
@@ -14,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ServerFootprintTest` / `SerializationTest`。详见 `e2e/README.md`「性能测试」。
 
 ### Fixed
+- **`frontendHotdeploy=true` 下编辑器白屏转圈**（[#120](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/120)）。
+  **更正 5.4.1 的结论**：该问题并非由 Vaadin 25.3.0 修复，也不是缺包。连接器以源 TS 分发，
+  hotdeploy 下由 Vite 实时转译，rolldown 把 Lit 装饰器降级为从 `@oxc-project/runtime` 导入的
+  `_decorate` helper；该版本编码的路径在非根 servlet context path（如 `/App`）下走不通
+  `/VAADIN/@id/` 开发代理而 404。现在改用 Lit 原生的静态 `properties` +
+  `customElements.define`，转译产物不再含装饰器。反应式字段以 `declare` 声明、默认值在构造器
+  中赋值，使其在消费者 tsconfig 的任一 `useDefineForClassFields` 取值下都保持反应性
+  （Vaadin 25.2 及更早不为 `jar-resources` 生成 tsconfig）。重复注册 `vaadin-ckeditor`
+  时改为告警而非抛错。已在 `-Photdeploy` + context path `/App` 下实机验证。
 - **卸载时泄漏整个编辑器**：组件从 DOM 断开时此前跳过 `editor.destroy()`、寄望 GC 回收，
   但 CKEditor 挂在 window / document 上的定时器与监听器使其永远无法回收——每次导航、
   每次把编辑器移出布局都泄漏一个完整实例（约 88 个 DOM 节点、88 个监听器、800 KB 堆）。
@@ -84,6 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   该问题由 Matti Tahvonen 在 PR #129 中独立指出（"Vaadin 25.3 will stop declaring that"），
   本处采用 BOM import 而非在依赖声明处写死版本，两者解析到的版本一致。
 - **`frontendHotdeploy=true` 下 UI 无限转圈**（issue #120）——**由 Vaadin 25.3.0 修复，本库无需改动**。
+  > **更正（5.5.0）**：此结论有误，报告者在 25.3.0 上仍可复现。真正的根因与修复见 [5.5.0]。
   根因是 rolldown 会把 TS 装饰器降级为 `@oxc-project/runtime` 的辅助模块 import，
   但该包此前**无人声明**（rolldown 只依赖 `@oxc-project/types`），dev server 模式下
   辅助模块 404。Vaadin 25.3.0 起已在生成的 `package.json` 中自行声明
@@ -580,7 +592,10 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.3...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.5.0...HEAD
+[5.5.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.1...v5.5.0
+[5.4.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.0...v5.4.1
+[5.4.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.3...v5.4.0
 [5.3.3]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.2...v5.3.3
 [5.3.2]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.1...v5.3.2
 [5.3.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.0...v5.3.1
