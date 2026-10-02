@@ -5,7 +5,6 @@
  * Plugins are loaded dynamically based on configuration from the Java backend.
  */
 import { LitElement, html, css, render, nothing, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
 
 // Import modular components
 import { ThemeManager } from './theme-manager';
@@ -186,8 +185,60 @@ interface ToolbarStyleConfig {
  * - Also supports OS-level dark mode detection via prefers-color-scheme media query
  * - Manual theme control available via themeType property
  */
-@customElement('vaadin-ckeditor')
 export class VaadinCKEditor extends LitElement {
+
+    /**
+     * 反应式属性以**静态 `properties`** 声明，不用 `@property`/`@state` 装饰器。
+     *
+     * ⚠️ 这是刻意的（issue #120）。本连接器以 `@JsModule(".../vaadin-ckeditor.ts")`
+     * 形式分发**源 TS**；在 `frontendHotdeploy=true` 下由 Vite 实时转译，而
+     * rolldown 会把 TS 旧式装饰器降级成一个从 `@oxc-project/runtime` 导入的
+     * `_decorate` 辅助函数。该导入在部分环境（尤其非根 servlet context path）
+     * 下走不通 `/VAADIN/@id/` 开发代理，于是 404、编辑器白屏转圈。
+     *
+     * 改用 Lit 原生支持的静态 `properties` + `customElements.define` 后，转译
+     * 产物**不含任何装饰器**，也就不会生成那个 helper 导入 —— 与消费者的
+     * context path / Vite 版本无关，从根上消除这一类 404。
+     *
+     * 字段初值仍以类字段写法保留（`useDefineForClassFields: false`，Lit 据此
+     * 取默认值）；此处的 `properties` 只声明**类型与反应性**。新增反应式字段
+     * 时务必两处同步：字段初值 + 本表。
+     */
+    static properties = {
+        editorId: { type: String },
+        editorType: { type: String },
+        themeType: { type: String },
+        editorData: { type: String },
+        editorWidth: { type: String },
+        editorHeight: { type: String },
+        language: { type: String },
+        overrideCssUrl: { type: String },
+        isReadOnly: { type: Boolean },
+        isEnabled: { type: Boolean },
+        autosave: { type: Boolean },
+        autosaveWaitingTime: { type: Number },
+        minimapEnabled: { type: Boolean },
+        minimapSimplePreview: { type: Boolean },
+        documentOutlineEnabled: { type: Boolean },
+        annotationSidebarEnabled: { type: Boolean },
+        commentPermissionEnforcerEnabled: { type: Boolean },
+        aiSidebarEnabled: { type: Boolean },
+        ghsEnabled: { type: Boolean },
+        hideToolbar: { type: Boolean },
+        sync: { type: Boolean },
+        plugins: { type: Array },
+        toolbar: { type: Array },
+        config: { type: Object },
+        licenseKey: { type: String },
+        toolbarStyle: { type: Object },
+        fallbackMode: { type: String },
+        strictPluginLoading: { type: Boolean },
+        allowConfigRequiredPlugins: { type: Boolean },
+        // 内部状态（原 @state）
+        editor: { state: true },
+        cursorPosition: { state: true },
+        aiSidebarCollapsed: { state: true },
+    };
 
     /**
      * Static styles are not used since VaadinCKEditor uses Light DOM.
@@ -197,33 +248,33 @@ export class VaadinCKEditor extends LitElement {
     static styles = css``;
 
     // Properties synced from Java backend
-    @property({ type: String }) editorId = '';
-    @property({ type: String }) editorType: 'classic' | 'balloon' | 'inline' | 'decoupled' = 'classic';
-    @property({ type: String }) themeType: 'auto' | 'light' | 'dark' = 'auto';
-    @property({ type: String }) editorData = '';
-    @property({ type: String }) editorWidth = 'auto';
-    @property({ type: String }) editorHeight = 'auto';
-    @property({ type: String }) language = 'en';
-    @property({ type: String }) overrideCssUrl = '';
-    @property({ type: Boolean }) isReadOnly = false;
-    @property({ type: Boolean }) isEnabled = true;
-    @property({ type: Boolean }) autosave = false;
-    @property({ type: Number }) autosaveWaitingTime = 2000;
-    @property({ type: Boolean }) minimapEnabled = false;
+    editorId = '';
+    editorType: 'classic' | 'balloon' | 'inline' | 'decoupled' = 'classic';
+    themeType: 'auto' | 'light' | 'dark' = 'auto';
+    editorData = '';
+    editorWidth = 'auto';
+    editorHeight = 'auto';
+    language = 'en';
+    overrideCssUrl = '';
+    isReadOnly = false;
+    isEnabled = true;
+    autosave = false;
+    autosaveWaitingTime = 2000;
+    minimapEnabled = false;
     /**
      * When true, minimap renders content as simple boxes for better performance.
      * Use this option if the minimap updates too slowly with large documents.
      *
      * @default false
      */
-    @property({ type: Boolean }) minimapSimplePreview = false;
+    minimapSimplePreview = false;
     /**
      * When true, enables Document Outline sidebar for decoupled editor.
      * Requires DocumentOutline plugin to be loaded.
      *
      * @default false
      */
-    @property({ type: Boolean }) documentOutlineEnabled = false;
+    documentOutlineEnabled = false;
     /**
      * When true, enables annotation sidebar for collaboration features (decoupled editor only).
      * Provides container for Comments, TrackChanges, and RevisionHistory sidebar panels.
@@ -231,7 +282,7 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    @property({ type: Boolean }) annotationSidebarEnabled = false;
+    annotationSidebarEnabled = false;
     /**
      * 当启用时，对非当前用户的评论隐藏 Edit/Remove 下拉菜单，
      * 使前端 UI 与 CKEditor Cloud Services 的 comment:write 权限模型保持一致。
@@ -239,23 +290,23 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    @property({ type: Boolean }) commentPermissionEnforcerEnabled = false;
+    commentPermissionEnforcerEnabled = false;
     /**
      * 当启用时，为 AI Chat/Assistant 插件创建侧栏容器（仅 decoupled 编辑器）。
      * AI 插件在 sidebar 模式下需要一个 DOM 元素作为 config.ai.container.element。
      *
      * @default false
      */
-    @property({ type: Boolean }) aiSidebarEnabled = false;
-    @property({ type: Boolean }) ghsEnabled = false;
-    @property({ type: Boolean }) hideToolbar = false;
-    @property({ type: Boolean }) sync = true;
-    @property({ type: Array }) plugins: PluginConfig[] = [];
-    @property({ type: Array }) toolbar: string[] = [];
-    @property({ type: Object }) config: Record<string, unknown> = {};
-    @property({ type: String }) licenseKey = 'GPL';
-    @property({ type: Object }) toolbarStyle?: ToolbarStyleConfig;
-    @property({ type: String }) fallbackMode: 'textarea' | 'readonly' | 'error' | 'hidden' = 'textarea';
+    aiSidebarEnabled = false;
+    ghsEnabled = false;
+    hideToolbar = false;
+    sync = true;
+    plugins: PluginConfig[] = [];
+    toolbar: string[] = [];
+    config: Record<string, unknown> = {};
+    licenseKey = 'GPL';
+    toolbarStyle?: ToolbarStyleConfig;
+    fallbackMode: 'textarea' | 'readonly' | 'error' | 'hidden' = 'textarea';
 
     /**
      * When true, disables automatic plugin filtering.
@@ -265,7 +316,7 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    @property({ type: Boolean }) strictPluginLoading = false;
+    strictPluginLoading = false;
 
     /**
      * When true, allows loading plugins that require special configuration
@@ -274,12 +325,12 @@ export class VaadinCKEditor extends LitElement {
      *
      * @default false
      */
-    @property({ type: Boolean }) allowConfigRequiredPlugins = false;
+    allowConfigRequiredPlugins = false;
 
     // Internal state
-    @state() private editor: Editor | null = null;
-    @state() private cursorPosition: unknown = null;
-    @state() private aiSidebarCollapsed = true;
+    private editor: Editor | null = null;
+    private cursorPosition: unknown = null;
+    private aiSidebarCollapsed = true;
 
     // Modular components
     private themeManager = new ThemeManager();
@@ -2647,6 +2698,22 @@ export class VaadinCKEditor extends LitElement {
             });
         });
         logger.debug('disconnectedCallback END (microtask scheduled)');
+    }
+}
+
+/*
+ * 元素注册（原 `@customElement('vaadin-ckeditor')`）。
+ * 改用显式 `define` 以避免装饰器（见类内 `static properties` 注释 / issue #120）。
+ * 守卫重复注册：同一包被加载两次（dev server HMR / 多 bundle）时
+ * `define` 会抛 `NotSupportedError`，这里先查再定义。
+ */
+if (!customElements.get('vaadin-ckeditor')) {
+    customElements.define('vaadin-ckeditor', VaadinCKEditor);
+}
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'vaadin-ckeditor': VaadinCKEditor;
     }
 }
 
