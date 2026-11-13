@@ -5,7 +5,7 @@
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
     <packaging>jar</packaging>
-    <version>5.5.0</version>
+    <version>6.0.0</version>
     <name>CKEditorVaadin</name>
     <description>Integration of CKEditor 5 for Vaadin</description>
     <url>https://github.com/wontlost-ltd/vaadin-ckeditor</url>
@@ -15,7 +15,7 @@
         <developerConnection>scm:git:git@github.com:wontlost-ltd/vaadin-ckeditor.git</developerConnection>
     </scm>
     <properties>
-        <vaadin.version>25.3.0</vaadin.version>
+        <vaadin.version>25.3.5</vaadin.version>
         <!--
             Jackson 3 的版本基线。Vaadin 25.3.0 的 vaadin-bom 不再 import
             tools.jackson:jackson-bom（25.2.x 时还会），故需在此显式导入，

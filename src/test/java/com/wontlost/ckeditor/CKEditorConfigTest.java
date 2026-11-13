@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Map;
@@ -252,6 +253,39 @@ class CKEditorConfigTest {
         assertThat(json.has("mention")).isTrue();
         assertThat(json.get("mention").has("feeds")).isTrue();
         assertThat(json.get("mention").get("feeds").size()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("setEmoji should write the CKEditor 49 emoji options including inline definitions")
+    void setEmojiShouldCreateEmojiConfig() {
+        ArrayNode definitions = JsonUtil.createArrayNode();
+        definitions.add(JsonUtil.createObjectNode().put("emoji", "😀").put("annotation", "grinning face"));
+        config.setEmoji(new CKEditorConfig.EmojiOptions()
+            .definitionsUrl("/emoji/en.json")
+            .definitions(definitions)
+            .version(16)
+            .skinTone("medium")
+            .dropdownLimit(50)
+            .useCustomFont(true));
+        ObjectNode json = config.toJson();
+
+        ObjectNode emoji = (ObjectNode) json.get("emoji");
+        assertThat(emoji.get("definitionsUrl").asText()).isEqualTo("/emoji/en.json");
+        assertThat(emoji.get("definitions").size()).isEqualTo(1);
+        assertThat(emoji.get("version").asInt()).isEqualTo(16);
+        assertThat(emoji.get("skinTone").asText()).isEqualTo("medium");
+        assertThat(emoji.get("dropdownLimit").asInt()).isEqualTo(50);
+        assertThat(emoji.get("useCustomFont").asBoolean()).isTrue();
+    }
+
+    @Test
+    @DisplayName("setEmoji should omit options that were not set")
+    void setEmojiShouldOmitUnsetOptions() {
+        config.setEmoji(new CKEditorConfig.EmojiOptions().skinTone("dark"));
+
+        ObjectNode emoji = (ObjectNode) config.toJson().get("emoji");
+        assertThat(emoji.size()).isEqualTo(1);
+        assertThat(emoji.get("skinTone").asText()).isEqualTo("dark");
     }
 
     @Test

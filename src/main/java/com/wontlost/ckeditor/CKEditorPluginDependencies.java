@@ -39,6 +39,16 @@ public final class CKEditorPluginDependencies {
      * Recommended plugins: maps plugins to other plugins that enhance functionality.
      * These are not strictly required but provide better user experience.
      */
+    /** SpecialCharacters 的全部字符分类插件（任一存在即视为已配置分类）。 */
+    private static final Set<CKEditorPlugin> SPECIAL_CHARACTER_CATEGORIES = EnumSet.of(
+        CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS,
+        CKEditorPlugin.SPECIAL_CHARACTERS_ARROWS,
+        CKEditorPlugin.SPECIAL_CHARACTERS_CURRENCY,
+        CKEditorPlugin.SPECIAL_CHARACTERS_LATIN,
+        CKEditorPlugin.SPECIAL_CHARACTERS_MATHEMATICAL,
+        CKEditorPlugin.SPECIAL_CHARACTERS_TEXT
+    );
+
     private static final Map<CKEditorPlugin, Set<CKEditorPlugin>> RECOMMENDED;
 
     /**
@@ -83,6 +93,7 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.TABLE_CELL_PROPERTIES, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_CAPTION, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_COLUMN_RESIZE, Set.of(CKEditorPlugin.TABLE));
+        deps.put(CKEditorPlugin.TABLE_LAYOUT, Set.of(CKEditorPlugin.TABLE, CKEditorPlugin.TABLE_COLUMN_RESIZE));
         deps.put(CKEditorPlugin.PLAIN_TABLE_OUTPUT, Set.of(CKEditorPlugin.TABLE));
 
         // ==================== Link Plugin Dependencies ====================
@@ -244,6 +255,10 @@ public final class CKEditorPluginDependencies {
         premDeps.put("AIQuickActions", cloudServicesDeps);
         premDeps.put("AIReviewMode", cloudServicesDeps);
         premDeps.put("AITranslate", cloudServicesDeps);
+        // CKEditor 49.1 新增：AI Chat 气泡、AI 自定义插件登记、Editing Toolkit 的 ProposedChanges
+        premDeps.put("AIChatBalloon", cloudServicesDeps);
+        premDeps.put("AIEditorConfig", cloudServicesDeps);
+        premDeps.put("ProposedChanges", cloudServicesDeps);
 
         // Pagination — 独立插件，无外部依赖
         premDeps.put("Pagination", Set.of());
@@ -261,7 +276,12 @@ public final class CKEditorPluginDependencies {
         premDeps.put("TrackChangesPreview", Set.of());
 
         // Collaboration features that require CloudServices
-        premDeps.put("RealTimeCollaboration", cloudServicesDeps);
+        // 实时协作：真实插件类是 RealTimeCollaborative*（"RealTimeCollaboration" 只是包名，umbrella 不导出）
+        premDeps.put("RealTimeCollaborativeEditing", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeComments", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeTrackChanges", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeRevisionHistory", cloudServicesDeps);
+        premDeps.put("RealTimeContentFetcher", cloudServicesDeps);
         premDeps.put("PresenceList", Set.of(
             CKEditorPlugin.CLOUD_SERVICES
         ));
@@ -277,9 +297,6 @@ public final class CKEditorPluginDependencies {
         premDeps.put("EmailConfigurationHelper", Set.of());
         premDeps.put("SourceEditingEnhanced", Set.of());
         premDeps.put("ExportInlineStyles", Set.of());
-
-        // 表格布局（premium，依赖 Table）
-        premDeps.put("TableLayout", Set.of(CKEditorPlugin.TABLE));
 
         PREMIUM_DEPENDENCIES = Collections.unmodifiableMap(premDeps);
 
@@ -361,7 +378,25 @@ public final class CKEditorPluginDependencies {
             resolveTransitive(plugin, resolved);
         }
 
+        ensureSpecialCharactersHaveCategory(resolved);
+
         return resolved;
+    }
+
+    /**
+     * SpecialCharacters 本身不带任何字符分类，CKEditor 要求至少加载一个分类插件，
+     * 否则工具栏按钮打开的是一个空面板（issue #143）。
+     * 若调用方只选了 SpecialCharacters 而未选任何分类，则补上 Essentials 全集；
+     * 调用方已显式选择某个分类时尊重其选择。
+     */
+    private static void ensureSpecialCharactersHaveCategory(Set<CKEditorPlugin> resolved) {
+        if (!resolved.contains(CKEditorPlugin.SPECIAL_CHARACTERS)) {
+            return;
+        }
+        boolean hasCategory = SPECIAL_CHARACTER_CATEGORIES.stream().anyMatch(resolved::contains);
+        if (!hasCategory) {
+            resolved.add(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+        }
     }
 
     /**
@@ -470,6 +505,14 @@ public final class CKEditorPluginDependencies {
             if (!missingDeps.isEmpty()) {
                 missing.put(plugin, missingDeps);
             }
+        }
+
+        // SpecialCharacters 的「至少一个分类」不是固定依赖（任一分类都可满足），
+        // 不能放进 DEPENDENCIES；但 STRICT 仍须报出 AUTO_RESOLVE 会补齐的那一项。
+        if (plugins.contains(CKEditorPlugin.SPECIAL_CHARACTERS)
+                && SPECIAL_CHARACTER_CATEGORIES.stream().noneMatch(plugins::contains)) {
+            missing.computeIfAbsent(CKEditorPlugin.SPECIAL_CHARACTERS, k -> EnumSet.noneOf(CKEditorPlugin.class))
+                .add(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
         }
 
         return missing;

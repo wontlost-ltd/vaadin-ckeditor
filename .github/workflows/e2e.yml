@@ -5,6 +5,14 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # 手动触发：update_snapshots=true 时只跑视觉回归并重新生成 Linux 基线，
+  # 以 artifact 形式上传，由维护者下载后提交（基线只能在 ubuntu-latest 上生成，本机无法）。
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate Linux visual-regression baselines and upload them as an artifact"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -50,10 +58,26 @@ jobs:
           npx playwright install --with-deps chromium firefox
 
       - name: Run Playwright tests
+        if: ${{ !inputs.update_snapshots }}
         working-directory: e2e
         env:
           CI: "true"
         run: npx playwright test
+
+      - name: Regenerate visual baselines
+        if: ${{ inputs.update_snapshots }}
+        working-directory: e2e
+        env:
+          CI: "true"
+        run: npx playwright test tests/visual-regression.spec.ts --update-snapshots
+
+      - name: Upload regenerated baselines
+        if: ${{ inputs.update_snapshots }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines
+          path: e2e/tests/__screenshots__/
+          retention-days: 7
 
       - name: Upload Playwright report on failure
         if: failure()

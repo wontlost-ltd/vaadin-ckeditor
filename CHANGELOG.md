@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-11-14
+
+### Added
+- **`CKEditorConfig.setEmoji(EmojiOptions)`**：Emoji 插件选项的类型化入口，含 CKEditor 49.1 新增的
+  `definitions`（内联表情库，不再从 URL 下载）以及 `definitionsUrl` / `version` / `skinTone` /
+  `dropdownLimit` / `useCustomFont`。
+- **运行期编辑器错误上报**：CKEditor 49 移除 Watchdog 与崩溃自动重启，连接器改用 `onEditorError()`
+  观察逃逸出编辑器的错误，并以 `EDITOR_RUNTIME_ERROR`（severity `ERROR`、recoverable）触发既有的
+  `EditorErrorEvent`；编辑器销毁时自动退订。
+- **`CKEditorPlugin.TABLE_LAYOUT`**（`insertTableLayout`）：预设表格布局。该插件由免费 `ckeditor5`
+  umbrella 导出，但 `TableLayoutEditing` 带商业 license 门控，使用时仍需 license key。
+- **`PremiumPlugin` 新增** CKEditor 49.1 的 `AIChatBalloon`、`AIEditorConfig`、`ProposedChanges`、
+  `RealTimeContentFetcher`，并补齐 CloudServices 依赖登记。
+
+### Removed
+- **`PremiumPlugin.REAL_TIME_COLLABORATION`**：`"RealTimeCollaboration"` 只是包名，
+  `ckeditor5-premium-features` 从未导出同名插件类（48、49 均经真实 import 核验），加载时只会得到
+  "Premium plugin not found" 警告。请改用 `REAL_TIME_COLLABORATIVE_EDITING` 等具体插件。
+- **`PremiumPlugin.TABLE_LAYOUT`**：该插件不在 premium 包里，经 premium 通道加载同样静默失败；
+  迁移为 `CKEditorPlugin.TABLE_LAYOUT`。
+
+### Changed
+- **CKEditor 5（`ckeditor5`、`ckeditor5-premium-features`）：48.5.2 → 49.1.0**。49.0 为主版本，
+  对集成方可见的变化：
+  - 默认主题刷新（新的三层 CSS 设计令牌），工具栏 / 面板 / 对话框外观与 `.ck-content`
+    的引用块、代码块、水平线颜色均有变化。旧 `--ck-color-*` 变量名作为覆盖入口仍有效，
+    本库的 `DARK_THEME_VARS` 暗色覆盖经实测在 49 下继续生效；需要保留旧外观的应用可按
+    CKEditor 的 [主题迁移指南](https://ckeditor.com/docs/ckeditor5/latest/updating/guides/migration-to-refreshed-theme.html)
+    加载旧版预设。
+  - 移除 `@ckeditor/ckeditor5-watchdog` 与崩溃后自动重启；本库从未依赖 watchdog，无需迁移。
+  - 字体颜色 / 表格颜色默认调色板改为 120 色 Material 色板、色网 12 列；显式配置过
+    `fontColor.colors` 等的应用不受影响。
+  - 构建目标升为 ES2023、样式表改用原生 CSS 嵌套；Vaadin 25.3 的 Vite 目标
+    （Chrome 152 / Firefox 140 / Safari 17.6）均已支持。
+  - 新增 `ui.overlayContainer`，本库借此替换了 #143 / #144 修复中的手动搬移逻辑（见下）。
+- **Vaadin 25.3.0 → 25.3.5**（维护版本，Flow 25.3.7、Flow Components 25.3.5、Web Components 25.3.5）。
+
+### Fixed
+- **Vaadin Dialog 内 CKEditor 浮层与全屏被盖住**（[#143](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/143)、
+  [#144](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/144)）。Vaadin 25 的 Dialog 以 `popover`
+  进入浏览器顶层，CKEditor 挂在 `document.body` 上的对话框 / 气泡容器与全屏容器无论 z-index 多大都在
+  Dialog 之下，模态 Dialog 还会屏蔽它们的指针事件；原 #56 的 z-index 提升在 25.3 下已不再命中。
+  现在宿主位于顶层时，连接器把 CKEditor 49 的 `ui.overlayContainer` 指向 `<vaadin-ckeditor>`，
+  浮层容器与全屏容器由 CKEditor 建在宿主内，连接器再让两者各自以 `popover="manual"` 进入顶层
+  （躲开 Dialog 内容区的 `clip-path`），用户与编辑器交互时重新置顶。显式配置
+  `ui.overlayContainer` / `fullscreen.container` 时尊重调用方选择。特殊字符、链接气泡、查找替换、全屏等在 VISUAL / MODELESS 下均可用。
+- **只选 `SPECIAL_CHARACTERS` 时面板为空**（[#143](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/143)）：
+  CKEditor 要求至少一个字符分类插件。`AUTO_RESOLVE` / `AUTO_RESOLVE_WITH_RECOMMENDED` 现在会在
+  未选任何分类时自动补上 `SPECIAL_CHARACTERS_ESSENTIALS`，`STRICT` 把缺少分类报为依赖缺失；
+  已显式选择分类（如 `SPECIAL_CHARACTERS_LATIN`）时尊重原选择，`MANUAL` 模式不做任何补充。
+- **暗色主题下 Style 面板标签不可读**（[#145](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/145)）：
+  CKEditor 把标签底色硬编码为 `#f0f0f0`，与暗色下近白的文字叠在一起。暗色变量现在覆盖
+  `--ck-style-panel-button-label-background` 及其 hover 变体。
+
 ## [5.5.0] - 2026-10-03
 
 ### Added
@@ -592,7 +646,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.5.0...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.0.0...HEAD
+[6.0.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.5.0...v6.0.0
 [5.5.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.1...v5.5.0
 [5.4.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.0...v5.4.1
 [5.4.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.3.3...v5.4.0

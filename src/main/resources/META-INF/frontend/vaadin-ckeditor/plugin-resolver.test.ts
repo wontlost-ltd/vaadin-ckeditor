@@ -193,6 +193,10 @@ describe('PLUGIN_REGISTRY', () => {
         expect(PLUGIN_REGISTRY).toHaveProperty('Italic');
     });
 
+    it('registers TableLayout from the free umbrella (license-gated at runtime, not a premium export)', () => {
+        expect(PLUGIN_REGISTRY).toHaveProperty('TableLayout');
+    });
+
     it('should contain all basic formatting plugins', () => {
         const basicPlugins = [
             'Bold', 'Italic', 'Underline', 'Strikethrough',

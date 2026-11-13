@@ -7,7 +7,7 @@
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin-testbench</artifactId>
     <packaging>jar</packaging>
-    <version>5.5.0</version>
+    <version>6.0.0</version>
     <name>CKEditorVaadin TestBench</name>
     <description>
         Optional Vaadin TestBench element API for the CKEditor 5 Vaadin integration.
@@ -25,7 +25,7 @@
     </scm>
 
     <properties>
-        <vaadin.version>25.3.0</vaadin.version>
+        <vaadin.version>25.3.5</vaadin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -132,5 +133,19 @@ class VaadinCKEditorPremiumTest {
         // Should return a defensive copy, not the same array
         assertNotSame(items1, items2);
         assertArrayEquals(items1, items2);
+    }
+
+    @Test
+    @DisplayName("CKEditor 49.1 新增的 premium 插件可通过枚举引用，且不再列出 umbrella 从未导出的名字")
+    void premiumCatalogueMatchesCkeditor49() {
+        assertThat(PremiumPlugin.AI_CHAT_BALLOON.getPluginName()).isEqualTo("AIChatBalloon");
+        assertThat(PremiumPlugin.AI_EDITOR_CONFIG.getPluginName()).isEqualTo("AIEditorConfig");
+        assertThat(PremiumPlugin.PROPOSED_CHANGES.getPluginName()).isEqualTo("ProposedChanges");
+        assertThat(PremiumPlugin.REAL_TIME_CONTENT_FETCHER.getPluginName()).isEqualTo("RealTimeContentFetcher");
+
+        java.util.Set<String> names = java.util.Arrays.stream(PremiumPlugin.values())
+            .map(PremiumPlugin::getPluginName).collect(java.util.stream.Collectors.toSet());
+        // RealTimeCollaboration 不是插件类；TableLayout 由 ckeditor5 免费 umbrella 导出（见 CKEditorPlugin.TABLE_LAYOUT）
+        assertThat(names).doesNotContain("RealTimeCollaboration", "TableLayout");
     }
 }
