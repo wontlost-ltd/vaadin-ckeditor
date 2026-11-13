@@ -162,6 +162,13 @@ describe('createEditorInstance（生产路径）不破坏 Collection 记账', ()
             getEditorConstructor: () => FakeEditorConstructor,
             buildConfig: async () => ({}),
             buildEditorCreateConfig: () => ({}),
+            // 创建后登记的退订函数（运行期错误上报等）
+            listenerCleanups: [] as Array<() => void>,
+            // 顶层宿主判定（overlay-host.ts）沿扁平树向上查找：不在任何 popover 内
+            assignedSlot: null,
+            parentElement: null,
+            getRootNode: () => document,
+            hasAttribute: () => false,
         };
 
         try {

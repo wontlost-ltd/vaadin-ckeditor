@@ -65,6 +65,39 @@ vaadin-overlay vaadin-ckeditor,
     --ck-z-default: 2147483000;
 }
 
+/* ==================== Top-layer host (issue #143 / #144) ==================== */
+/*
+ * Vaadin 25 的 Dialog 以 popover 进入浏览器顶层，z-index 对顶层无效，且 Dialog 内容区
+ * 带 clip-path 会裁掉越界的浮层。连接器把 CKEditor 的 ui.overlayContainer 指向宿主，
+ * 浮层容器与全屏容器都由 CKEditor 建在宿主内，再各自以 manual popover 进入顶层（见 overlay-host.ts）。
+ * 这里复位 popover 的 UA 默认样式（居中、边框、内边距、fit-content 尺寸、overflow:auto）。
+ */
+
+/* 浮层容器：零尺寸锚点，子元素（气泡 absolute / 对话框 fixed）按文档坐标自行定位 */
+vaadin-ckeditor[data-ck-overlay-host] > .ck-body-wrapper:popover-open {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+/* 全屏容器：挂在宿主内仍需铺满视口，复位 popover 的 UA 尺寸与边距 */
+vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-open {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+}
+
 /* ==================== Dark Theme Support ==================== */
 /*
  * Supports both:

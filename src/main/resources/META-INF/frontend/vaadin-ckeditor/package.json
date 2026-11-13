@@ -1,6 +1,6 @@
 {
   "name": "vaadin-ckeditor",
-  "version": "5.5.0",
+  "version": "6.0.0",
   "description": "Vaadin CKEditor 5 Web Component",
   "engines": {
     "node": ">=24"
@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "ckeditor5": "48.5.2",
+    "ckeditor5": "49.1.0",
     "lit": "^3.3.3"
   },
   "devDependencies": {

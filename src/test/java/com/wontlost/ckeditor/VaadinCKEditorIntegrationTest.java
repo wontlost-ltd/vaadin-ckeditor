@@ -743,7 +743,8 @@ class VaadinCKEditorIntegrationTest {
             String version = VaadinCKEditor.getVersion();
             assertNotNull(version);
             assertFalse(version.isEmpty());
-            assertTrue(version.matches("\\d+\\.\\d+\\.\\d+"));
+            // 语义化版本，允许开发期的预发布限定符（如 6.0.0-SNAPSHOT）
+            assertTrue(version.matches("\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.]+)?"), version);
         }
     }
 

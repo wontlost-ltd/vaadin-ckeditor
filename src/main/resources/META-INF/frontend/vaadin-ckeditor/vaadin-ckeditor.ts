@@ -35,6 +35,13 @@ import CommentPermissionEnforcer from './comment-permission-enforcer';
 
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
+import {
+    configureTopLayerHost,
+    findTopLayerAncestor,
+    promoteHostWrapper,
+    raiseHostLayers,
+    releaseOverlayHost,
+} from './overlay-host';
 
 // Import document editor CSS for Decoupled/Document editor styling
 // These styles are applied globally since VaadinCKEditor uses Light DOM
@@ -439,7 +446,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '5.5.0';
+    private readonly version = '6.0.0';
 
     constructor() {
         super();
@@ -772,6 +779,10 @@ export class VaadinCKEditor extends LitElement {
             ...(translations ? { translations: [translations] } : {}),
             ...remainingConfig,
         };
+
+        // 顶层宿主（Vaadin Dialog 等 popover）内的浮层与全屏（issue #143 / #144）：
+        // 把 ui.overlayContainer 指向宿主并包装全屏回调，细节与边界见 overlay-host.ts。
+        configureTopLayerHost(this, editorConfig as Record<string, unknown>);
 
         // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
         // config.toolbar takes precedence when it's an object with additional options
@@ -2282,6 +2293,8 @@ export class VaadinCKEditor extends LitElement {
                                         if (this.destroyPromise === destroyed) {
                                             this.destroyPromise = null;
                                         }
+                                        // 迟到的销毁完成时 CKEditor 才移除浮层 wrapper，此时再清一次宿主标记
+                                        releaseOverlayHost(this);
                                     });
                                 }
                             } else {
@@ -2291,6 +2304,8 @@ export class VaadinCKEditor extends LitElement {
                             // Log but don't throw - destruction errors shouldn't break the app
                             logger.warn('Error during destroy (non-fatal):', error);
                         }
+                        // CKEditor 销毁时已自行移除宿主内的浮层 wrapper，此时清掉宿主标记
+                        releaseOverlayHost(this);
                         resolve();
                     };
 
