@@ -17,10 +17,10 @@
     "lit": "^3.3.3"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "jsdom": "^26.1.0",
     "typescript": "^5.9.3",
-    "vite": "^8.3.2",
-    "vitest": "^4.1.11"
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12"
   }
 }
