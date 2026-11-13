@@ -522,4 +522,67 @@ class CKEditorPluginDependenciesTest {
             .contains("Export-Package:")
             .contains("com.wontlost.ckeditor");
     }
+
+    @Test
+    @DisplayName("issue #143: bare SpecialCharacters resolves to include the Essentials categories")
+    void bareSpecialCharactersShouldPullInEssentials() {
+        Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(
+            Set.of(CKEditorPlugin.SPECIAL_CHARACTERS));
+
+        assertThat(resolved).contains(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+    }
+
+    @Test
+    @DisplayName("issue #143: SpecialCharacters with an explicit category keeps that selection")
+    void specialCharactersWithCategoryShouldNotForceEssentials() {
+        Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(
+            Set.of(CKEditorPlugin.SPECIAL_CHARACTERS, CKEditorPlugin.SPECIAL_CHARACTERS_LATIN));
+
+        assertThat(resolved)
+            .contains(CKEditorPlugin.SPECIAL_CHARACTERS, CKEditorPlugin.SPECIAL_CHARACTERS_LATIN)
+            .doesNotContain(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+    }
+
+    @Test
+    @DisplayName("issue #143: a category alone still pulls in SpecialCharacters only")
+    void categoryAloneShouldResolveBaseOnly() {
+        Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(
+            Set.of(CKEditorPlugin.SPECIAL_CHARACTERS_ARROWS));
+
+        assertThat(resolved)
+            .contains(CKEditorPlugin.SPECIAL_CHARACTERS)
+            .doesNotContain(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+    }
+
+    @Test
+    @DisplayName("issue #143: STRICT validation reports bare SpecialCharacters as missing a category")
+    void validateDependenciesShouldReportSpecialCharactersWithoutCategory() {
+        // STRICT 报出的缺失项必须与 AUTO_RESOLVE 会补齐的项一致，否则两种模式对同一输入结论相左
+        Map<CKEditorPlugin, Set<CKEditorPlugin>> missing = CKEditorPluginDependencies.validateDependencies(
+            Set.of(CKEditorPlugin.SPECIAL_CHARACTERS));
+
+        assertThat(missing)
+            .containsEntry(CKEditorPlugin.SPECIAL_CHARACTERS, Set.of(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS));
+    }
+
+    @Test
+    @DisplayName("issue #143: STRICT validation accepts SpecialCharacters with any explicit category")
+    void validateDependenciesShouldAcceptSpecialCharactersWithCategory() {
+        Map<CKEditorPlugin, Set<CKEditorPlugin>> missing = CKEditorPluginDependencies.validateDependencies(
+            Set.of(CKEditorPlugin.SPECIAL_CHARACTERS, CKEditorPlugin.SPECIAL_CHARACTERS_CURRENCY));
+
+        assertThat(missing).isEmpty();
+    }
+
+    @Test
+    @DisplayName("issue #143: STRICT builder rejects bare SpecialCharacters with an actionable message")
+    void strictBuilderShouldRejectBareSpecialCharacters() {
+        VaadinCKEditorBuilder builder = VaadinCKEditor.create()
+            .withDependencyMode(VaadinCKEditorBuilder.DependencyMode.STRICT)
+            .withPlugins(CKEditorPlugin.ESSENTIALS, CKEditorPlugin.PARAGRAPH, CKEditorPlugin.SPECIAL_CHARACTERS);
+
+        assertThatThrownBy(builder::build)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("SpecialCharacters requires: SpecialCharactersEssentials");
+    }
 }

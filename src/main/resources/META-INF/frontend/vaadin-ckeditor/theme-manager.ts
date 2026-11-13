@@ -61,6 +61,12 @@ export const DARK_THEME_VARS: Record<string, string> = {
     '--ck-color-link-default': 'hsl(190, 100%, 75%)',
     '--ck-color-editable-blur-selection': 'hsl(270, 1%, 35%)',
 
+    // Style 面板按钮标签底色（issue #145）：CKEditor 把它硬编码为 #f0f0f0，
+    // 暗色下与近白的 --ck-color-text 叠在一起导致标签不可读，这里一并改为深色。
+    '--ck-style-panel-button-label-background': 'hsl(270, 1%, 22%)',
+    '--ck-style-panel-button-hover-label-background': 'hsl(270, 1%, 25%)',
+    '--ck-style-panel-button-hover-border-color': 'hsl(257, 3%, 43%)',
+
     // CKEditor 48 AI 官方 token（暗色映射），与项目自定义 --ck-ai-bg-*/text-*/border-* 语义层互不冲突
     '--ck-color-ai-chat-primary-button-background': 'hsl(208, 90%, 45%)',
     '--ck-color-ai-chat-primary-button-hover-background': 'hsl(208, 90%, 40%)',

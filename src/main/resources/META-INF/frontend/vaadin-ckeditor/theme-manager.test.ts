@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ThemeManager } from './theme-manager';
+import { ThemeManager, DARK_THEME_VARS } from './theme-manager';
 
 describe('ThemeManager', () => {
     let manager: ThemeManager;
@@ -263,5 +263,24 @@ describe('ThemeManager edge cases', () => {
         expect(() => manager.initialize('auto', callback)).not.toThrow();
 
         manager.cleanup();
+    });
+});
+
+// issue #145：CKEditor 把 Style 面板按钮标签底色硬编码为 #f0f0f0（浅灰），
+// 暗色主题下 --ck-color-text 变为近白，标签文字完全不可读。暗色变量必须覆盖这组 token。
+describe('DARK_THEME_VARS style panel tokens (issue #145)', () => {
+    it('overrides the style panel label background so labels stay readable', () => {
+        expect(DARK_THEME_VARS['--ck-style-panel-button-label-background']).toBeDefined();
+        expect(DARK_THEME_VARS['--ck-style-panel-button-hover-label-background']).toBeDefined();
+        expect(DARK_THEME_VARS['--ck-style-panel-button-hover-border-color']).toBeDefined();
+    });
+
+    it('applies the style panel label background to <html> when dark theme is active', () => {
+        const manager = new ThemeManager();
+        manager.applyTheme('dark');
+        const value = document.documentElement.style.getPropertyValue('--ck-style-panel-button-label-background');
+        manager.cleanup();
+        expect(value).not.toBe('');
+        expect(value).not.toBe('#f0f0f0');
     });
 });

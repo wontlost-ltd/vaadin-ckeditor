@@ -39,6 +39,16 @@ public final class CKEditorPluginDependencies {
      * Recommended plugins: maps plugins to other plugins that enhance functionality.
      * These are not strictly required but provide better user experience.
      */
+    /** SpecialCharacters 的全部字符分类插件（任一存在即视为已配置分类）。 */
+    private static final Set<CKEditorPlugin> SPECIAL_CHARACTER_CATEGORIES = EnumSet.of(
+        CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS,
+        CKEditorPlugin.SPECIAL_CHARACTERS_ARROWS,
+        CKEditorPlugin.SPECIAL_CHARACTERS_CURRENCY,
+        CKEditorPlugin.SPECIAL_CHARACTERS_LATIN,
+        CKEditorPlugin.SPECIAL_CHARACTERS_MATHEMATICAL,
+        CKEditorPlugin.SPECIAL_CHARACTERS_TEXT
+    );
+
     private static final Map<CKEditorPlugin, Set<CKEditorPlugin>> RECOMMENDED;
 
     /**
@@ -361,7 +371,25 @@ public final class CKEditorPluginDependencies {
             resolveTransitive(plugin, resolved);
         }
 
+        ensureSpecialCharactersHaveCategory(resolved);
+
         return resolved;
+    }
+
+    /**
+     * SpecialCharacters 本身不带任何字符分类，CKEditor 要求至少加载一个分类插件，
+     * 否则工具栏按钮打开的是一个空面板（issue #143）。
+     * 若调用方只选了 SpecialCharacters 而未选任何分类，则补上 Essentials 全集；
+     * 调用方已显式选择某个分类时尊重其选择。
+     */
+    private static void ensureSpecialCharactersHaveCategory(Set<CKEditorPlugin> resolved) {
+        if (!resolved.contains(CKEditorPlugin.SPECIAL_CHARACTERS)) {
+            return;
+        }
+        boolean hasCategory = SPECIAL_CHARACTER_CATEGORIES.stream().anyMatch(resolved::contains);
+        if (!hasCategory) {
+            resolved.add(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+        }
     }
 
     /**
@@ -470,6 +498,14 @@ public final class CKEditorPluginDependencies {
             if (!missingDeps.isEmpty()) {
                 missing.put(plugin, missingDeps);
             }
+        }
+
+        // SpecialCharacters 的「至少一个分类」不是固定依赖（任一分类都可满足），
+        // 不能放进 DEPENDENCIES；但 STRICT 仍须报出 AUTO_RESOLVE 会补齐的那一项。
+        if (plugins.contains(CKEditorPlugin.SPECIAL_CHARACTERS)
+                && SPECIAL_CHARACTER_CATEGORIES.stream().noneMatch(plugins::contains)) {
+            missing.computeIfAbsent(CKEditorPlugin.SPECIAL_CHARACTERS, k -> EnumSet.noneOf(CKEditorPlugin.class))
+                .add(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
         }
 
         return missing;
