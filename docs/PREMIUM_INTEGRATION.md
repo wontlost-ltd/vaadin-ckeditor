@@ -179,6 +179,9 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | AI Quick Actions | `AIQuickActions` | `aiQuickActions` | Context-aware AI actions |
 | AI Review Mode | `AIReviewMode` | - | AI-assisted content review |
 | AI Translate | `AITranslate` | - | AI-powered translation |
+| AI Chat Balloon | `AIChatBalloon` | - | Balloon UI for AI Chat (49.1+) |
+| AI Editor Config | `AIEditorConfig` | - | Register custom plugins with the AI agent (49.1+) |
+| Proposed Changes | `ProposedChanges` | - | Editing Toolkit: compare versions, apply differences (49.1+) |
 
 > ⚠️ **Security Warning**: Never hardcode API keys in source code. Use environment variables or secure configuration.
 
@@ -245,7 +248,7 @@ CKEditorConfig config = new CKEditorConfig()
 VaadinCKEditor editor = VaadinCKEditor.create()
     .withPreset(CKEditorPreset.FULL)
     .withLicenseKey(LICENSE_KEY)
-    .addCustomPlugin(CustomPlugin.fromPremium("RealTimeCollaboration"))
+    .addCustomPlugin(CustomPlugin.fromPremium("RealTimeCollaborativeEditing"))
     .addCustomPlugin(CustomPlugin.fromPremium("Comments"))
     .addCustomPlugin(CustomPlugin.fromPremium("TrackChanges"))
     .withConfig(config)

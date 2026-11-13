@@ -384,8 +384,14 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIQuickActions")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIReviewMode")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AITranslate")).isTrue();
-        // Collaboration plugins
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaboration")).isTrue();
+        // Collaboration plugins（"RealTimeCollaboration" 不是插件类，umbrella 从未导出；真实类名是 RealTimeCollaborative*）
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaboration")).isFalse();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaborativeEditing")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeContentFetcher")).isTrue();
+        // CKEditor 49.1 新增的 AI premium 插件
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChatBalloon")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorConfig")).isTrue();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("ProposedChanges")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isTrue();
     }
 
@@ -552,6 +558,15 @@ class CKEditorPluginDependenciesTest {
         assertThat(resolved)
             .contains(CKEditorPlugin.SPECIAL_CHARACTERS)
             .doesNotContain(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS);
+    }
+
+    @Test
+    @DisplayName("TableLayout ships in the free umbrella (license-gated) and depends on Table + TableColumnResize")
+    void tableLayoutShouldResolveTableDependencies() {
+        Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(Set.of(CKEditorPlugin.TABLE_LAYOUT));
+
+        assertThat(resolved).contains(CKEditorPlugin.TABLE, CKEditorPlugin.TABLE_COLUMN_RESIZE);
+        assertThat(CKEditorPluginDependencies.getPremiumDependencies("TableLayout")).isEmpty();
     }
 
     @Test

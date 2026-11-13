@@ -61,6 +61,7 @@ import {
     TableCellProperties,
     TableCaption,
     TableColumnResize,
+    TableLayout,
     PlainTableOutput,
     // Media
     MediaEmbed,
@@ -219,6 +220,8 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'TableCellProperties': TableCellProperties,
     'TableCaption': TableCaption,
     'TableColumnResize': TableColumnResize,
+    // 免费 umbrella 导出但 TableLayoutEditing 带 license 门控
+    'TableLayout': TableLayout,
     'PlainTableOutput': PlainTableOutput,
     // Media
     'MediaEmbed': MediaEmbed,

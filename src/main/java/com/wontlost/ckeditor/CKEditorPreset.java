@@ -527,7 +527,7 @@ public enum CKEditorPreset {
      *     .addCustomPlugin(CustomPlugin.fromPremium("MergeFields"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("Template"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("PasteFromOfficeEnhanced"))
-     *     .addCustomPlugin(CustomPlugin.fromPremium("TableLayout"))
+     *     .addPlugin(CKEditorPlugin.TABLE_LAYOUT) // 免费 umbrella 导出，运行时需商业 license
      *     // Add premium toolbar items:
      *     .withToolbar("undo", "redo", "|",
      *         "insertMergeField", "previewMergeFields", "|",
@@ -584,7 +584,7 @@ public enum CKEditorPreset {
             CKEditorPlugin.IMAGE_UPLOAD,
             CKEditorPlugin.AUTO_IMAGE,
             CKEditorPlugin.BASE64_UPLOAD_ADAPTER,
-            // Tables（含 PlainTableOutput, ColumnResize；TableLayout 为 premium 需单独添加）
+            // Tables（含 PlainTableOutput, ColumnResize；TABLE_LAYOUT 需商业 license，需单独添加）
             CKEditorPlugin.TABLE,
             CKEditorPlugin.TABLE_TOOLBAR,
             CKEditorPlugin.TABLE_COLUMN_RESIZE,

@@ -345,6 +345,44 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
+     * Emoji 插件选项（CKEditor 49.1 起支持 {@code definitions} 内联表情库，无需从 URL 下载）。
+     * 只写入显式设置过的字段，其余保持 CKEditor 默认。
+     */
+    public static class EmojiOptions {
+        private final ObjectNode node = createObjectNode();
+
+        /** 表情库 JSON 的 URL（默认 CKEditor CDN） */
+        public EmojiOptions definitionsUrl(String url) { node.put("definitionsUrl", url); return this; }
+
+        /** 直接内联的表情库（{@code config.emoji.definitions}，CKEditor 49.1+），元素形如 {@code {emoji, annotation, ...}} */
+        public EmojiOptions definitions(ArrayNode definitions) { node.set("definitions", definitions); return this; }
+
+        /** Unicode Emoji 版本：15、16 或 17 */
+        public EmojiOptions version(int version) { node.put("version", version); return this; }
+
+        /** 默认肤色：default、light、medium-light、medium、medium-dark、dark */
+        public EmojiOptions skinTone(String skinTone) { node.put("skinTone", skinTone); return this; }
+
+        /** 输入 {@code :} 时下拉建议的最大条数 */
+        public EmojiOptions dropdownLimit(int limit) { node.put("dropdownLimit", limit); return this; }
+
+        /** 是否使用自定义 emoji 字体而非系统字体 */
+        public EmojiOptions useCustomFont(boolean useCustomFont) { node.put("useCustomFont", useCustomFont); return this; }
+
+        ObjectNode toJson() { return node; }
+    }
+
+    /**
+     * 设置 Emoji 插件选项（需加载 {@link CKEditorPlugin#EMOJI}）
+     */
+    public CKEditorConfig setEmoji(EmojiOptions options) {
+        if (options != null) {
+            configs.put("emoji", options.toJson());
+        }
+        return this;
+    }
+
+    /**
      * Set mention feeds
      */
     public CKEditorConfig setMention(MentionFeed... feeds) {

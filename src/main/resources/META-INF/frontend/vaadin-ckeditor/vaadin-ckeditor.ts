@@ -10,6 +10,7 @@ import { LitElement, html, css, render, nothing, PropertyValues } from 'lit';
 import { ThemeManager } from './theme-manager';
 import { UploadAdapterManager } from './upload-adapter';
 import { FallbackRenderer, type FallbackMode } from './fallback-renderer';
+import { bindEditorErrors } from './error-reporter';
 import {
     PluginResolver,
     registerCKEditorPlugin,
@@ -1222,6 +1223,29 @@ export class VaadinCKEditor extends LitElement {
         }
 
         this.editor = created;
+
+        // 运行期逃逸的编辑器错误（CKEditor 49 起无 Watchdog）→ EditorErrorEvent；销毁时退订
+        this.listenerCleanups.push(bindEditorErrors(created, (code, message, severity, recoverable, stack) => {
+            this.$server?.fireEditorError(code, message, severity, recoverable, stack);
+        }));
+
+        // 顶层宿主内把 CKEditor 挂在宿主里的浮层容器提升到顶层（issue #143）。
+        // 容器由 CKEditor 在编辑根连上后懒挂载，重挂载时会发 remount，故在该事件上再提升一次。
+        // Vaadin 自己重排 overlay 时可能重新压到我们上面，用户再次与编辑器交互时把容器顶回最上。
+        if (findTopLayerAncestor(this)) {
+            const body = created.ui?.view?.body;
+            const promote = (): void => { promoteHostWrapper(this); };
+            promote();
+            body?.on('remount', promote);
+            const raise = (): void => raiseHostLayers(this);
+            this.addEventListener('pointerdown', raise, true);
+            this.addEventListener('focusin', raise, true);
+            this.listenerCleanups.push(() => {
+                body?.off('remount', promote);
+                this.removeEventListener('pointerdown', raise, true);
+                this.removeEventListener('focusin', raise, true);
+            });
+        }
 
         const endTime = performance.now();
         const initTimeMs = endTime - startTime;

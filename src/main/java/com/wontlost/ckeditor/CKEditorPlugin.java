@@ -185,6 +185,13 @@ public enum CKEditorPlugin {
     /** Table column resizing */
     TABLE_COLUMN_RESIZE("TableColumnResize", Category.TABLE),
 
+    /**
+     * 预设表格布局模板（insertTableLayout）。
+     * 由 ckeditor5 免费 umbrella 导出（ckeditor5-premium-features 并不导出它），
+     * 但其 TableLayoutEditing 带商业 license 门控：未配置有效 license key 时 CKEditor 会报 license 错误。
+     */
+    TABLE_LAYOUT("TableLayout", Category.TABLE, "insertTableLayout"),
+
     /** 输出纯净表格 HTML（去除多余样式，Email 场景必需） */
     PLAIN_TABLE_OUTPUT("PlainTableOutput", Category.TABLE),
 
@@ -454,11 +461,11 @@ public enum CKEditorPlugin {
     }
 
     /**
-     * Check if this is a premium feature (requires license).
-     * Note: All built-in plugins are free. Premium features require
-     * the ckeditor5-premium-features package and a license key.
-     * Use CustomPlugin to load premium plugins.
-     * @return always false for built-in plugins
+     * 是否经 {@code ckeditor5-premium-features} 包加载。
+     * <p>本枚举全部由免费 {@code ckeditor5} umbrella 导出，因此恒为 false；它描述的是
+     * <b>加载通道</b>，不是 license 判断：{@link #TABLE_LAYOUT} 虽由免费包导出，运行时仍需商业
+     * license key。premium 包里的插件请用 {@link CustomPlugin#fromPremium(String)}。
+     * @return 内置插件恒为 false
      */
     public boolean isPremium() {
         return false;

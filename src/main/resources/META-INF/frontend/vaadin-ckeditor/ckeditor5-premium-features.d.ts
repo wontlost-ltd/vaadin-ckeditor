@@ -25,12 +25,14 @@ declare module 'ckeditor5-premium-features' {
     export const Comments: unknown;
     export const TrackChanges: unknown;
     export const RevisionHistory: unknown;
-    export const RealTimeCollaboration: unknown;
     export const PresenceList: unknown;
     export const EmailConfigurationHelper: unknown;
     export const SourceEditingEnhanced: unknown;
     export const ExportInlineStyles: unknown;
-    export const TableLayout: unknown;
+    export const AIChatBalloon: unknown;
+    export const AIEditorConfig: unknown;
+    export const ProposedChanges: unknown;
+    export const RealTimeContentFetcher: unknown;
 
     // CKEditor 48 AI configuration type placeholders
     // 这些类型只覆盖项目主动消费的配置字段，未列出的字段保持运行时透传

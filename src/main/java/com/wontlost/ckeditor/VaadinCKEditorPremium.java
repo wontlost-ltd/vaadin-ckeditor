@@ -52,8 +52,14 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>EmailConfigurationHelper</td><td>-</td><td>Email editor configuration optimizer (v47.5.0+)</td></tr>
  *   <tr><td>SourceEditingEnhanced</td><td>sourceEditingEnhanced</td><td>Enhanced source editing with HTML validation (v47.5.0+)</td></tr>
  *   <tr><td>ExportInlineStyles</td><td>-</td><td>Inline style export for email compatibility (v47.5.0+)</td></tr>
- *   <tr><td>TableLayout</td><td>insertTableLayout</td><td>Predefined table layout templates (v47.5.0+)</td></tr>
+ *   <tr><td>AIChatBalloon</td><td>-</td><td>Balloon UI for AI Chat (v49.1.0+)</td></tr>
+ *   <tr><td>AIEditorConfig</td><td>-</td><td>Register custom plugins with the AI agent (v49.1.0+)</td></tr>
+ *   <tr><td>ProposedChanges</td><td>-</td><td>Editing Toolkit: compare versions and apply differences (v49.1.0+)</td></tr>
+ *   <tr><td>RealTimeContentFetcher</td><td>-</td><td>Real-time collaboration content fetcher (v49.1.0+)</td></tr>
  * </table>
+ *
+ * <p>{@code TableLayout} is exported by the free {@code ckeditor5} umbrella (license-gated at runtime);
+ * use {@link CKEditorPlugin#TABLE_LAYOUT} instead of this enum.</p>
  *
  * <h2>License:</h2>
  * <p>Premium features require a commercial license. You can:</p>
@@ -268,11 +274,6 @@ public final class VaadinCKEditorPremium {
         REVISION_HISTORY("RevisionHistory", "revisionHistory"),
 
         /**
-         * Real-time collaborative editing (meta plugin).
-         */
-        REAL_TIME_COLLABORATION("RealTimeCollaboration"),
-
-        /**
          * Real-time collaborative editing (individual plugin).
          */
         REAL_TIME_COLLABORATIVE_EDITING("RealTimeCollaborativeEditing"),
@@ -316,8 +317,17 @@ public final class VaadinCKEditorPremium {
         /** 内联样式导出（邮件客户端兼容性必需，v47.5.0+） */
         EXPORT_INLINE_STYLES("ExportInlineStyles"),
 
-        /** 表格布局选项（预设表格布局模板，premium，v47.5.0+） */
-        TABLE_LAYOUT("TableLayout", "insertTableLayout");
+        /** AI Chat 的气泡式界面（v49.1.0+） */
+        AI_CHAT_BALLOON("AIChatBalloon"),
+
+        /** 向 AI agent 登记自定义编辑器插件，使其能生成并保留这些插件的内容（v49.1.0+） */
+        AI_EDITOR_CONFIG("AIEditorConfig"),
+
+        /** Editing Toolkit：比较两个文档版本并把差异作为建议应用到编辑器（v49.1.0+） */
+        PROPOSED_CHANGES("ProposedChanges"),
+
+        /** 实时协作内容拉取（v49.1.0+） */
+        REAL_TIME_CONTENT_FETCHER("RealTimeContentFetcher");
 
         private final String pluginName;
         private final String[] toolbarItems;

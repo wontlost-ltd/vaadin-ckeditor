@@ -93,6 +93,7 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.TABLE_CELL_PROPERTIES, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_CAPTION, Set.of(CKEditorPlugin.TABLE));
         deps.put(CKEditorPlugin.TABLE_COLUMN_RESIZE, Set.of(CKEditorPlugin.TABLE));
+        deps.put(CKEditorPlugin.TABLE_LAYOUT, Set.of(CKEditorPlugin.TABLE, CKEditorPlugin.TABLE_COLUMN_RESIZE));
         deps.put(CKEditorPlugin.PLAIN_TABLE_OUTPUT, Set.of(CKEditorPlugin.TABLE));
 
         // ==================== Link Plugin Dependencies ====================
@@ -254,6 +255,10 @@ public final class CKEditorPluginDependencies {
         premDeps.put("AIQuickActions", cloudServicesDeps);
         premDeps.put("AIReviewMode", cloudServicesDeps);
         premDeps.put("AITranslate", cloudServicesDeps);
+        // CKEditor 49.1 新增：AI Chat 气泡、AI 自定义插件登记、Editing Toolkit 的 ProposedChanges
+        premDeps.put("AIChatBalloon", cloudServicesDeps);
+        premDeps.put("AIEditorConfig", cloudServicesDeps);
+        premDeps.put("ProposedChanges", cloudServicesDeps);
 
         // Pagination — 独立插件，无外部依赖
         premDeps.put("Pagination", Set.of());
@@ -271,7 +276,12 @@ public final class CKEditorPluginDependencies {
         premDeps.put("TrackChangesPreview", Set.of());
 
         // Collaboration features that require CloudServices
-        premDeps.put("RealTimeCollaboration", cloudServicesDeps);
+        // 实时协作：真实插件类是 RealTimeCollaborative*（"RealTimeCollaboration" 只是包名，umbrella 不导出）
+        premDeps.put("RealTimeCollaborativeEditing", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeComments", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeTrackChanges", cloudServicesDeps);
+        premDeps.put("RealTimeCollaborativeRevisionHistory", cloudServicesDeps);
+        premDeps.put("RealTimeContentFetcher", cloudServicesDeps);
         premDeps.put("PresenceList", Set.of(
             CKEditorPlugin.CLOUD_SERVICES
         ));
@@ -287,9 +297,6 @@ public final class CKEditorPluginDependencies {
         premDeps.put("EmailConfigurationHelper", Set.of());
         premDeps.put("SourceEditingEnhanced", Set.of());
         premDeps.put("ExportInlineStyles", Set.of());
-
-        // 表格布局（premium，依赖 Table）
-        premDeps.put("TableLayout", Set.of(CKEditorPlugin.TABLE));
 
         PREMIUM_DEPENDENCIES = Collections.unmodifiableMap(premDeps);
 

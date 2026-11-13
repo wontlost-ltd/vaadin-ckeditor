@@ -242,7 +242,6 @@ class CollaborationFeaturesTest {
             PremiumPlugin.TRACK_CHANGES_DATA,
             PremiumPlugin.TRACK_CHANGES_PREVIEW,
             PremiumPlugin.REVISION_HISTORY,
-            PremiumPlugin.REAL_TIME_COLLABORATION,
             PremiumPlugin.REAL_TIME_COLLABORATIVE_EDITING,
             PremiumPlugin.REAL_TIME_COLLABORATIVE_COMMENTS,
             PremiumPlugin.REAL_TIME_COLLABORATIVE_TRACK_CHANGES,
@@ -260,7 +259,6 @@ class CollaborationFeaturesTest {
             "TrackChangesData",
             "TrackChangesPreview",
             "RevisionHistory",
-            "RealTimeCollaboration",
             "RealTimeCollaborativeEditing",
             "RealTimeCollaborativeComments",
             "RealTimeCollaborativeTrackChanges",
@@ -278,7 +276,6 @@ class CollaborationFeaturesTest {
         expected.put(PremiumPlugin.TRACK_CHANGES_DATA, new ExpectedPlugin("TrackChangesData", new String[0]));
         expected.put(PremiumPlugin.TRACK_CHANGES_PREVIEW, new ExpectedPlugin("TrackChangesPreview", new String[0]));
         expected.put(PremiumPlugin.REVISION_HISTORY, new ExpectedPlugin("RevisionHistory", new String[]{"revisionHistory"}));
-        expected.put(PremiumPlugin.REAL_TIME_COLLABORATION, new ExpectedPlugin("RealTimeCollaboration", new String[0]));
         expected.put(PremiumPlugin.REAL_TIME_COLLABORATIVE_EDITING,
             new ExpectedPlugin("RealTimeCollaborativeEditing", new String[0]));
         expected.put(PremiumPlugin.REAL_TIME_COLLABORATIVE_COMMENTS,

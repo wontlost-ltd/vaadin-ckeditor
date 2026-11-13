@@ -46,9 +46,9 @@ implementation("com.wontlost:ckeditor-vaadin:5.4.0")
 
 | 依赖 | 版本 | 备注 |
 |---|---|---|
-| Vaadin Platform | 25.3.0+ | 25.x 系列 |
-| CKEditor 5 (`ckeditor5`) | 48.5.2 | npm 精确版本 |
-| `ckeditor5-premium-features` | 48.5.2 | 与 `ckeditor5` 必须同版本 |
+| Vaadin Platform | 25.3.5+ | 25.x 系列 |
+| CKEditor 5 (`ckeditor5`) | 49.1.0 | npm 精确版本 |
+| `ckeditor5-premium-features` | 49.1.0 | 与 `ckeditor5` 必须同版本 |
 | Java | 21+ | Vaadin 25 baseline |
 | Jackson (`tools.jackson.core`) | 3.1.3+ | 由消费端提供 |
 | Jakarta Servlet API | 6.1.0+ | Vaadin 25.3 支持矩阵 |
@@ -246,6 +246,12 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | `AIEditorIntegration` | AI editor integration | - |
 | `AIReviewMode` | AI review mode | - |
 | `AITranslate` | AI translation | - |
+| `AIChatBalloon` | Balloon UI for AI Chat (49.1+) | - |
+| `AIEditorConfig` | Register custom plugins with the AI agent (49.1+) | - |
+| `ProposedChanges` | Editing Toolkit: compare versions, apply differences (49.1+) | - |
+| `RealTimeContentFetcher` | Real-time collaboration content fetcher (49.1+) | - |
+
+> `TableLayout` ships in the free `ckeditor5` umbrella but is license-gated: use `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) together with a commercial license key.
 
 ### Collaboration Features
 

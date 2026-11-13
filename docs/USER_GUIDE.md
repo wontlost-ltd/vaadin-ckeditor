@@ -183,7 +183,7 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Tables:**
 - `TABLE`, `TABLE_TOOLBAR`, `TABLE_PROPERTIES`, `TABLE_CELL_PROPERTIES`
-- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`
+- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`；免费包导出但运行时需商业 license key）
 
 **Media & Code:**
 - `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
@@ -244,6 +244,12 @@ VaadinCKEditor.create()
     .build();
 ```
 
+`SPECIAL_CHARACTERS` needs at least one category plugin
+(`SPECIAL_CHARACTERS_ESSENTIALS`, `..._LATIN`, `..._ARROWS`, …) or its panel is
+empty. `AUTO_RESOLVE` and `AUTO_RESOLVE_WITH_RECOMMENDED` add
+`SPECIAL_CHARACTERS_ESSENTIALS` when no category is selected, `STRICT` reports
+it as a missing dependency, and `MANUAL` uses the plugins exactly as given.
+
 ---
 
 ## Configuration
@@ -271,6 +277,16 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 ```
 
 ### Common Configuration Options
+
+**Emoji** (needs `CKEditorPlugin.EMOJI`; `definitions` inlines the emoji database instead of downloading it, CKEditor 49.1+):
+
+```java
+config.setEmoji(new CKEditorConfig.EmojiOptions()
+    .definitionsUrl("/emoji/en.json")   // or .definitions(arrayNode)
+    .version(16)
+    .skinTone("medium")
+    .dropdownLimit(50));
+```
 
 ```java
 CKEditorConfig config = new CKEditorConfig();
@@ -497,6 +513,14 @@ editor.addEditorErrorListener(event -> {
     }
 });
 ```
+
+| Code | Severity | Recoverable | Meaning |
+|------|----------|-------------|---------|
+| `EDITOR_CREATION_FAILED` | FATAL | false | Editor could not be created; a fallback mode follows |
+| `PLUGIN_LOAD_FAILED` | WARNING | true | A plugin failed to load; the editor was created without it |
+| `EDITOR_RUNTIME_ERROR` | ERROR | true | An error escaped the editor at runtime (CKEditor 49 no longer restarts the editor; content and undo history are kept, but the operation that threw did not complete) |
+
+`recoverable` means the editor instance stays usable after the error. It does not mean the failing operation was retried.
 
 ### Fallback Events
 
@@ -834,6 +858,10 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `AIChat` - AI chat sidebar
 - `AIEditorIntegration` - AI editor integration
 - `AIQuickActions` - AI quick actions
+- `AIChatBalloon` - Balloon UI for AI Chat (CKEditor 49.1+)
+- `AIEditorConfig` - Register custom plugins with the AI agent (CKEditor 49.1+)
+- `ProposedChanges` - Editing Toolkit, compare versions and apply differences (CKEditor 49.1+)
+- `RealTimeContentFetcher` - Real-time collaboration content fetcher (CKEditor 49.1+)
 - `AIReviewMode` - AI review mode
 - `AITranslate` - AI translation
 
@@ -934,6 +962,32 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 2. Check CORS configuration
 3. Validate file size and MIME type restrictions
 
+**Editor inside a Vaadin `Dialog` (or any top-layer overlay):**
+
+Vaadin 25 renders dialogs in the browser top layer, where `z-index` has no
+effect. The connector detects this and sets CKEditor's `ui.overlayContainer`
+to the `<vaadin-ckeditor>` element, so CKEditor mounts its floating UI (dialogs
+such as Special Characters, balloons, tooltips) and the fullscreen container
+inside the editor host; the connector then promotes both to the top layer.
+No configuration is needed. If you set `ui.overlayContainer` yourself, the
+connector leaves it alone.
+
+1. Keep `FULLSCREEN` on its default container. If you set a custom
+   `fullscreen.container` in `CKEditorConfig`, the connector respects it and
+   does not intervene; fullscreen will then render behind a modal dialog.
+2. `SPECIAL_CHARACTERS` automatically pulls in
+   `SPECIAL_CHARACTERS_ESSENTIALS` when no category plugin is selected, so the
+   panel is never empty. Add specific categories (`SPECIAL_CHARACTERS_LATIN`,
+   `..._ARROWS`, …) to replace that default. In `STRICT` mode the missing
+   category is reported as an error instead; in `MANUAL` mode you must add a
+   category yourself.
+3. If a floating panel still appears behind the dialog, check whether your
+   application moves the `<vaadin-ckeditor>` element into or out of an overlay
+   while the editor is alive. The top-layer detection runs each time an editor
+   instance is created (including the automatic re-creation on reconnect); it
+   does not watch for later ancestry changes, so such a move needs the editor
+   to be re-created.
+
 ### Debug Mode
 
 Enable debug logging in browser:
@@ -987,7 +1041,7 @@ Use `$0.editorId` to identify an editor; treat `editor.id` as CKEditor's own.
 
 | Version | CKEditor 5 | Vaadin | Notes           |
 |---------|------------|--------|-----------------|
-| Unreleased | 48.5.2 | 25.3.0 | Dependency upgrades (Vaadin 25.3.0, CKEditor 48.5.2); Jackson 3 BOM now imported explicitly (25.3.0's `vaadin-bom` no longer manages it) |
+| 6.0.0   | 49.1.0 | 25.3.5 | **Breaking:** CKEditor 49 (refreshed theme), `PremiumPlugin.REAL_TIME_COLLABORATION` / `TABLE_LAYOUT` removed; Dialog top-layer fixes (#143/#144/#145); `TABLE_LAYOUT`, `setEmoji`, runtime error events; Jackson 3 BOM imported explicitly |
 | 5.4.0   | 48.5.0 | 25.2.6 | CKEditor 48.5.0; fix destroy() infinite recursion on reparent (issue #122); fix upload-adapter leak; DevTools inspection guide |
 | 5.3.3   | 48.4.0 | 25.2.6 | Builder ErrorHandler, toolbar style round-trip, STRICT preset deps, editor remount/orphan fixes |
 | 5.3.2   | 48.4.0 | 25.2.6 | Dependency upgrades (Vaadin 25.2.6, CKEditor 48.4.0) |
