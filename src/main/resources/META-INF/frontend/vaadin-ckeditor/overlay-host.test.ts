@@ -16,6 +16,7 @@ import {
     promoteToTopLayer,
     demoteFromTopLayer,
     raiseHostLayers,
+    limitDropdownsToHost,
 } from './overlay-host';
 
 /**
@@ -321,5 +322,106 @@ describe('configureTopLayerHost', () => {
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(host);
         expect(config.fullscreen).toEqual({ container: custom });
+    });
+});
+
+/**
+ * 模拟 CKEditor 的 Collection：可迭代、支持 on/off('add')，add() 时同步通知监听者。
+ */
+function fakeCollection(initial: unknown[] = []) {
+    const items = [...initial];
+    const listeners: Array<(evt: unknown, item: unknown) => void> = [];
+    return {
+        [Symbol.iterator]: () => items[Symbol.iterator](),
+        on(event: string, cb: (evt: unknown, item: unknown) => void) {
+            if (event === 'add') listeners.push(cb);
+        },
+        off(event: string, cb: (evt: unknown, item: unknown) => void) {
+            const i = listeners.indexOf(cb);
+            if (event === 'add' && i >= 0) listeners.splice(i, 1);
+        },
+        add(item: unknown) {
+            items.push(item);
+            for (const cb of [...listeners]) cb({}, item);
+        },
+        listenerCount: () => listeners.length,
+    };
+}
+
+/** 模拟 DropdownView：CKEditor 49 在实例上以字段形式声明 panelPositionLimiter = null */
+function fakeDropdown(extra: Record<string, unknown> = {}) {
+    return { panelPositionLimiter: null as unknown, ...extra };
+}
+
+describe('limitDropdownsToHost', () => {
+    it('leaves dropdowns alone when the host is not inside the top layer', () => {
+        const host = document.createElement('vaadin-ckeditor');
+        document.body.appendChild(host);
+        const dropdown = fakeDropdown();
+        const items = fakeCollection([dropdown]);
+        const cleanup = limitDropdownsToHost(host, { items });
+        expect(dropdown.panelPositionLimiter).toBeNull();
+        expect(items.listenerCount()).toBe(0);
+        expect(() => cleanup()).not.toThrow();
+        host.remove();
+    });
+
+    it('tolerates an editor without a toolbar', () => {
+        const { host, dialog } = mountDialogLike();
+        expect(() => limitDropdownsToHost(host, undefined)()).not.toThrow();
+        dialog.remove();
+    });
+
+    it('points every toolbar dropdown at the host, skips plain buttons, and follows later additions', () => {
+        const { host, dialog } = mountDialogLike();
+        const dropdown = fakeDropdown();
+        const button = { label: 'Bold' };
+        const items = fakeCollection([dropdown, button]);
+        const cleanup = limitDropdownsToHost(host, { items });
+
+        expect(dropdown.panelPositionLimiter).toBe(host);
+        expect('panelPositionLimiter' in button).toBe(false);
+
+        const late = fakeDropdown();
+        items.add(late);
+        expect(late.panelPositionLimiter).toBe(host);
+
+        cleanup();
+        expect(items.listenerCount()).toBe(0);
+        const afterCleanup = fakeDropdown();
+        items.add(afterCleanup);
+        expect(afterCleanup.panelPositionLimiter).toBeNull();
+        dialog.remove();
+    });
+
+    it('recurses into nested toolbar dropdowns and covers the grouped-items dropdown', () => {
+        const { host, dialog } = mountDialogLike();
+        const inner = fakeDropdown();
+        const innerItems = fakeCollection([inner]);
+        const nested = fakeDropdown({ toolbarView: { items: innerItems } });
+        const grouped = fakeDropdown();
+        const items = fakeCollection([nested]);
+        const cleanup = limitDropdownsToHost(host, { items, groupedItemsDropdown: grouped });
+
+        expect(nested.panelPositionLimiter).toBe(host);
+        expect(inner.panelPositionLimiter).toBe(host);
+        expect(grouped.panelPositionLimiter).toBe(host);
+
+        const lateInner = fakeDropdown();
+        innerItems.add(lateInner);
+        expect(lateInner.panelPositionLimiter).toBe(host);
+
+        cleanup();
+        expect(innerItems.listenerCount()).toBe(0);
+        dialog.remove();
+    });
+
+    it('respects a limiter that was already configured on a dropdown', () => {
+        const { host, dialog } = mountDialogLike();
+        const custom = document.createElement('div');
+        const dropdown = fakeDropdown({ panelPositionLimiter: custom });
+        limitDropdownsToHost(host, { items: fakeCollection([dropdown]) });
+        expect(dropdown.panelPositionLimiter).toBe(custom);
+        dialog.remove();
     });
 });

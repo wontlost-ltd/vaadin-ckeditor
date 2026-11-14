@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Dialog 内工具栏下拉面板被裁切**：CKEditor 只按视口挑选下拉展开方向，靠右的下拉（如 Heading）
+  向右展开时越出 Vaadin Dialog 内容区、被其 `overflow` 裁掉。宿主位于顶层时，连接器现为主工具栏的
+  每个下拉（含溢出分组与嵌套工具栏里的下拉）把 CKEditor 49 的 `panelPositionLimiter` 指向宿主，
+  面板优先落在编辑器可见区内。菜单栏（MenuBar）的子菜单没有对应钩子，不在本次修复范围。
+
 ## [6.0.0] - 2026-11-14
 
 ### Added

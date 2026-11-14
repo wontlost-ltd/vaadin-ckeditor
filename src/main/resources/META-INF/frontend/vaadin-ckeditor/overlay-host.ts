@@ -12,7 +12,8 @@
  * 模态指针屏蔽也都把它视为 Dialog 内部内容。CKEditor 49 起提供 `ui.overlayContainer`：
  * 连接器把它指向宿主，CKEditor 便在宿主内自建 `.ck-body-wrapper` 挂浮层容器，
  * 编辑根连上后懒挂载、销毁时自行移除；全屏插件默认也以该容器为挂载点并铺满视口。
- * 本模块不再搬动任何 CKEditor 节点，只负责顶层判定与 popover 提升。
+ * 本模块不再搬动任何 CKEditor 节点，只负责顶层判定、popover 提升，以及把工具栏下拉
+ * 面板的展开方向限制在宿主可见区内（见 limitDropdownsToHost）。
  *
  * 仅挂进宿主还不够：Vaadin Dialog 的内容区带 `clip-path`，会把越出 Dialog 边框的
  * 浮层裁掉。因此这些容器自身也以 `popover="manual"` 进入顶层——顶层元素不受祖先
@@ -171,4 +172,68 @@ export function releaseOverlayHost(host: HTMLElement): void {
 
 function hostWrapper(host: HTMLElement): HTMLElement | null {
     return host.querySelector<HTMLElement>(':scope > .ck-body-wrapper');
+}
+
+/**
+ * CKEditor DropdownView / ToolbarView 的最小结构（鸭子类型）。
+ * CKEditor 49 在 DropdownView 实例上以字段形式声明 `panelPositionLimiter = null`，
+ * 以此识别下拉；嵌套工具栏下拉带 `toolbarView`，工具栏溢出分组时有 `groupedItemsDropdown`。
+ */
+interface DropdownLike {
+    panelPositionLimiter: unknown;
+    toolbarView?: ToolbarLike;
+}
+
+interface ToolbarLike {
+    items: Iterable<unknown> & {
+        on(event: 'add', callback: (evt: unknown, item: unknown) => void): void;
+        off(event: 'add', callback: (evt: unknown, item: unknown) => void): void;
+    };
+    groupedItemsDropdown?: DropdownLike;
+}
+
+function isDropdownLike(view: unknown): view is DropdownLike {
+    return typeof view === 'object' && view !== null && 'panelPositionLimiter' in view;
+}
+
+/**
+ * 把工具栏里每个下拉面板的定位限制在宿主可见区内。
+ *
+ * CKEditor 的下拉面板只按视口挑选展开方向：面板行内渲染在工具栏下方，靠右的下拉
+ * （如 Heading）向右展开时虽在视口内，却越出 Dialog 内容区被其 overflow 裁掉。
+ * CKEditor 49 为 DropdownView 增加了 `panelPositionLimiter`，定位时会在候选方向中
+ * 优先选落在限制元素可见矩形内的那个；可见矩形沿祖先（跨 shadow DOM）求交，
+ * 所以把宿主本身当限制元素即可得到「编辑器在 Dialog 内实际可见的区域」。
+ * 面板比宿主还宽时没有方向能完全落入，CKEditor 按「视口交集² + 限制区交集²」择优，
+ * 结果取决于按钮在宿主中的位置，可能与默认方向不同；极端尺寸下面板仍可能有部分越出可见区。
+ *
+ * 覆盖工具栏当前与之后加入的下拉（溢出分组只在集合间搬运同一批实例）、嵌套工具栏
+ * 下拉的子项以及分组下拉本身；调用方已设置限制元素的下拉不改。宿主不在顶层时
+ * 不做任何事。返回函数用于销毁时退订 `add` 监听。
+ */
+export function limitDropdownsToHost(host: HTMLElement, toolbar: ToolbarLike | undefined): () => void {
+    if (!toolbar || !findTopLayerAncestor(host)) {
+        return () => {};
+    }
+    const cleanups: Array<() => void> = [];
+    const limitDropdown = (view: unknown): void => {
+        if (!isDropdownLike(view)) {
+            return;
+        }
+        view.panelPositionLimiter ??= host;
+        if (view.toolbarView) {
+            limitToolbar(view.toolbarView);
+        }
+    };
+    const limitToolbar = (bar: ToolbarLike): void => {
+        for (const item of bar.items) {
+            limitDropdown(item);
+        }
+        const onAdd = (_evt: unknown, item: unknown): void => limitDropdown(item);
+        bar.items.on('add', onAdd);
+        cleanups.push(() => bar.items.off('add', onAdd));
+        limitDropdown(bar.groupedItemsDropdown);
+    };
+    limitToolbar(toolbar);
+    return () => cleanups.forEach((cleanup) => cleanup());
 }

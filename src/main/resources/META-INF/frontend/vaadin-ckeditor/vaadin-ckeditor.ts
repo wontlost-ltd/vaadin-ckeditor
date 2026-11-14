@@ -39,6 +39,7 @@ import './sticky-toolbar.css';
 import {
     configureTopLayerHost,
     findTopLayerAncestor,
+    limitDropdownsToHost,
     promoteHostWrapper,
     raiseHostLayers,
     releaseOverlayHost,
@@ -447,7 +448,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '6.0.0';
+    private readonly version = '6.0.1-SNAPSHOT';
 
     constructor() {
         super();
@@ -1240,6 +1241,8 @@ export class VaadinCKEditor extends LitElement {
             const raise = (): void => raiseHostLayers(this);
             this.addEventListener('pointerdown', raise, true);
             this.addEventListener('focusin', raise, true);
+            // 工具栏下拉面板的展开方向限制在宿主可见区内，避免越出 Dialog 内容区被裁掉
+            this.listenerCleanups.push(limitDropdownsToHost(this, created.ui?.view?.toolbar));
             this.listenerCleanups.push(() => {
                 body?.off('remount', promote);
                 this.removeEventListener('pointerdown', raise, true);
