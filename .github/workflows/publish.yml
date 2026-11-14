@@ -149,7 +149,9 @@ jobs:
           echo "Resolved version: $VERSION (matches pom.xml)"
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp clean deploy -Prelease
+        run: |
+          mvn -v
+          mvn -B -ntp clean deploy -Prelease
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
