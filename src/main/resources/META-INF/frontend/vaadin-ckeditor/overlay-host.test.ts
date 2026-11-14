@@ -10,12 +10,13 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
     OVERLAY_HOST_ATTR,
     findTopLayerAncestor,
-    configureTopLayerHost,
+    configureOverlayContainer,
     promoteHostWrapper,
     releaseOverlayHost,
     promoteToTopLayer,
     demoteFromTopLayer,
     raiseHostLayers,
+    limitDropdownsToHost,
 } from './overlay-host';
 
 /**
@@ -244,22 +245,51 @@ describe('top layer promotion', () => {
     });
 });
 
-describe('configureTopLayerHost', () => {
-    it('leaves the config untouched when the host is not inside the top layer', () => {
+describe('configureOverlayContainer', () => {
+    it('points a light-DOM host (no top layer) at document.body and leaves fullscreen alone', () => {
+        // CKEditor 49 沿扁平树收集所有祖先 shadow root，Vaadin 布局组件的 shadow root 会让它误判
+        // 「UI 位于 shadow DOM」并告警；显式给出 CKEditor 自己本来就会选的 document.body 即可消警。
         const host = document.createElement('vaadin-ckeditor');
         document.body.appendChild(host);
+        const config: Record<string, unknown> = { ui: { poweredBy: { position: 'inside' } }, fullscreen: { menuBar: { isVisible: true } } };
+
+        configureOverlayContainer(host, config);
+
+        expect((config.ui as Record<string, unknown>).overlayContainer).toBe(document.body);
+        expect((config.ui as Record<string, unknown>).poweredBy).toEqual({ position: 'inside' });
+        expect(config.fullscreen).toEqual({ menuBar: { isVisible: true } });
+    });
+
+    it('leaves the config untouched for a host that really lives inside a shadow root', () => {
+        // 宿主真在 shadow root 内时，CKEditor 会把浮层挂进该 shadow root，这是正确行为，不干预
+        const outer = document.createElement('x-shell');
+        const shadow = outer.attachShadow({ mode: 'open' });
+        const host = document.createElement('vaadin-ckeditor');
+        shadow.appendChild(host);
+        document.body.appendChild(outer);
         const config: Record<string, unknown> = { fullscreen: { menuBar: { isVisible: true } } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect(config).toEqual({ fullscreen: { menuBar: { isVisible: true } } });
+    });
+
+    it('respects a caller-configured ui.overlayContainer for a light-DOM host', () => {
+        const host = document.createElement('vaadin-ckeditor');
+        document.body.appendChild(host);
+        const custom = document.createElement('div');
+        const config: Record<string, unknown> = { ui: { overlayContainer: custom } };
+
+        configureOverlayContainer(host, config);
+
+        expect((config.ui as Record<string, unknown>).overlayContainer).toBe(custom);
     });
 
     it('points ui.overlayContainer at the host and wraps the fullscreen callbacks', () => {
         const { host } = mountDialogLike();
         const config: Record<string, unknown> = { ui: { poweredBy: { position: 'inside' } }, fullscreen: { menuBar: { isVisible: true } } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(host);
         expect((config.ui as Record<string, unknown>).poweredBy).toEqual({ position: 'inside' });
@@ -281,7 +311,7 @@ describe('configureTopLayerHost', () => {
                 onLeaveCallback: () => calls.push('user-leave'),
             },
         };
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
         const fullscreen = config.fullscreen as { onEnterCallback(w: HTMLElement): void; onLeaveCallback(w: HTMLElement): void };
         const wrapper = document.createElement('div');
         wrapper.className = 'ck ck-fullscreen__main-wrapper';
@@ -306,7 +336,7 @@ describe('configureTopLayerHost', () => {
         const onEnterCallback = (): void => {};
         const config: Record<string, unknown> = { ui: { overlayContainer: custom }, fullscreen: { onEnterCallback } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(custom);
         expect((config.fullscreen as Record<string, unknown>).onEnterCallback).toBe(onEnterCallback);
@@ -317,9 +347,110 @@ describe('configureTopLayerHost', () => {
         const custom = document.createElement('div');
         const config: Record<string, unknown> = { fullscreen: { container: custom } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(host);
         expect(config.fullscreen).toEqual({ container: custom });
+    });
+});
+
+/**
+ * 模拟 CKEditor 的 Collection：可迭代、支持 on/off('add')，add() 时同步通知监听者。
+ */
+function fakeCollection(initial: unknown[] = []) {
+    const items = [...initial];
+    const listeners: Array<(evt: unknown, item: unknown) => void> = [];
+    return {
+        [Symbol.iterator]: () => items[Symbol.iterator](),
+        on(event: string, cb: (evt: unknown, item: unknown) => void) {
+            if (event === 'add') listeners.push(cb);
+        },
+        off(event: string, cb: (evt: unknown, item: unknown) => void) {
+            const i = listeners.indexOf(cb);
+            if (event === 'add' && i >= 0) listeners.splice(i, 1);
+        },
+        add(item: unknown) {
+            items.push(item);
+            for (const cb of [...listeners]) cb({}, item);
+        },
+        listenerCount: () => listeners.length,
+    };
+}
+
+/** 模拟 DropdownView：CKEditor 49 在实例上以字段形式声明 panelPositionLimiter = null */
+function fakeDropdown(extra: Record<string, unknown> = {}) {
+    return { panelPositionLimiter: null as unknown, ...extra };
+}
+
+describe('limitDropdownsToHost', () => {
+    it('leaves dropdowns alone when the host is not inside the top layer', () => {
+        const host = document.createElement('vaadin-ckeditor');
+        document.body.appendChild(host);
+        const dropdown = fakeDropdown();
+        const items = fakeCollection([dropdown]);
+        const cleanup = limitDropdownsToHost(host, { items });
+        expect(dropdown.panelPositionLimiter).toBeNull();
+        expect(items.listenerCount()).toBe(0);
+        expect(() => cleanup()).not.toThrow();
+        host.remove();
+    });
+
+    it('tolerates an editor without a toolbar', () => {
+        const { host, dialog } = mountDialogLike();
+        expect(() => limitDropdownsToHost(host, undefined)()).not.toThrow();
+        dialog.remove();
+    });
+
+    it('points every toolbar dropdown at the host, skips plain buttons, and follows later additions', () => {
+        const { host, dialog } = mountDialogLike();
+        const dropdown = fakeDropdown();
+        const button = { label: 'Bold' };
+        const items = fakeCollection([dropdown, button]);
+        const cleanup = limitDropdownsToHost(host, { items });
+
+        expect(dropdown.panelPositionLimiter).toBe(host);
+        expect('panelPositionLimiter' in button).toBe(false);
+
+        const late = fakeDropdown();
+        items.add(late);
+        expect(late.panelPositionLimiter).toBe(host);
+
+        cleanup();
+        expect(items.listenerCount()).toBe(0);
+        const afterCleanup = fakeDropdown();
+        items.add(afterCleanup);
+        expect(afterCleanup.panelPositionLimiter).toBeNull();
+        dialog.remove();
+    });
+
+    it('recurses into nested toolbar dropdowns and covers the grouped-items dropdown', () => {
+        const { host, dialog } = mountDialogLike();
+        const inner = fakeDropdown();
+        const innerItems = fakeCollection([inner]);
+        const nested = fakeDropdown({ toolbarView: { items: innerItems } });
+        const grouped = fakeDropdown();
+        const items = fakeCollection([nested]);
+        const cleanup = limitDropdownsToHost(host, { items, groupedItemsDropdown: grouped });
+
+        expect(nested.panelPositionLimiter).toBe(host);
+        expect(inner.panelPositionLimiter).toBe(host);
+        expect(grouped.panelPositionLimiter).toBe(host);
+
+        const lateInner = fakeDropdown();
+        innerItems.add(lateInner);
+        expect(lateInner.panelPositionLimiter).toBe(host);
+
+        cleanup();
+        expect(innerItems.listenerCount()).toBe(0);
+        dialog.remove();
+    });
+
+    it('respects a limiter that was already configured on a dropdown', () => {
+        const { host, dialog } = mountDialogLike();
+        const custom = document.createElement('div');
+        const dropdown = fakeDropdown({ panelPositionLimiter: custom });
+        limitDropdownsToHost(host, { items: fakeCollection([dropdown]) });
+        expect(dropdown.panelPositionLimiter).toBe(custom);
+        dialog.remove();
     });
 });

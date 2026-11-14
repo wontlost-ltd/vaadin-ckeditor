@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CKEditor 49 误报 `ui-overlay-container-not-configured`**：EditorUI 沿扁平树收集所有祖先 shadow root，
+  Vaadin 布局组件都带 shadow root，任何 Flow 视图都会触发该警告，而实际挂载点仍是 `document.body`。
+  连接器现为 light DOM 中的宿主显式设置 `ui.overlayContainer = document.body`（与 CKEditor 自身选择一致，
+  行为不变）；顶层宿主仍指向宿主，宿主真在 shadow root 内时保留 CKEditor 默认。
+- **Dialog 内工具栏下拉面板被裁切**：CKEditor 只按视口挑选下拉展开方向，靠右的下拉（如 Heading）
+  向右展开时越出 Vaadin Dialog 内容区、被其 `overflow` 裁掉。宿主位于顶层时，连接器现为主工具栏的
+  每个下拉（含溢出分组与嵌套工具栏里的下拉）把 CKEditor 49 的 `panelPositionLimiter` 指向宿主，
+  面板优先落在编辑器可见区内。菜单栏（MenuBar）的子菜单没有对应钩子，不在本次修复范围。
+
 ## [6.0.0] - 2026-11-14
 
 ### Added

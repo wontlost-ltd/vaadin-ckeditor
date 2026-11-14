@@ -37,8 +37,9 @@ import CommentPermissionEnforcer from './comment-permission-enforcer';
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
 import {
-    configureTopLayerHost,
+    configureOverlayContainer,
     findTopLayerAncestor,
+    limitDropdownsToHost,
     promoteHostWrapper,
     raiseHostLayers,
     releaseOverlayHost,
@@ -447,7 +448,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '6.0.0';
+    private readonly version = '6.0.1-SNAPSHOT';
 
     constructor() {
         super();
@@ -783,7 +784,7 @@ export class VaadinCKEditor extends LitElement {
 
         // 顶层宿主（Vaadin Dialog 等 popover）内的浮层与全屏（issue #143 / #144）：
         // 把 ui.overlayContainer 指向宿主并包装全屏回调，细节与边界见 overlay-host.ts。
-        configureTopLayerHost(this, editorConfig as Record<string, unknown>);
+        configureOverlayContainer(this, editorConfig as Record<string, unknown>);
 
         // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
         // config.toolbar takes precedence when it's an object with additional options
@@ -1240,6 +1241,8 @@ export class VaadinCKEditor extends LitElement {
             const raise = (): void => raiseHostLayers(this);
             this.addEventListener('pointerdown', raise, true);
             this.addEventListener('focusin', raise, true);
+            // 工具栏下拉面板的展开方向限制在宿主可见区内，避免越出 Dialog 内容区被裁掉
+            this.listenerCleanups.push(limitDropdownsToHost(this, created.ui?.view?.toolbar));
             this.listenerCleanups.push(() => {
                 body?.off('remount', promote);
                 this.removeEventListener('pointerdown', raise, true);

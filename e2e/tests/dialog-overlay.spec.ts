@@ -286,3 +286,33 @@ test('floating UI container is cleaned up when the dialog closes', async ({ page
     await expect.poll(() => page.evaluate(() => document.querySelectorAll('vaadin-ckeditor').length), { timeout: 10_000 }).toBe(0);
     await expect.poll(() => rememberedHostsReleased(page), { timeout: 10_000 }).toBe(true);
 });
+
+test('toolbar dropdown panels open inside the dialog content box instead of being clipped by it', async ({ page }) => {
+    await openDialogEditor(page);
+    // Heading 是工具栏最右侧的下拉。CKEditor 只按视口挑选展开方向，向右展开虽在视口内，
+    // 却越出 Dialog 内容区被其 overflow 裁掉；连接器以宿主为 panelPositionLimiter 后应改为向左展开。
+    await page.locator('vaadin-dialog .ck-toolbar .ck-heading-dropdown > .ck-dropdown__button').click();
+    const panel = page.locator('vaadin-dialog .ck-heading-dropdown .ck-dropdown__panel-visible');
+    await expect(panel).toBeVisible();
+
+    const geometry = await page.evaluate(() => {
+        const panelEl = document.querySelector('vaadin-dialog .ck-heading-dropdown .ck-dropdown__panel-visible')!;
+        const content = document.querySelector('vaadin-dialog')!.shadowRoot!
+            .querySelector('vaadin-dialog-overlay')!.shadowRoot!.querySelector('[part=content]')!;
+        const p = panelEl.getBoundingClientRect();
+        const c = content.getBoundingClientRect();
+        const probe = document.elementFromPoint(p.right - 8, p.top + p.height / 2);
+        return {
+            overflowRight: Math.round(p.right - c.right),
+            overflowLeft: Math.round(c.left - p.left),
+            rightEdgeHittable: !!probe && panelEl.contains(probe),
+        };
+    });
+    expect(geometry.overflowRight).toBeLessThanOrEqual(0);
+    expect(geometry.overflowLeft).toBeLessThanOrEqual(0);
+    expect(geometry.rightEdgeHittable).toBe(true);
+
+    // 面板里的项仍可点选并生效
+    await panel.locator('.ck-list__item button').nth(1).click();
+    await expect(page.locator('vaadin-dialog .ck-editor__editable h1')).toHaveText('Hello from dialog');
+});
