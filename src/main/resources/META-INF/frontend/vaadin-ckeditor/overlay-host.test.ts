@@ -10,7 +10,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
     OVERLAY_HOST_ATTR,
     findTopLayerAncestor,
-    configureTopLayerHost,
+    configureOverlayContainer,
     promoteHostWrapper,
     releaseOverlayHost,
     promoteToTopLayer,
@@ -245,22 +245,51 @@ describe('top layer promotion', () => {
     });
 });
 
-describe('configureTopLayerHost', () => {
-    it('leaves the config untouched when the host is not inside the top layer', () => {
+describe('configureOverlayContainer', () => {
+    it('points a light-DOM host (no top layer) at document.body and leaves fullscreen alone', () => {
+        // CKEditor 49 沿扁平树收集所有祖先 shadow root，Vaadin 布局组件的 shadow root 会让它误判
+        // 「UI 位于 shadow DOM」并告警；显式给出 CKEditor 自己本来就会选的 document.body 即可消警。
         const host = document.createElement('vaadin-ckeditor');
         document.body.appendChild(host);
+        const config: Record<string, unknown> = { ui: { poweredBy: { position: 'inside' } }, fullscreen: { menuBar: { isVisible: true } } };
+
+        configureOverlayContainer(host, config);
+
+        expect((config.ui as Record<string, unknown>).overlayContainer).toBe(document.body);
+        expect((config.ui as Record<string, unknown>).poweredBy).toEqual({ position: 'inside' });
+        expect(config.fullscreen).toEqual({ menuBar: { isVisible: true } });
+    });
+
+    it('leaves the config untouched for a host that really lives inside a shadow root', () => {
+        // 宿主真在 shadow root 内时，CKEditor 会把浮层挂进该 shadow root，这是正确行为，不干预
+        const outer = document.createElement('x-shell');
+        const shadow = outer.attachShadow({ mode: 'open' });
+        const host = document.createElement('vaadin-ckeditor');
+        shadow.appendChild(host);
+        document.body.appendChild(outer);
         const config: Record<string, unknown> = { fullscreen: { menuBar: { isVisible: true } } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect(config).toEqual({ fullscreen: { menuBar: { isVisible: true } } });
+    });
+
+    it('respects a caller-configured ui.overlayContainer for a light-DOM host', () => {
+        const host = document.createElement('vaadin-ckeditor');
+        document.body.appendChild(host);
+        const custom = document.createElement('div');
+        const config: Record<string, unknown> = { ui: { overlayContainer: custom } };
+
+        configureOverlayContainer(host, config);
+
+        expect((config.ui as Record<string, unknown>).overlayContainer).toBe(custom);
     });
 
     it('points ui.overlayContainer at the host and wraps the fullscreen callbacks', () => {
         const { host } = mountDialogLike();
         const config: Record<string, unknown> = { ui: { poweredBy: { position: 'inside' } }, fullscreen: { menuBar: { isVisible: true } } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(host);
         expect((config.ui as Record<string, unknown>).poweredBy).toEqual({ position: 'inside' });
@@ -282,7 +311,7 @@ describe('configureTopLayerHost', () => {
                 onLeaveCallback: () => calls.push('user-leave'),
             },
         };
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
         const fullscreen = config.fullscreen as { onEnterCallback(w: HTMLElement): void; onLeaveCallback(w: HTMLElement): void };
         const wrapper = document.createElement('div');
         wrapper.className = 'ck ck-fullscreen__main-wrapper';
@@ -307,7 +336,7 @@ describe('configureTopLayerHost', () => {
         const onEnterCallback = (): void => {};
         const config: Record<string, unknown> = { ui: { overlayContainer: custom }, fullscreen: { onEnterCallback } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(custom);
         expect((config.fullscreen as Record<string, unknown>).onEnterCallback).toBe(onEnterCallback);
@@ -318,7 +347,7 @@ describe('configureTopLayerHost', () => {
         const custom = document.createElement('div');
         const config: Record<string, unknown> = { fullscreen: { container: custom } };
 
-        configureTopLayerHost(host, config);
+        configureOverlayContainer(host, config);
 
         expect((config.ui as Record<string, unknown>).overlayContainer).toBe(host);
         expect(config.fullscreen).toEqual({ container: custom });

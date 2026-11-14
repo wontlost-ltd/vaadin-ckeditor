@@ -12,8 +12,8 @@
  * 模态指针屏蔽也都把它视为 Dialog 内部内容。CKEditor 49 起提供 `ui.overlayContainer`：
  * 连接器把它指向宿主，CKEditor 便在宿主内自建 `.ck-body-wrapper` 挂浮层容器，
  * 编辑根连上后懒挂载、销毁时自行移除；全屏插件默认也以该容器为挂载点并铺满视口。
- * 本模块不再搬动任何 CKEditor 节点，只负责顶层判定、popover 提升，以及把工具栏下拉
- * 面板的展开方向限制在宿主可见区内（见 limitDropdownsToHost）。
+ * 本模块不再搬动任何 CKEditor 节点，只负责浮层容器的选定（见 configureOverlayContainer）、
+ * 顶层判定、popover 提升，以及把工具栏下拉面板的展开方向限制在宿主可见区内（见 limitDropdownsToHost）。
  *
  * 仅挂进宿主还不够：Vaadin Dialog 的内容区带 `clip-path`，会把越出 Dialog 边框的
  * 浮层裁掉。因此这些容器自身也以 `popover="manual"` 进入顶层——顶层元素不受祖先
@@ -67,20 +67,29 @@ function nextFlatTreeParent(node: Element): Element | null {
 type FullscreenCallback = (wrapper: HTMLElement) => void;
 
 /**
- * 宿主位于顶层时改写编辑器配置：把 `ui.overlayContainer` 指向宿主，让 CKEditor 把浮层容器
- * 与全屏容器都建在宿主内；并包装 fullscreen 的 onEnter / onLeave，在进入全屏时把全屏容器
- * 提升为顶层 popover、退出时撤销。宿主不在顶层时不改任何东西。
+ * 决定 CKEditor 浮层容器 `ui.overlayContainer`，并在宿主位于顶层时包装全屏回调。
  *
- * 调用方已显式配置 `ui.overlayContainer` 时整体不介入：浮层与全屏都会挂到那个容器，
- * 不在宿主内，本模块的提升与 CSS 复位都不适用。只显式配置 `fullscreen.container`
- * 时仍接管浮层，但不碰全屏。
+ * - 调用方已显式配置 `ui.overlayContainer`：整体不介入——浮层与全屏都会挂到那个容器，
+ *   不在宿主内，本模块的提升与 CSS 复位都不适用。
+ * - 宿主位于顶层：指向宿主，让 CKEditor 把浮层容器与全屏容器都建在宿主内；并包装 fullscreen
+ *   的 onEnter / onLeave，在进入全屏时把全屏容器提升为顶层 popover、退出时撤销。
+ *   只显式配置 `fullscreen.container` 时仍接管浮层，但不碰全屏。
+ * - 宿主在普通 light DOM 中：显式指向 `document.body`。CKEditor 49 的 EditorUI 沿扁平树
+ *   （slot → shadow host）收集所有祖先 shadow root，Vaadin 布局组件（vaadin-vertical-layout、
+ *   vaadin-app-layout 等）都带 shadow root，于是任何 Flow 视图都会被判定为「UI 位于 shadow DOM」
+ *   并告警 ui-overlay-container-not-configured；而实际挂载点只看编辑根的 getRootNode()，
+ *   light DOM 下本来就是 document.body。显式给出同一答案只为消除误报，行为不变。
+ * - 宿主真在某个 shadow root 内：不改配置，CKEditor 会把浮层挂进该 shadow root，这是正确行为。
  */
-export function configureTopLayerHost(host: HTMLElement, config: Record<string, unknown>): void {
-    if (!findTopLayerAncestor(host)) {
-        return;
-    }
+export function configureOverlayContainer(host: HTMLElement, config: Record<string, unknown>): void {
     const ui = (config.ui ?? {}) as Record<string, unknown>;
     if (ui.overlayContainer) {
+        return;
+    }
+    if (!findTopLayerAncestor(host)) {
+        if (host.getRootNode() === host.ownerDocument) {
+            config.ui = { ...ui, overlayContainer: host.ownerDocument.body };
+        }
         return;
     }
     config.ui = { ...ui, overlayContainer: host };
