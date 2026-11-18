@@ -32,7 +32,7 @@ Vaadin CKEditor 5 is a rich text editor component for Vaadin applications, provi
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>5.1.0</version>
+    <version>6.1.0</version>
 </dependency>
 ```
 
@@ -1109,6 +1109,7 @@ Use `$0.editorId` to identify an editor; treat `editor.id` as CKEditor's own.
 
 | Version | CKEditor 5 | Vaadin | Notes           |
 |---------|------------|--------|-----------------|
+| 6.1.0   | 49.1.0 | 25.3.5 | All CKEditor UI languages loaded on demand, locale fallback, `withLocale(Locale)`, `config.language` precedence (#151); dark-theme split button & bookmark (#149/#150); Dialog dropdown clipping & overlay-container warning fixes |
 | 6.0.0   | 49.1.0 | 25.3.5 | **Breaking:** CKEditor 49 (refreshed theme), `PremiumPlugin.REAL_TIME_COLLABORATION` / `TABLE_LAYOUT` removed; Dialog top-layer fixes (#143/#144/#145); `TABLE_LAYOUT`, `setEmoji`, runtime error events; Jackson 3 BOM imported explicitly |
 | 5.4.0   | 48.5.0 | 25.2.6 | CKEditor 48.5.0; fix destroy() infinite recursion on reparent (issue #122); fix upload-adapter leak; DevTools inspection guide |
 | 5.3.3   | 48.4.0 | 25.2.6 | Builder ErrorHandler, toolbar style round-trip, STRICT preset deps, editor remount/orphan fixes |

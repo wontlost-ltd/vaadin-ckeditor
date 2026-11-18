@@ -424,7 +424,7 @@ export class VaadinCKEditor extends LitElement {
     private $server?: VaadinServer;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '6.0.1-SNAPSHOT';
+    private readonly version = '6.1.0';
 
     constructor() {
         super();

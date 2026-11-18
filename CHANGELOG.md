@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-11-19
+
 ### Added
 - **`VaadinCKEditorBuilder.withLocale(Locale)`**（[#151](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/151)）：
   直接使用 Vaadin `UI#getLocale()`；取 Locale 的语言、书写系统与地区（忽略变体与扩展），
@@ -696,7 +698,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.0.0...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.1.0...HEAD
+[6.1.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.5.0...v6.0.0
 [5.5.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.1...v5.5.0
 [5.4.1]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.0...v5.4.1
