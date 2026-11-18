@@ -2,6 +2,8 @@ package com.wontlost.ckeditor;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Locale;
 import java.util.Map;
@@ -16,13 +18,20 @@ class VaadinCKEditorBuilderTest {
 
     private static final String[] INVALID_LANGUAGES = {
         "",
+        "engl",
         "e",
         "english",
         "123",
         "en-",
+        "en-USA",
         "en--us",
         "en us",
-        "en-us-x-private-use"
+        "en-us-x-private-use",
+        "en-us-latn",
+        "sr-latn-latn",
+        "de-1996",
+        "en-12",
+        "<script>"
     };
 
     @Test
@@ -351,6 +360,72 @@ class VaadinCKEditorBuilderTest {
         }
     }
 
+    /**
+     * CKEditor 5 49.1.0 发布的全部 UI 翻译包代码（ckeditor5/dist/translations/*.js），
+     * 外加官方专业翻译列表使用的 zh-tw。前端 translations.test.ts 校验同一份清单与包文件一致。
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+        "af", "ar", "ast", "az", "be", "bg", "bn", "bs", "ca", "cs", "da", "de-ch", "de", "el",
+        "en-au", "en-gb", "en", "eo", "es-co", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he",
+        "hi", "hr", "hu", "hy", "id", "it", "ja", "jv", "kk", "km", "kn", "ko", "ku", "lt", "lv",
+        "ms", "nb", "ne", "nl", "no", "oc", "pl", "pt-br", "pt", "ro", "ru", "si", "sk", "sl", "sq",
+        "sr-latn", "sr", "sv", "th", "ti", "tk", "tr", "tt", "ug", "uk", "ur", "uz", "vi", "zh-cn",
+        "zh", "zh-tw"
+    })
+    @DisplayName("Builder should accept every CKEditor UI translation code")
+    void builderShouldAcceptEveryCkeditorTranslationCode(String lang) {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLanguage(lang)
+            .build();
+
+        assertThat(editor.getElement().getProperty("language")).isEqualTo(lang);
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo(lang);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"pt-BR", "ZH-CN", "Sr-Latn", "DE"})
+    @DisplayName("Builder should store language codes in lower case to match CKEditor bundle names")
+    void builderShouldLowerCaseLanguageCode(String lang) {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLanguage(lang)
+            .build();
+
+        String expected = lang.toLowerCase(java.util.Locale.ROOT);
+        assertThat(editor.getElement().getProperty("language")).isEqualTo(expected);
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("CKEditorConfig.setLanguage should be kept when withLanguage is not called")
+    void configLanguageShouldBeKeptWithoutWithLanguage() {
+        CKEditorConfig config = new CKEditorConfig().setLanguage("ar", "he", null);
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(config)
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("ar");
+        assertThat(editor.getConfigInternal().toJson().get("language").get("content").asString()).isEqualTo("he");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("ar");
+    }
+
+    @Test
+    @DisplayName("withLanguage should override the CKEditorConfig language")
+    void withLanguageShouldOverrideConfigLanguage() {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(new CKEditorConfig().setLanguage("pt"))
+            .withLanguage("de")
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("de");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("de");
+    }
+
     @Test
     @DisplayName("Builder should reject invalid language codes")
     void builderShouldRejectInvalidLanguageCodes() {
@@ -365,21 +440,18 @@ class VaadinCKEditorBuilderTest {
         }
     }
 
-    @Test
-    @DisplayName("Builder should accept every CKEditor translation code and region/script variants (issue #151)")
-    void builderShouldAcceptCkeditorTranslationCodes() {
-        String[] languages = {"sk", "ast", "sr-latn", "de-ch", "en-gb", "es-co", "sk-SK", "sk_SK", "sr-Latn-RS"};
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"sk-SK", "sk_SK", "de-AT", "sr-Latn-RS", "zh-Hans", "zh-Hant-TW", "zh_Hans_SG", "es-419"})
+    @DisplayName("Builder should accept region / script forms the client falls back from (issue #151)")
+    void builderShouldAcceptRegionAndScriptVariants(String lang) {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLanguage(lang)
+            .build();
 
-        for (String lang : languages) {
-            VaadinCKEditor editor = VaadinCKEditor.create()
-                .withPreset(CKEditorPreset.BASIC)
-                .withLanguage(lang)
-                .build();
-
-            assertThat(editor.getElement().getProperty("language"))
-                .as("Language '%s'", lang)
-                .isEqualTo(lang.toLowerCase(Locale.ROOT).replace('_', '-'));
-        }
+        String expected = lang.toLowerCase(Locale.ROOT).replace('_', '-');
+        assertThat(editor.getElement().getProperty("language")).isEqualTo(expected);
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo(expected);
     }
 
     @Test
@@ -392,6 +464,26 @@ class VaadinCKEditorBuilderTest {
 
         assertThat(editor.getElement().getProperty("language")).isEqualTo("sk-sk");
         assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("sk-sk");
+    }
+
+    @Test
+    @DisplayName("withLocale should keep script and region but drop variants and extensions")
+    void withLocaleShouldKeepScriptAndRegionOnly() {
+        assertThat(languageOf(Locale.forLanguageTag("sr-Latn-RS"))).isEqualTo("sr-latn-rs");
+        assertThat(languageOf(Locale.forLanguageTag("zh-Hant-TW"))).isEqualTo("zh-hant-tw");
+        assertThat(languageOf(Locale.TRADITIONAL_CHINESE)).isEqualTo("zh-tw");
+        assertThat(languageOf(Locale.SIMPLIFIED_CHINESE)).isEqualTo("zh-cn");
+        assertThat(languageOf(Locale.forLanguageTag("ja-JP-u-ca-japanese"))).isEqualTo("ja-jp");
+        assertThat(languageOf(Locale.forLanguageTag("de-DE-1996"))).isEqualTo("de-de");
+        assertThat(languageOf(Locale.GERMAN)).isEqualTo("de");
+    }
+
+    private static String languageOf(Locale locale) {
+        return VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLocale(locale)
+            .build()
+            .getElement().getProperty("language");
     }
 
     @Test

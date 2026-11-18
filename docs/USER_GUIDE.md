@@ -421,7 +421,7 @@ config.setToolbarStyle(style);
 
 ## Language
 
-The editor UI can use any language CKEditor 5 ships a translation for — 70+ languages such as
+The editor UI can use any language CKEditor 5 ships a translation for — English plus 72 translations such as
 `sk`, `cs`, `de`, `pl`, `pt-br`, `sr-latn` or `zh-cn` (the full list is the file names in
 `ckeditor5/dist/translations/`). Only the selected translation is downloaded, on demand, as a
 separate chunk; English needs no download.
@@ -442,13 +442,20 @@ VaadinCKEditor.create().withConfig(config).build();
 Rules:
 
 - Codes are case-insensitive and accept `-` or `_`: `"sk"`, `"sk-SK"`, `"sk_SK"` and `Locale.of("sk", "SK")`
-  all select the Slovak UI. When there is no exact translation the closest one is used
-  (`"de-AT"` → `de`, `"sr-Latn-RS"` → `sr-latn`, `"zh-Hans"` → `zh-cn`); a region-qualified code is kept
-  as the content language, so the editing area gets `lang="sk-sk"`.
+  all select the Slovak UI. When there is no exact translation, region and script subtags are dropped until one
+  matches (`"de-AT"` → `de`, `"sr-Latn-RS"` → `sr-latn`, `"en-US"` → `en`). The editor then uses that translation
+  code for both UI and content (`lang="sk"`); set a content language explicitly to change that.
+- Chinese follows CKEditor's bundle names: `zh` is Traditional and `zh-cn` is Simplified.
+  `"zh-tw"`, `"zh-hk"` and `"zh-Hant"` select `zh`; `"zh-Hans"` and `"zh-sg"` select `zh-cn`.
+- `withLanguage(...)` accepts a primary language with an optional script and an optional region
+  (`"sk"`, `"sr-Latn-RS"`, `"es-419"`) and throws `IllegalArgumentException` for anything else
+  (variants, private-use subtags, malformed separators). `withLocale(...)` uses the locale's language,
+  script and region and ignores variants and extensions.
 - A language CKEditor has no translation for falls back to the English UI and logs a browser warning.
-- `withLanguage(...)` / `withLocale(...)` set the UI language and win over the UI language in `withConfig(...)`,
+- `withLanguage(...)` / `withLocale(...)` set the UI language and replace the UI language in `withConfig(...)`,
   but keep the config's content language and Text Part Language options. Without them, the language from
-  `withConfig(...)` is used as is.
+  `withConfig(...)` is used as is. On the client, `config.language` (a string, or the `ui` of the object form)
+  takes precedence over the component's `language` property.
 - The content language (`setLanguage(ui, content, ...)`) sets the `lang` attribute and text direction
   (e.g. `ar`, `he` are right-to-left) of the edited content; it needs no translation.
 - `textPartLanguages` are the options of the Text Part Language dropdown (`CKEditorPlugin.TEXT_PART_LANGUAGE`);

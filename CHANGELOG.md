@@ -8,23 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **全部 CKEditor 界面语言**（[#151](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/151)）：此前只打包 10 种语言，
-  其余（如 `sk`）静默回退英文。现覆盖 `ckeditor5/translations/` 的全部 73 种语言，按需以独立 chunk 懒加载
-  （英文不下载；原先静态打包的 10 种语言也改为懒加载，主包变小）。
-- **`VaadinCKEditorBuilder.withLocale(Locale)`**：直接使用 Vaadin `UI#getLocale()`。
+- **`VaadinCKEditorBuilder.withLocale(Locale)`**（[#151](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/151)）：
+  直接使用 Vaadin `UI#getLocale()`；取 Locale 的语言、书写系统与地区（忽略变体与扩展），
+  如 `Locale.of("sk", "SK")` → `sk-sk`，客户端再回退到 `sk` 翻译包。
 - **`--ck-bookmark-icon-fill-color`**：书签图标未选中颜色可配置（悬停 / 选中沿用 CKEditor 的
   `--ck-bookmark-icon-hover-fill-color` / `--ck-bookmark-icon-selected-fill-color`），见 User Guide「Theme Variables」。
 
 ### Changed
-- `withLanguage(String)` 的格式校验放宽为 BCP 47 形态并统一为小写连字符：接受 `ast`、`sr-latn`、`sk-SK`、`sk_SK`、
-  `sr-Latn-RS`；仍拒绝空串、单字母、纯数字与畸形分隔。无精确翻译时逐级回退（`sk-SK` → `sk`），
-  原值保留为内容语言。
+- **语言代码逐级回退**（#151）：`withLanguage()` / `CKEditorConfig.setLanguage()` 的代码在客户端按
+  大小写与 `_` 归一化后，逐级去掉地区 / 书写系统子标签直到命中已有翻译包：`sk-SK` / `sk_SK` → `sk`、
+  `de-AT` → `de`、`sr-Latn-RS` → `sr-latn`、`en-US` → `en`。中文与 CKEditor 包名保持一致（`zh` 为繁体、
+  `zh-cn` 为简体）：`zh-Hans` / `zh-SG` → `zh-cn`，`zh-Hant` / `zh-TW` / `zh-HK` → `zh`。
+  仍无匹配时以英文 UI 显示并在控制台告警。
+- `withLanguage(String)` 的校验相应放宽：接受 `sk_SK`、`sr-Latn-RS`、`zh-Hant-TW`、`es-419` 等
+  「主标签 + 可选书写系统 + 可选地区」形式，统一存为小写连字符；仍拒绝空串、单字母、纯数字、
+  4 字母以上主标签、变体 / 私有扩展与畸形分隔。
 - `CKEditorConfig.setLanguage(ui, content, String[] textPartLanguages)` 现生成 CKEditor 要求的
-  `{title, languageCode}` 对象（此前直接传字符串数组，Text Part Language 下拉项为 undefined）。
+  `{title, languageCode}` 对象（此前直接传字符串数组，Text Part Language 下拉项为 undefined），
+  标题为该语言在 UI 语言下的名称。
 
 ### Fixed
-- **`withConfig` 的语言被覆盖**（#151）：构建器总以默认 `"en"` 覆盖 `config.setLanguage(...)`；现仅在显式调用
-  `withLanguage` / `withLocale` 时替换界面语言，且保留内容语言与 textPartLanguage。
+- **只有 10 种 UI 语言真正生效**（#151）：前端此前只静态打包了 ja / zh-cn / zh / ko / de / fr / es / pt / ru / ar
+  的翻译，其余 CKEditor 自带语言（如 sk，以及官方专业翻译中的 it、nl、pl、pt-br、he、fa 等）设置后仍显示英文。
+  现改为按语言动态加载 ckeditor5 随包发布的全部 72 个翻译包（Vite 每语言一个按需 chunk，首屏不再带任何字典）。
+- **语言代码归一化**：`withLanguage()` 现接受 3 字母主标签（`ast`）与 4 字母书写系统子标签（`sr-latn`），
+  并统一存为小写（`pt-BR` → `pt-br`）；CKEditor 文档里繁体中文的 `zh-tw` 映射到其 `zh` 翻译包。
+  `"eng"` 这类合法的 ISO 639-2 代码不再被拒绝。
+- **`CKEditorConfig.setLanguage(...)` 被 Builder 覆盖**：未调用 `withLanguage()` 时，Builder 此前仍把
+  config 的语言改写为默认 `en`，导致通过 `withConfig()` 设置的 UI 语言（及对象形式的 `content` /
+  `textPartLanguage`）失效。现仅在显式调用 `withLanguage()` / `withLocale()` 时覆盖，且只替换 UI 语言、
+  保留 `content` 与 `textPartLanguage`；前端同样以 `config.language`（字符串或对象的 `ui`）优先于组件
+  `language` 属性，并为其加载翻译包。
 - **暗色主题 split button 悬停高亮异常**（[#150](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/150)）：
   CKEditor 49 在旧版变量缺省时回退到亮色基础 token（`--ck-color-base-hover` 等 `#f3f4f7`），insertImage 等
   split button 悬停 / 展开时未被指向的一半呈亮块。暗色主题现覆盖 CKEditor 49 的基础 / 交互 token 与

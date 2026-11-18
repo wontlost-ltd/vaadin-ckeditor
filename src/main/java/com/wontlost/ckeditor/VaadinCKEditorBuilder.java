@@ -87,11 +87,14 @@ import java.util.regex.Pattern;
 public class VaadinCKEditorBuilder {
 
     /**
-     * Language code regex, applied after lower-casing and replacing '_' with '-': a 2–3 letter
-     * primary language plus up to two subtags (BCP 47 shape), e.g. "en", "ast", "zh-cn",
-     * "pt-br", "sr-latn", "sr-latn-rs".
+     * Language code regex, applied after lower-casing and replacing '_' with '-': an ISO 639-1/639-2
+     * primary subtag, an optional script (4 letters) and an optional region (2 letters or 3 digits),
+     * e.g. "en", "ast", "zh-cn", "pt-br", "sr-latn", "sr-latn-rs", "zh-hant-tw", "es-419".
+     * Covers every translation bundle shipped by CKEditor 5 plus the BCP 47 / {@link Locale} forms
+     * the client falls back from ("sk-sk" → "sk").
      */
-    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2,3}(-[a-z0-9]{2,8}){0,2}$");
+    private static final Pattern LANGUAGE_CODE_PATTERN =
+        Pattern.compile("^[a-z]{2,3}(-[a-z]{4})?(-([a-z]{2}|[0-9]{3}))?$");
 
     /**
      * Toolbar separator
@@ -106,9 +109,10 @@ public class VaadinCKEditorBuilder {
     private final Set<CustomPlugin> customPlugins = new LinkedHashSet<>();
     private String[] toolbar;
     private CKEditorConfig config;
+    /** withLanguage() 是否被显式调用；未调用时保留 CKEditorConfig 里设置的语言 */
+    private boolean languageExplicit;
     private DependencyMode dependencyMode = DependencyMode.AUTO_RESOLVE;
     private boolean hideToolbar = false;
-    private boolean languageExplicit = false;
 
     /**
      * Dependency resolution mode for plugins
@@ -280,15 +284,24 @@ public class VaadinCKEditorBuilder {
      * <p>Every language CKEditor 5 ships a translation for is supported; the translation is
      * loaded on demand by the client. Accepted formats (case-insensitive, {@code _} or {@code -}):</p>
      * <ul>
-     *   <li>Language only: "en", "sk", "ja", "ast"</li>
-     *   <li>With region or script: "zh-cn", "pt-br", "sr-latn", "sk-SK", "sk_SK"</li>
+     *   <li>ISO 639-1 / 639-2 code: "en", "sk", "zh", "ja", "ast"</li>
+     *   <li>With region: "en-gb", "zh-cn", "pt-br", "sk-SK", "sk_SK"</li>
+     *   <li>With script, optionally followed by a region: "sr-latn", "sr-Latn-RS", "zh-Hant-TW"</li>
      * </ul>
      * <p>Codes without an exact translation fall back to the closest one ("sk-SK" uses "sk");
      * codes CKEditor has no translation for fall back to English.</p>
      *
-     * <p>When this method is not called, the language from {@code withConfig(...)} is used.</p>
+     * <p>The code is case-insensitive and stored in lower case with {@code -} separators.
+     * Chinese follows CKEditor's bundle names: {@code "zh"} is Traditional and {@code "zh-cn"}
+     * Simplified; the client maps {@code "zh-tw"}, {@code "zh-hk"} and {@code "zh-hant"} to
+     * {@code "zh"}, and {@code "zh-hans"} and {@code "zh-sg"} to {@code "zh-cn"}.</p>
      *
-     * @param language the language code (e.g., "sk", "zh-cn")
+     * <p>When this method is not called, the language from {@code withConfig(...)} is used.
+     * When it is called, it replaces only the UI language of that config; a content language
+     * and text part languages set with {@link CKEditorConfig#setLanguage(String, String, String[])}
+     * are kept.</p>
+     *
+     * @param language the language code (e.g., "en", "sk", "zh-cn")
      * @return this builder for chaining
      * @throws IllegalArgumentException if language format is invalid
      */
@@ -301,8 +314,10 @@ public class VaadinCKEditorBuilder {
     /**
      * Set the editor UI language from a {@link Locale}, e.g. {@code UI.getCurrent().getLocale()}.
      *
-     * <p>Equivalent to {@link #withLanguage(String)} with {@link Locale#toLanguageTag()}, so
-     * {@code Locale.of("sk", "SK")} selects the Slovak translation.</p>
+     * <p>Equivalent to {@link #withLanguage(String)} with the locale's language, script and
+     * region, so {@code Locale.of("sk", "SK")} selects the Slovak translation and
+     * {@code Locale.TRADITIONAL_CHINESE} the Traditional Chinese one. Variants and extensions
+     * (e.g. {@code -u-ca-japanese}) are ignored because CKEditor translations do not use them.</p>
      *
      * @param locale the locale
      * @return this builder for chaining
@@ -312,7 +327,17 @@ public class VaadinCKEditorBuilder {
         if (locale == null || locale.getLanguage().isEmpty()) {
             throw new IllegalArgumentException("Locale must not be null and must have a language");
         }
-        return withLanguage(locale.toLanguageTag());
+        Locale base;
+        try {
+            base = new Locale.Builder()
+                .setLanguage(locale.getLanguage())
+                .setScript(locale.getScript())
+                .setRegion(locale.getCountry())
+                .build();
+        } catch (IllformedLocaleException e) {
+            throw new IllegalArgumentException("Locale is not a valid BCP 47 locale: " + locale, e);
+        }
+        return withLanguage(base.toLanguageTag());
     }
 
     /**
@@ -615,15 +640,12 @@ public class VaadinCKEditorBuilder {
         if (config != null) {
             editor.setConfigInternal(config);
         }
-        // 显式 withLanguage 只替换界面语言；未调用时沿用 withConfig 的语言设置，
-        // 不能用默认的 "en" 覆盖调用方的 config.setLanguage(...)（issue #151）
-        if (languageExplicit) {
+        // 语言：withLanguage() 显式设置时只替换 config 的 UI 语言（保留 content / textPartLanguage）；
+        // 否则保留 CKEditorConfig.setLanguage(...) 的设置，并让组件属性与其 UI 语言保持一致
+        if (languageExplicit || config == null) {
             editor.getConfigInternal().applyUiLanguage(editor.getLanguageInternal());
-        } else {
-            String configLanguage = editor.getConfigInternal().getLanguage();
-            if (configLanguage != null) {
-                editor.setLanguageInternal(configLanguage);
-            }
+        } else if (config.getLanguage() != null) {
+            editor.setLanguageInternal(config.getLanguage());
         }
 
         // Check if CloudServices is in the final plugins - if so, enable allowConfigRequiredPlugins
@@ -826,7 +848,7 @@ public class VaadinCKEditorBuilder {
         if (!LANGUAGE_CODE_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
                 "Invalid language code format: '" + language + "'. " +
-                "Expected a language code such as 'sk', 'zh-cn', 'pt-br' or 'sr-latn'");
+                "Expected ISO 639 format (e.g., 'en', 'sk-SK', 'zh-cn', 'pt-br', 'sr-Latn-RS')");
         }
         return normalized;
     }
