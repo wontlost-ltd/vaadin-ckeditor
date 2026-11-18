@@ -1433,6 +1433,28 @@ class CKEditorConfigTest {
     }
 
     @Test
+    @DisplayName("textPartLanguage codes should become {title, languageCode} options (issue #151)")
+    void textPartLanguagesShouldBecomeOptions() {
+        config.setLanguage("en", "sk", new String[]{"sk", "de"});
+        var options = config.toJson().get("language").get("textPartLanguage");
+
+        assertThat(options.size()).isEqualTo(2);
+        assertThat(options.get(0).get("languageCode").asString()).isEqualTo("sk");
+        assertThat(options.get(0).get("title").asString()).isEqualTo("Slovak");
+        assertThat(options.get(1).get("title").asString()).isEqualTo("German");
+    }
+
+    @Test
+    @DisplayName("textPartLanguage titles should be localized to the UI language")
+    void textPartLanguageTitlesShouldUseUiLanguage() {
+        config.setLanguage("sk", "sk", new String[]{"sk"});
+        var option = config.toJson().get("language").get("textPartLanguage").get(0);
+
+        assertThat(option.get("title").asString()).isEqualTo("Slovenčina");
+        assertThat(option.get("languageCode").asString()).isEqualTo("sk");
+    }
+
+    @Test
     @DisplayName("getLanguage should return 'en' by default")
     void getLanguageDefaultsToEn() {
         assertThat(config.getLanguage()).isEqualTo("en");

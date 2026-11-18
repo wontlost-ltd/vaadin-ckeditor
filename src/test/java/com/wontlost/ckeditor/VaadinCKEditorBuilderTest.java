@@ -3,6 +3,7 @@ package com.wontlost.ckeditor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -15,12 +16,13 @@ class VaadinCKEditorBuilderTest {
 
     private static final String[] INVALID_LANGUAGES = {
         "",
-        "eng",
         "e",
-        "en_US",
-        "en-USA",
+        "english",
         "123",
-        "en-"
+        "en-",
+        "en--us",
+        "en us",
+        "en-us-x-private-use"
     };
 
     @Test
@@ -361,6 +363,91 @@ class VaadinCKEditorBuilderTest {
                 .as("Language '%s' should be rejected", lang)
                 .isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    @Test
+    @DisplayName("Builder should accept every CKEditor translation code and region/script variants (issue #151)")
+    void builderShouldAcceptCkeditorTranslationCodes() {
+        String[] languages = {"sk", "ast", "sr-latn", "de-ch", "en-gb", "es-co", "sk-SK", "sk_SK", "sr-Latn-RS"};
+
+        for (String lang : languages) {
+            VaadinCKEditor editor = VaadinCKEditor.create()
+                .withPreset(CKEditorPreset.BASIC)
+                .withLanguage(lang)
+                .build();
+
+            assertThat(editor.getElement().getProperty("language"))
+                .as("Language '%s'", lang)
+                .isEqualTo(lang.toLowerCase(Locale.ROOT).replace('_', '-'));
+        }
+    }
+
+    @Test
+    @DisplayName("withLocale should map a Java Locale to a language tag")
+    void withLocaleShouldMapLocale() {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLocale(Locale.of("sk", "SK"))
+            .build();
+
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("sk-sk");
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("sk-sk");
+    }
+
+    @Test
+    @DisplayName("withLocale should reject null or language-less locales")
+    void withLocaleShouldRejectInvalidLocale() {
+        VaadinCKEditorBuilder builder = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC);
+
+        assertThatThrownBy(() -> builder.withLocale(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.withLocale(Locale.ROOT)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("withConfig language must not be overwritten by the default language (issue #151)")
+    void configLanguageShouldSurviveBuild() {
+        CKEditorConfig config = new CKEditorConfig();
+        config.setLanguage("sk", "sk", new String[]{"sk"});
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(config)
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("sk");
+        assertThat(editor.getConfigInternal().toJson().get("language").get("content").asString()).isEqualTo("sk");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("sk");
+    }
+
+    @Test
+    @DisplayName("Simple config language must survive build")
+    void simpleConfigLanguageShouldSurviveBuild() {
+        CKEditorConfig config = new CKEditorConfig().setLanguage("de");
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(config)
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("de");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("de");
+    }
+
+    @Test
+    @DisplayName("Explicit withLanguage replaces only the UI language of a config")
+    void explicitLanguageShouldKeepConfigContentLanguage() {
+        CKEditorConfig config = new CKEditorConfig();
+        config.setLanguage("en", "sk", null);
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(config)
+            .withLanguage("de")
+            .build();
+
+        var language = editor.getConfigInternal().toJson().get("language");
+        assertThat(language.get("ui").asString()).isEqualTo("de");
+        assertThat(language.get("content").asString()).isEqualTo("sk");
     }
 
     @Test

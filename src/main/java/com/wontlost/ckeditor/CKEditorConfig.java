@@ -52,7 +52,15 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * Set UI language
+     * Set the UI and content language.
+     *
+     * <p>Accepts any language CKEditor 5 ships a translation for (e.g. {@code "sk"}, {@code "de"},
+     * {@code "pt-br"}, {@code "sr-latn"}). Region-qualified codes such as {@code "sk-SK"} or
+     * {@code "sk_SK"} fall back to the closest available translation. The translation is
+     * loaded on demand by the client.</p>
+     *
+     * @param language the language code; {@code null} means English
+     * @return this config for chaining
      */
     public CKEditorConfig setLanguage(String language) {
         configs.put("language", getMapper().valueToTree(language != null ? language : "en"));
@@ -60,20 +68,61 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * Set complex language configuration (UI language, content language, text part languages)
+     * Set separate UI language, content language and text part languages.
+     *
+     * <p>{@code uiLanguage} selects the translation of the editor interface; {@code contentLanguage}
+     * sets the {@code lang} attribute and text direction of the edited content. Each entry of
+     * {@code textPartLanguages} is a language code offered by the Text Part Language plugin
+     * ({@link CKEditorPlugin#TEXT_PART_LANGUAGE}); its title is the language's name in the UI
+     * language.</p>
+     *
+     * @param uiLanguage the UI language code; {@code null} means English
+     * @param contentLanguage the content language code, or {@code null} to use the UI language
+     * @param textPartLanguages language codes for the Text Part Language dropdown, or {@code null}
+     * @return this config for chaining
      */
     public CKEditorConfig setLanguage(String uiLanguage, String contentLanguage, String[] textPartLanguages) {
         ObjectNode langObj = createObjectNode();
-        langObj.put("ui", uiLanguage != null ? uiLanguage : "en");
+        String ui = uiLanguage != null ? uiLanguage : "en";
+        langObj.put("ui", ui);
         if (contentLanguage != null) {
             langObj.put("content", contentLanguage);
         }
-        ArrayNode textPartArr = toArrayNodeOrNull(textPartLanguages);
-        if (textPartArr != null) {
+        if (hasElements(textPartLanguages)) {
+            // CKEditor 期望 {title, languageCode} 对象数组；直接传字符串会让下拉项标题与代码均为 undefined
+            Locale displayLocale = Locale.forLanguageTag(ui.replace('_', '-'));
+            ArrayNode textPartArr = createArrayNode();
+            for (String code : textPartLanguages) {
+                textPartArr.add(textPartLanguageOption(code, displayLocale));
+            }
             langObj.set("textPartLanguage", textPartArr);
         }
         configs.put("language", langObj);
         return this;
+    }
+
+    /**
+     * 构造 Text Part Language 下拉项：标题取该语言在界面语言下的名称（首字母大写），取不到时退回代码本身。
+     */
+    private static ObjectNode textPartLanguageOption(String code, Locale displayLocale) {
+        String name = Locale.forLanguageTag(code.replace('_', '-')).getDisplayName(displayLocale);
+        String title = name.isEmpty() ? code : name.substring(0, 1).toUpperCase(displayLocale) + name.substring(1);
+        ObjectNode option = createObjectNode();
+        option.put("title", title);
+        option.put("languageCode", code);
+        return option;
+    }
+
+    /**
+     * 只替换界面语言，保留已配置的内容语言与 textPartLanguage（供构建器的 {@code withLanguage} 使用）。
+     */
+    void applyUiLanguage(String uiLanguage) {
+        JsonNode current = configs.get("language");
+        if (current != null && current.isObject()) {
+            ((ObjectNode) current).put("ui", uiLanguage);
+        } else {
+            setLanguage(uiLanguage);
+        }
     }
 
     /**

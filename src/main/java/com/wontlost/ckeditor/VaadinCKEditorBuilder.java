@@ -87,9 +87,11 @@ import java.util.regex.Pattern;
 public class VaadinCKEditorBuilder {
 
     /**
-     * Language code regex (ISO 639-1 or regional format, e.g. "en", "zh-cn", "pt-br")
+     * Language code regex, applied after lower-casing and replacing '_' with '-': a 2–3 letter
+     * primary language plus up to two subtags (BCP 47 shape), e.g. "en", "ast", "zh-cn",
+     * "pt-br", "sr-latn", "sr-latn-rs".
      */
-    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}(-[a-z]{2})?$");
+    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2,3}(-[a-z0-9]{2,8}){0,2}$");
 
     /**
      * Toolbar separator
@@ -106,6 +108,7 @@ public class VaadinCKEditorBuilder {
     private CKEditorConfig config;
     private DependencyMode dependencyMode = DependencyMode.AUTO_RESOLVE;
     private boolean hideToolbar = false;
+    private boolean languageExplicit = false;
 
     /**
      * Dependency resolution mode for plugins
@@ -271,22 +274,45 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
-     * Set language for editor UI and spell checking.
+     * Set the editor UI language (and the content language, unless a {@link CKEditorConfig}
+     * passed to {@link #withConfig(CKEditorConfig)} sets a separate one).
      *
-     * <p>Supported formats:</p>
+     * <p>Every language CKEditor 5 ships a translation for is supported; the translation is
+     * loaded on demand by the client. Accepted formats (case-insensitive, {@code _} or {@code -}):</p>
      * <ul>
-     *   <li>ISO 639-1 two-letter code: "en", "zh", "ja", "ko"</li>
-     *   <li>With region: "en-us", "zh-cn", "pt-br"</li>
+     *   <li>Language only: "en", "sk", "ja", "ast"</li>
+     *   <li>With region or script: "zh-cn", "pt-br", "sr-latn", "sk-SK", "sk_SK"</li>
      * </ul>
+     * <p>Codes without an exact translation fall back to the closest one ("sk-SK" uses "sk");
+     * codes CKEditor has no translation for fall back to English.</p>
      *
-     * @param language the language code (e.g., "en", "zh-cn")
+     * <p>When this method is not called, the language from {@code withConfig(...)} is used.</p>
+     *
+     * @param language the language code (e.g., "sk", "zh-cn")
      * @return this builder for chaining
      * @throws IllegalArgumentException if language format is invalid
      */
     public VaadinCKEditorBuilder withLanguage(String language) {
-        validateLanguageCode(language);
-        editor.setLanguageInternal(language);
+        editor.setLanguageInternal(normalizeLanguageCode(language));
+        languageExplicit = true;
         return this;
+    }
+
+    /**
+     * Set the editor UI language from a {@link Locale}, e.g. {@code UI.getCurrent().getLocale()}.
+     *
+     * <p>Equivalent to {@link #withLanguage(String)} with {@link Locale#toLanguageTag()}, so
+     * {@code Locale.of("sk", "SK")} selects the Slovak translation.</p>
+     *
+     * @param locale the locale
+     * @return this builder for chaining
+     * @throws IllegalArgumentException if the locale is {@code null} or has no language
+     */
+    public VaadinCKEditorBuilder withLocale(Locale locale) {
+        if (locale == null || locale.getLanguage().isEmpty()) {
+            throw new IllegalArgumentException("Locale must not be null and must have a language");
+        }
+        return withLanguage(locale.toLanguageTag());
     }
 
     /**
@@ -589,7 +615,16 @@ public class VaadinCKEditorBuilder {
         if (config != null) {
             editor.setConfigInternal(config);
         }
-        editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
+        // 显式 withLanguage 只替换界面语言；未调用时沿用 withConfig 的语言设置，
+        // 不能用默认的 "en" 覆盖调用方的 config.setLanguage(...)（issue #151）
+        if (languageExplicit) {
+            editor.getConfigInternal().applyUiLanguage(editor.getLanguageInternal());
+        } else {
+            String configLanguage = editor.getConfigInternal().getLanguage();
+            if (configLanguage != null) {
+                editor.setLanguageInternal(configLanguage);
+            }
+        }
 
         // Check if CloudServices is in the final plugins - if so, enable allowConfigRequiredPlugins
         // This is needed because CloudServices requires special configuration and is normally filtered
@@ -777,20 +812,22 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
-     * Validate language code format.
+     * Validate a language code and normalize it to lower case with {@code -} separators.
      *
      * @param language the language code to validate
+     * @return the normalized code, e.g. "sk-sk" for "sk_SK"
      * @throws IllegalArgumentException if validation fails
      */
-    private void validateLanguageCode(String language) {
+    private static String normalizeLanguageCode(String language) {
         if (language == null || language.isEmpty()) {
             throw new IllegalArgumentException("Language code must not be null or empty");
         }
-        String normalized = language.toLowerCase(java.util.Locale.ROOT);
+        String normalized = language.toLowerCase(Locale.ROOT).replace('_', '-');
         if (!LANGUAGE_CODE_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
                 "Invalid language code format: '" + language + "'. " +
-                "Expected ISO 639-1 format (e.g., 'en', 'zh-cn', 'pt-br')");
+                "Expected a language code such as 'sk', 'zh-cn', 'pt-br' or 'sr-latn'");
         }
+        return normalized;
     }
 }

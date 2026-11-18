@@ -30,6 +30,7 @@ import { shouldRecreateEditor } from './reconnect-decision';
 import { createRefcount } from './dark-theme-refcount';
 import { isAllowedCssUrl } from './css-url-validator';
 import { shouldLoadMediaEmbedResize, loadMediaEmbedResizePlugin } from './media-embed-resize';
+import { resolveEditorLanguage, loadTranslations } from './translation-loader';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -113,7 +114,6 @@ import {
     DecoupledEditor,
     Editor,
     EditorConfig,
-    type Translations,
 } from 'ckeditor5';
 
 // Import CKEditor 5 styles
@@ -122,31 +122,7 @@ import 'ckeditor5/ckeditor5.css';
 // NOTE: Premium features CSS (ckeditor5-premium-features/ckeditor5-premium-features.css) is loaded
 // dynamically in plugin-resolver.ts when premium plugins are used, to avoid baseline payload increase.
 
-// Import CKEditor 5 translations for i18n support
-import jaTranslations from 'ckeditor5/translations/ja.js';
-import zhCnTranslations from 'ckeditor5/translations/zh-cn.js';
-import zhTranslations from 'ckeditor5/translations/zh.js';
-import koTranslations from 'ckeditor5/translations/ko.js';
-import deTranslations from 'ckeditor5/translations/de.js';
-import frTranslations from 'ckeditor5/translations/fr.js';
-import esTranslations from 'ckeditor5/translations/es.js';
-import ptTranslations from 'ckeditor5/translations/pt.js';
-import ruTranslations from 'ckeditor5/translations/ru.js';
-import arTranslations from 'ckeditor5/translations/ar.js';
-
-// Translation registry mapping language codes to their translation modules
-const TRANSLATION_REGISTRY: Record<string, Translations> = {
-    'ja': jaTranslations,
-    'zh-cn': zhCnTranslations,
-    'zh': zhTranslations,
-    'ko': koTranslations,
-    'de': deTranslations,
-    'fr': frTranslations,
-    'es': esTranslations,
-    'pt': ptTranslations,
-    'ru': ruTranslations,
-    'ar': arTranslations,
-};
+// 界面语言翻译包按需懒加载（覆盖 CKEditor 提供的全部语言），见 translation-loader.ts
 
 // Note: PluginConfig, PLUGIN_REGISTRY, filterConflictingPlugins, and global registry
 // are now in plugin-resolver.ts module
@@ -760,9 +736,6 @@ export class VaadinCKEditor extends LitElement {
             }
         }
 
-        // Get translations for the specified language
-        const translations = this.language !== 'en' ? TRANSLATION_REGISTRY[this.language] : undefined;
-
         // 协作模式下检查频道是否已有数据，有则移除 initialData 避免警告
         const configAfterChannel = await this.stripInitialDataIfChannelExists(this.config);
 
@@ -774,12 +747,21 @@ export class VaadinCKEditor extends LitElement {
         this.pendingRootConfig = rootConfig;
         this.warnConfigMigration([...aiWarnings, ...rootWarnings]);
 
+        // 界面语言：config.language（字符串或 { ui }）优先于 language 属性，规范化到 CKEditor
+        // 实际提供的翻译键（"sk-SK" → "sk"）后按需加载翻译包（issue #151）。
+        const { language, uiLanguage, unsupported } =
+            resolveEditorLanguage((remainingConfig as Record<string, unknown>).language, this.language);
+        if (unsupported) {
+            logger.warn(`CKEditor has no UI translation for language "${unsupported}"; falling back to English`);
+        }
+        const translations = await loadTranslations(uiLanguage);
+
         let editorConfig: EditorConfig = {
             licenseKey: this.licenseKey,
             plugins: resolvedPlugins as EditorConfig['plugins'],
-            language: this.language,
             ...(translations ? { translations: [translations] } : {}),
             ...remainingConfig,
+            language: language as EditorConfig['language'],
         };
 
         // 顶层宿主（Vaadin Dialog 等 popover）内的浮层与全屏（issue #143 / #144）：
