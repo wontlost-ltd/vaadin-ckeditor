@@ -14,6 +14,7 @@ in a real browser to catch issues that unit tests miss.
 | `ai-config-migration.spec.ts` | Top-level `initialData` migrates to `root.initialData` and editor reports `state === 'ready'` |
 | `collab-strip-initial-data.spec.ts` | `stripInitialDataIfChannelSeeded` writes localStorage seed key on first visit |
 | `value-binding.spec.ts` | 值双向绑定（客户端输入回传服务端、`setValue` 下发、`setValue(null)` 归一化）与只读切换 |
+| `ui-languages.spec.ts` | 每个 ckeditor5 翻译包（及 `zh-tw`、大小写混写代码）：add-on 接受代码、工具栏标签与字典一致、运行期 `locale.t()` 生效、`lang`/`dir`（ar/fa/he/ku/ug/ur 为 RTL）正确、无控制台错误；期望值取自 e2e 自带的同版本 `ckeditor5` |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 
 Each spec runs against Chromium and Firefox.

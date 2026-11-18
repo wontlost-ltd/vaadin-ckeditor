@@ -2,6 +2,8 @@ package com.wontlost.ckeditor;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Map;
 import java.util.Set;
@@ -15,7 +17,7 @@ class VaadinCKEditorBuilderTest {
 
     private static final String[] INVALID_LANGUAGES = {
         "",
-        "eng",
+        "engl",
         "e",
         "en_US",
         "en-USA",
@@ -347,6 +349,44 @@ class VaadinCKEditorBuilderTest {
 
             assertThat(editor).isNotNull();
         }
+    }
+
+    /**
+     * CKEditor 5 49.1.0 发布的全部 UI 翻译包代码（ckeditor5/dist/translations/*.js），
+     * 外加官方专业翻译列表使用的 zh-tw。前端 translations.test.ts 校验同一份清单与包文件一致。
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+        "af", "ar", "ast", "az", "be", "bg", "bn", "bs", "ca", "cs", "da", "de-ch", "de", "el",
+        "en-au", "en-gb", "en", "eo", "es-co", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he",
+        "hi", "hr", "hu", "hy", "id", "it", "ja", "jv", "kk", "km", "kn", "ko", "ku", "lt", "lv",
+        "ms", "nb", "ne", "nl", "no", "oc", "pl", "pt-br", "pt", "ro", "ru", "si", "sk", "sl", "sq",
+        "sr-latn", "sr", "sv", "th", "ti", "tk", "tr", "tt", "ug", "uk", "ur", "uz", "vi", "zh-cn",
+        "zh", "zh-tw"
+    })
+    @DisplayName("Builder should accept every CKEditor UI translation code")
+    void builderShouldAcceptEveryCkeditorTranslationCode(String lang) {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLanguage(lang)
+            .build();
+
+        assertThat(editor.getElement().getProperty("language")).isEqualTo(lang);
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo(lang);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"pt-BR", "ZH-CN", "Sr-Latn", "DE"})
+    @DisplayName("Builder should store language codes in lower case to match CKEditor bundle names")
+    void builderShouldLowerCaseLanguageCode(String lang) {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withLanguage(lang)
+            .build();
+
+        String expected = lang.toLowerCase(java.util.Locale.ROOT);
+        assertThat(editor.getElement().getProperty("language")).isEqualTo(expected);
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo(expected);
     }
 
     @Test

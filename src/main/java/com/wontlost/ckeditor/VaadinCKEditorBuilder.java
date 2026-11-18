@@ -87,9 +87,11 @@ import java.util.regex.Pattern;
 public class VaadinCKEditorBuilder {
 
     /**
-     * Language code regex (ISO 639-1 or regional format, e.g. "en", "zh-cn", "pt-br")
+     * Language code regex: ISO 639-1/639-2 primary subtag with an optional region (2 letters)
+     * or script (4 letters) subtag, e.g. "en", "ast", "zh-cn", "pt-br", "sr-latn".
+     * Matches every translation bundle shipped by CKEditor 5.
      */
-    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}(-[a-z]{2})?$");
+    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2,3}(-([a-z]{2}|[a-z]{4}))?$");
 
     /**
      * Toolbar separator
@@ -275,9 +277,14 @@ public class VaadinCKEditorBuilder {
      *
      * <p>Supported formats:</p>
      * <ul>
-     *   <li>ISO 639-1 two-letter code: "en", "zh", "ja", "ko"</li>
-     *   <li>With region: "en-us", "zh-cn", "pt-br"</li>
+     *   <li>ISO 639-1 / 639-2 code: "en", "zh", "ja", "ast"</li>
+     *   <li>With region: "en-gb", "zh-cn", "pt-br"</li>
+     *   <li>With script: "sr-latn"</li>
      * </ul>
+     *
+     * <p>The code is case-insensitive and stored in lower case, matching CKEditor's
+     * translation bundle names. {@code "zh-tw"} (the code CKEditor's documentation uses
+     * for Traditional Chinese) is resolved to CKEditor's {@code "zh"} bundle by the client.</p>
      *
      * @param language the language code (e.g., "en", "zh-cn")
      * @return this builder for chaining
@@ -285,7 +292,7 @@ public class VaadinCKEditorBuilder {
      */
     public VaadinCKEditorBuilder withLanguage(String language) {
         validateLanguageCode(language);
-        editor.setLanguageInternal(language);
+        editor.setLanguageInternal(language.toLowerCase(java.util.Locale.ROOT));
         return this;
     }
 
@@ -790,7 +797,7 @@ public class VaadinCKEditorBuilder {
         if (!LANGUAGE_CODE_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
                 "Invalid language code format: '" + language + "'. " +
-                "Expected ISO 639-1 format (e.g., 'en', 'zh-cn', 'pt-br')");
+                "Expected ISO 639 format (e.g., 'en', 'zh-cn', 'pt-br', 'sr-latn')");
         }
     }
 }
