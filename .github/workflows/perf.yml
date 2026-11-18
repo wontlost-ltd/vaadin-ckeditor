@@ -24,7 +24,8 @@ concurrency:
 
 jobs:
   perf:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 不支持 ubuntu-latest 当前指向的 26.04；视觉基线也按 24.04 生成，故固定版本
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
