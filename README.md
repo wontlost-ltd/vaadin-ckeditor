@@ -16,7 +16,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 - **Error Handling** - Comprehensive error events and fallback modes
 - **HTML Sanitization** - Built-in sanitization policies for security
 - **Autosave** - Debounced autosave with configurable intervals
-- **i18n Support** - 10+ languages included
+- **i18n Support** - Every UI language CKEditor 5 ships (70+), loaded on demand — see [Language](docs/USER_GUIDE.md#language)
 - **TypeScript** - Fully typed frontend component
 
 ## Documentation

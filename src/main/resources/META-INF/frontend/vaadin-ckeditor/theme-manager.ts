@@ -19,11 +19,36 @@ export const DARK_THEME_VARS: Record<string, string> = {
     '--ck-color-text': 'hsl(0, 0%, 98%)',
     '--ck-color-shadow-drop': 'hsla(0, 0%, 0%, 0.2)',
     '--ck-color-shadow-inner': 'hsla(0, 0%, 0%, 0.1)',
-    '--ck-color-button-default-background': 'hsl(270, 1%, 29%)',
-    '--ck-color-button-default-hover-background': 'hsl(270, 1%, 22%)',
-    '--ck-color-button-default-active-background': 'hsl(270, 2%, 20%)',
+
+    // CKEditor 49 基础 token：组件在未设置旧版 --ck-color-* 变量时回退到这些亮色默认值
+    // （如 #f3f4f7 悬停底色），暗色下必须一并覆盖，否则出现亮块（issue #150）。
+    '--ck-color-base-border': 'hsl(257, 3%, 43%)',
+    '--ck-color-base-border-light': 'hsl(270, 1%, 35%)',
+    '--ck-color-base-text-light': 'hsl(0, 0%, 75%)',
+    '--ck-color-base-hover': 'hsla(0, 0%, 100%, 0.1)',
+    '--ck-color-base-hover-strong': 'hsla(0, 0%, 100%, 0.16)',
+    '--ck-color-base-selected': 'hsla(217, 91%, 60%, 0.25)',
+    '--ck-color-base-selected-hover': 'hsla(217, 91%, 60%, 0.35)',
+    '--ck-color-base-action-muted': 'hsla(217, 91%, 60%, 0.2)',
+    '--ck-color-base-error-shadow': 'hsla(0, 70%, 50%, 0.35)',
+    '--ck-color-interactive-disabled-surface': 'hsl(270, 1%, 24%)',
+    '--ck-color-surface-skeleton': 'hsl(270, 1%, 29%)',
+    '--ck-color-surface-skeleton-highlight': 'hsl(270, 1%, 35%)',
+    '--ck-color-text-placeholder': 'hsl(0, 0%, 66%)',
+
+    // 按钮默认透明，与亮色主题一致；此前的实心灰底在工具栏上呈现为一个个方块
+    '--ck-color-button-default-background': 'transparent',
+    '--ck-color-button-default-hover-background': 'hsla(0, 0%, 100%, 0.1)',
+    '--ck-color-button-default-active-background': 'hsla(0, 0%, 100%, 0.16)',
     '--ck-color-button-default-active-shadow': 'hsl(270, 2%, 23%)',
-    '--ck-color-button-default-disabled-background': 'hsl(270, 1%, 29%)',
+    '--ck-color-button-default-disabled-background': 'transparent',
+    // split button（insertImage、insertTable 等）悬停 / 展开时未被指向的那一半（issue #150）
+    '--ck-color-split-button-hover-background': 'hsla(0, 0%, 100%, 0.1)',
+    // 下拉列表选中项：白字需 ≥ 4.5:1（#2563eb 上为 5.2:1）
+    '--ck-color-list-button-on-background': 'hsl(221, 83%, 53%)',
+    '--ck-color-list-button-on-background-focus': 'hsl(224, 76%, 48%)',
+    '--ck-color-list-button-on-text': 'hsl(0, 0%, 100%)',
+    '--ck-color-list-button-hover-background': 'hsla(0, 0%, 100%, 0.1)',
     '--ck-color-button-on-background': 'hsl(255, 3%, 18%)',
     '--ck-color-button-on-hover-background': 'hsl(255, 4%, 16%)',
     '--ck-color-button-on-active-background': 'hsl(255, 4%, 14%)',
@@ -46,7 +71,8 @@ export const DARK_THEME_VARS: Record<string, string> = {
     '--ck-color-input-disabled-background': 'hsl(255, 4%, 21%)',
     '--ck-color-input-disabled-border': 'hsl(250, 3%, 38%)',
     '--ck-color-input-disabled-text': 'hsl(0, 0%, 46%)',
-    '--ck-color-list-background': 'hsl(270, 1%, 29%)',
+    // 列表项透明，透出所在面板的底色；否则在组件内（面板被 sticky-toolbar.css 设为 #374151）呈现为灰色方块
+    '--ck-color-list-background': 'transparent',
     '--ck-color-panel-background': 'hsl(270, 1%, 29%)',
     '--ck-color-panel-border': 'hsl(300, 1%, 22%)',
     '--ck-color-toolbar-background': 'hsl(270, 1%, 29%)',
@@ -79,6 +105,42 @@ export const DARK_THEME_VARS: Record<string, string> = {
     '--ck-color-ai-suggestion-marker-insertion-background': 'hsla(140, 70%, 45%, 0.25)',
     '--ck-color-ai-suggestion-marker-deletion-background': 'hsla(355, 70%, 45%, 0.25)',
 };
+
+/**
+ * Vaadin 25 `Page#setColorScheme` / `@ColorScheme` 写入的"跟随系统"取值：
+ * SYSTEM / LIGHT_DARK → "light-dark"，DARK_LIGHT → "dark-light"。
+ * Lumo 对它们按 prefers-color-scheme 切换，编辑器必须同样跟随系统，
+ * 而不是因为字符串里含 "dark" 就固定为暗色。
+ */
+const SYSTEM_COLOR_SCHEME_TOKENS = ['light-dark', 'dark-light'];
+
+function themeTokens(themeAttribute: string | null): string[] {
+    return (themeAttribute ?? '').split(/\s+/).filter(Boolean);
+}
+
+/**
+ * `<html theme>` 是否交由系统偏好决定明暗：未设置、只有与明暗无关的值，或为 light-dark / dark-light。
+ */
+export function followsSystemColorScheme(themeAttribute: string | null): boolean {
+    const tokens = themeTokens(themeAttribute);
+    return !tokens.includes('dark') && !tokens.includes('light')
+        && (tokens.length === 0 || tokens.some((token) => SYSTEM_COLOR_SCHEME_TOKENS.includes(token)));
+}
+
+/**
+ * 根据 `<html theme>` 与系统偏好计算编辑器主题。按空白分词匹配（与 Lumo 的 `[theme~=dark]` 一致）。
+ * 优先级：dark / light 词 > 跟随系统（未设置或 light-dark / dark-light）> 其他取值视为亮色。
+ */
+export function resolveVaadinTheme(themeAttribute: string | null, prefersDark: boolean): 'light' | 'dark' {
+    const tokens = themeTokens(themeAttribute);
+    if (tokens.includes('dark')) {
+        return 'dark';
+    }
+    if (followsSystemColorScheme(themeAttribute)) {
+        return prefersDark ? 'dark' : 'light';
+    }
+    return 'light';
+}
 
 /**
  * Global dark theme reference counter.
@@ -169,7 +231,7 @@ export class ThemeManager {
         this.darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         this.darkModeMediaListener = (e: MediaQueryListEvent) => {
             const vaadinTheme = document.documentElement.getAttribute('theme');
-            if (!vaadinTheme || (!vaadinTheme.includes('dark') && !vaadinTheme.includes('light'))) {
+            if (followsSystemColorScheme(vaadinTheme)) {
                 this.applyTheme(e.matches ? 'dark' : 'light');
             }
         };
@@ -182,19 +244,8 @@ export class ThemeManager {
      * Priority: Vaadin [theme] attribute > OS preference > light (default)
      */
     private syncThemeWithVaadin(): void {
-        const vaadinTheme = document.documentElement.getAttribute('theme') || '';
-        let targetTheme: 'light' | 'dark';
-
-        if (vaadinTheme.includes('dark')) {
-            targetTheme = 'dark';
-        } else if (vaadinTheme.includes('light') || vaadinTheme) {
-            targetTheme = 'light';
-        } else {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            targetTheme = prefersDark ? 'dark' : 'light';
-        }
-
-        this.applyTheme(targetTheme);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        this.applyTheme(resolveVaadinTheme(document.documentElement.getAttribute('theme'), prefersDark));
     }
 
     /**

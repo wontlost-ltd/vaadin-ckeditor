@@ -11,6 +11,7 @@ Vaadin CKEditor 5 is a rich text editor component for Vaadin applications, provi
 - [Plugins](#plugins)
 - [Configuration](#configuration)
 - [Toolbar Customization](#toolbar-customization)
+- [Language](#language)
 - [Themes](#themes)
 - [Events](#events)
 - [File Upload](#file-upload)
@@ -294,10 +295,10 @@ CKEditorConfig config = new CKEditorConfig();
 // Placeholder text
 config.setPlaceholder("Start typing...");
 
-// Language (UI and content)
-config.setLanguage("zh-cn");
-// Or separate UI and content languages
-config.setLanguage("en", "zh-cn", new String[]{"de", "fr"});
+// Language (UI and content) — see the Language section below
+config.setLanguage("sk");
+// Or separate UI and content languages (+ Text Part Language options)
+config.setLanguage("en", "sk", new String[]{"sk", "de"});
 
 // Font sizes
 config.setFontSize("10px", "12px", "14px", "16px", "18px", "24px", "36px");
@@ -418,6 +419,52 @@ config.setToolbarStyle(style);
 
 ---
 
+## Language
+
+The editor UI can use any language CKEditor 5 ships a translation for — English plus 72 translations such as
+`sk`, `cs`, `de`, `pl`, `pt-br`, `sr-latn` or `zh-cn` (the full list is the file names in
+`ckeditor5/dist/translations/`). Only the selected translation is downloaded, on demand, as a
+separate chunk; English needs no download.
+
+```java
+// Language code
+VaadinCKEditor.create().withLanguage("sk").build();
+
+// Vaadin / Java Locale, e.g. the UI locale
+VaadinCKEditor.create().withLocale(UI.getCurrent().getLocale()).build();
+
+// Separate UI language, content language and Text Part Language options
+CKEditorConfig config = new CKEditorConfig();
+config.setLanguage("sk", "sk", new String[]{"sk", "en"});
+VaadinCKEditor.create().withConfig(config).build();
+```
+
+Rules:
+
+- Codes are case-insensitive and accept `-` or `_`: `"sk"`, `"sk-SK"`, `"sk_SK"` and `Locale.of("sk", "SK")`
+  all select the Slovak UI. When there is no exact translation, region and script subtags are dropped until one
+  matches (`"de-AT"` → `de`, `"sr-Latn-RS"` → `sr-latn`, `"en-US"` → `en`). The editor then uses that translation
+  code for both UI and content (`lang="sk"`); set a content language explicitly to change that.
+- Chinese follows CKEditor's bundle names: `zh` is Traditional and `zh-cn` is Simplified.
+  `"zh-tw"`, `"zh-hk"` and `"zh-Hant"` select `zh`; `"zh-Hans"` and `"zh-sg"` select `zh-cn`.
+- `withLanguage(...)` accepts a primary language with an optional script and an optional region
+  (`"sk"`, `"sr-Latn-RS"`, `"es-419"`) and throws `IllegalArgumentException` for anything else
+  (variants, private-use subtags, malformed separators). `withLocale(...)` uses the locale's language,
+  script and region and ignores variants and extensions.
+- A language CKEditor has no translation for falls back to the English UI and logs a browser warning.
+- `withLanguage(...)` / `withLocale(...)` set the UI language and replace the UI language in `withConfig(...)`,
+  but keep the config's content language and Text Part Language options. Without them, the language from
+  `withConfig(...)` is used as is. On the client, `config.language` (a string, or the `ui` of the object form)
+  takes precedence over the component's `language` property.
+- The content language (`setLanguage(ui, content, ...)`) sets the `lang` attribute and text direction
+  (e.g. `ar`, `he` are right-to-left) of the edited content; it needs no translation.
+- `textPartLanguages` are the options of the Text Part Language dropdown (`CKEditorPlugin.TEXT_PART_LANGUAGE`);
+  their titles are the language names in the UI language.
+- Premium features (`ckeditor5-premium-features`) ship their own translations, which are not loaded
+  automatically; their UI stays in English.
+
+---
+
 ## Themes
 
 ### Theme Options
@@ -438,6 +485,27 @@ VaadinCKEditor.create()
     .withTheme(CKEditorTheme.DARK)
     .build();
 ```
+
+`AUTO` follows the Vaadin `theme` attribute on `<html>` (`dark` / `light`); when it is unset or uses the
+system color scheme (`@ColorScheme(SYSTEM)`, `LIGHT_DARK`, `DARK_LIGHT` → `theme="light-dark"` / `"dark-light"`)
+it follows the OS `prefers-color-scheme`, like Lumo.
+
+### Theme Variables
+
+The dark theme is built from CKEditor CSS variables, so you can tune it — or match it to Lumo — with plain CSS
+in your theme. Set the variables on `vaadin-ckeditor` (or `html` for every editor):
+
+```css
+vaadin-ckeditor {
+    /* Bookmark anchor icon: idle, hover, selected */
+    --ck-bookmark-icon-fill-color: var(--lumo-secondary-text-color);
+    --ck-bookmark-icon-hover-fill-color: var(--lumo-primary-color);
+    --ck-bookmark-icon-selected-fill-color: var(--lumo-primary-color);
+}
+```
+
+`--ck-bookmark-icon-fill-color` defaults to the editor text color (`--ck-color-text`), so the icon is
+dark in the light theme and near-white in the dark theme.
 
 ### Custom CSS
 

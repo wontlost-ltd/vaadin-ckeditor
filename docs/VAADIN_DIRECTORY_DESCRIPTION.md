@@ -32,7 +32,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - **Error Handling & Fallback** — Graceful degradation to textarea or read-only mode
 - **Automatic Dependency Resolution** — Plugin dependencies resolved automatically
 - **Builder Pattern API** — Fluent, type-safe configuration
-- **i18n** — 10+ languages included
+- **i18n** — every UI language CKEditor 5 ships (70+), loaded on demand
 
 ## Presets
 

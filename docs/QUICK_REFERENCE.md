@@ -84,7 +84,7 @@ CKEditorPlugin.IMAGE, TABLE, MEDIA_EMBED, CODE_BLOCK
 ```java
 CKEditorConfig config = new CKEditorConfig()
     .setPlaceholder("Type here...")
-    .setLanguage("en")
+    .setLanguage("sk")              // any CKEditor UI language; "sk-SK"/"sk_SK" also work
     .setToolbar("bold", "italic", "|", "link")
     .setFontSize("12px", "14px", "16px", "18px")
     .setAutosave(5000);

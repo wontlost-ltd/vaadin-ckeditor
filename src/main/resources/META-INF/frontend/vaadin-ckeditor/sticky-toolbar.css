@@ -132,9 +132,21 @@ html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck.ck-toolbar 
     background: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* 激活态：白字 / 图标在 #2563eb 上为 5.2:1（WCAG AA）；悬停时加深而不是退回普通悬停底色，
+   否则指针移上去激活态就消失了（issue #150） */
 vaadin-ckeditor[data-ck-theme="dark"] .ck.ck-toolbar .ck-button.ck-on,
 html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck.ck-toolbar .ck-button.ck-on {
-    background: #3b82f6 !important;
+    background: #2563eb !important;
+    color: white !important;
+}
+
+vaadin-ckeditor[data-ck-theme="dark"] .ck.ck-toolbar .ck-button.ck-on:hover:not(.ck-disabled),
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck.ck-toolbar .ck-button.ck-on:hover:not(.ck-disabled) {
+    background: #1d4ed8 !important;
+}
+
+vaadin-ckeditor[data-ck-theme="dark"] .ck.ck-toolbar .ck-button.ck-on .ck-icon,
+html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck.ck-toolbar .ck-button.ck-on .ck-icon {
     color: white !important;
 }
 
@@ -248,4 +260,16 @@ vaadin-ckeditor[data-ck-theme="dark"] .ck.ck-content pre,
 html[theme~="dark"] vaadin-ckeditor:not([data-ck-theme="light"]) .ck.ck-content pre {
     background: #111827 !important;
     color: #e5e7eb !important;
+}
+
+/* ==================== Bookmark icon (issue #149) ==================== */
+/*
+ * CKEditor 不给未选中的书签图标设置 fill，SVG 默认黑色，暗色主题下几乎不可见。
+ * 这里改用正文颜色（--ck-color-text，暗色主题由 theme-manager 设为近白），
+ * 并开放 --ck-bookmark-icon-fill-color 供应用自定义；悬停 / 选中色沿用 CKEditor 的
+ * --ck-bookmark-icon-hover-fill-color 与 --ck-bookmark-icon-selected-fill-color。
+ * 选择器特异性低于 CKEditor 的 :hover / .ck-widget_selected 规则，后两者仍然生效。
+ */
+.ck .ck-bookmark__icon .ck-icon__fill {
+    fill: var(--ck-bookmark-icon-fill-color, var(--ck-color-text));
 }

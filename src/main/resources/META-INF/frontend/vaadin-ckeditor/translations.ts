@@ -91,24 +91,49 @@ export const TRANSLATION_LOADERS: Readonly<Record<string, () => Promise<Translat
 };
 
 /**
- * 官方文档使用、但与包文件名不一致的代码 → 包文件名。
- * 专业翻译列表把繁体中文（台湾）写作 `zh-tw`，而包里的繁体文件是 `zh.js`
- * （简体为 `zh-cn.js`）。不做映射时 `zh-tw` 会静默退回英文。
+ * 语言代码前缀 → 包文件名的别名，在逐级回退的每一步先查。
+ *
+ * CKEditor 的 `zh.js` 是繁体中文、`zh-cn.js` 是简体中文。官方专业翻译列表把繁体（台湾）写作
+ * `zh-tw`；BCP 47 / Java `Locale` 还会给出文字子标签（`zh-Hans` / `zh-Hant`）或其他地区。
+ * 简体写法必须显式映射到 `zh-cn`，否则逐级回退会落到繁体的 `zh`；繁体写法虽然回退也能命中 `zh`，
+ * 仍显式列出以表明意图。
  */
 const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
     'zh-tw': 'zh',
+    'zh-hk': 'zh',
+    'zh-mo': 'zh',
+    'zh-hant': 'zh',
+    'zh-hans': 'zh-cn',
+    'zh-sg': 'zh-cn',
 };
+
+/** 源语言：无需翻译包，但作为回退目标有效（`en-US` → `en`）。 */
+const SOURCE_LANGUAGE = 'en';
+
+function isKnownLanguage(code: string): boolean {
+    return code === SOURCE_LANGUAGE || Object.prototype.hasOwnProperty.call(TRANSLATION_LOADERS, code);
+}
 
 /**
  * 把用户给的 UI 语言代码归一化为 CKEditor 使用的代码：去空白、转小写、`_` 视作 `-`，
- * 再套用别名。空值退回 `en`。未知代码原样返回（CKEditor 会以英文显示）。
+ * 再从最长前缀开始逐级去掉末尾子标签（地区、文字），直到命中别名或已有翻译包：
+ * `sk-SK` → `sk`、`sr-Latn-RS` → `sr-latn`、`de-AT` → `de`、`zh-Hans-CN` → `zh-cn`、`zh-Hant-TW` → `zh`。
+ * 空值退回 `en`。任何前缀都不受支持时原样返回归一化结果（loadTranslations 会告警，CKEditor 以英文显示）。
  */
 export function resolveUiLanguage(language: string | null | undefined): string {
     const normalized = (language ?? '').trim().toLowerCase().replace(/_/g, '-');
     if (!normalized) {
-        return 'en';
+        return SOURCE_LANGUAGE;
     }
-    return LANGUAGE_ALIASES[normalized] ?? normalized;
+    const subtags = normalized.split('-').filter(Boolean);
+    for (let length = subtags.length; length > 0; length--) {
+        const prefix = subtags.slice(0, length).join('-');
+        const candidate = LANGUAGE_ALIASES[prefix] ?? prefix;
+        if (isKnownLanguage(candidate)) {
+            return candidate;
+        }
+    }
+    return normalized;
 }
 
 /**

@@ -65,6 +65,41 @@ describe('resolveUiLanguage', () => {
 
     it('passes unknown codes through unchanged', () => {
         expect(resolveUiLanguage('xx')).toBe('xx');
+        expect(resolveUiLanguage('xx-YY')).toBe('xx-yy');
+    });
+
+    it.each([
+        ['sk-SK', 'sk'],
+        ['sk_SK', 'sk'],
+        ['SK', 'sk'],
+        ['de-AT', 'de'],
+        ['de-CH', 'de-ch'],
+        ['pt-PT', 'pt'],
+        ['pt_BR', 'pt-br'],
+        ['sr-Latn-RS', 'sr-latn'],
+        ['sr-RS', 'sr'],
+        ['en-US', 'en'],
+        ['en-GB', 'en-gb'],
+        ['es-419', 'es'],
+        ['ast-ES', 'ast'],
+    ])('falls back from %s to the closest bundle %s', (input, expected) => {
+        expect(resolveUiLanguage(input)).toBe(expected);
+    });
+
+    it.each([
+        ['zh-Hans', 'zh-cn'],
+        ['zh-Hans-CN', 'zh-cn'],
+        ['zh-CN', 'zh-cn'],
+        ['zh-SG', 'zh-cn'],
+        ['zh_Hans_SG', 'zh-cn'],
+        ['zh-Hant', 'zh'],
+        ['zh-Hant-TW', 'zh'],
+        ['zh-Hant-HK', 'zh'],
+        ['zh-TW', 'zh'],
+        ['zh-HK', 'zh'],
+        ['zh-MO', 'zh'],
+    ])('maps Chinese script / region %s to %s (zh = Traditional, zh-cn = Simplified)', (input, expected) => {
+        expect(resolveUiLanguage(input)).toBe(expected);
     });
 });
 

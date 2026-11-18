@@ -36,12 +36,22 @@ const BUNDLED = readdirSync(TRANSLATIONS_DIR)
  * 额外输入 → 期望落到的翻译包代码。
  * zh-tw：官方专业翻译列表用 zh-tw 表示繁体（台湾），但包里繁体文件名是 zh.js。
  * pt-BR / ZH-CN：大小写混写，验证 add-on 归一化。
+ * 其余为逐级回退（#151）：去掉地区 / 书写系统直到命中已有包；中文的简体写法落到 zh-cn、繁体落到 zh。
  */
 const EXTRA: Record<string, string> = {
     'en': 'en',
     'zh-tw': 'zh',
     'pt-BR': 'pt-br',
     'ZH-CN': 'zh-cn',
+    'sk-SK': 'sk',
+    'sk_SK': 'sk',
+    'de-AT': 'de',
+    'en-US': 'en',
+    'sr-Latn-RS': 'sr-latn',
+    'zh-Hans': 'zh-cn',
+    'zh-SG': 'zh-cn',
+    'zh-Hant-TW': 'zh',
+    'zh-HK': 'zh',
 };
 
 const CASES: Array<[input: string, bundle: string]> = [
@@ -82,14 +92,31 @@ test.describe('UI languages', () => {
     }
 
     // 只经 CKEditorConfig.setLanguage(ui, content, null) 设置语言：config.language 优先于组件属性
-    for (const [input, bundle] of [['ar', 'ar'], ['zh-tw', 'zh'], ['it', 'it']] as const) {
+    for (const [input, bundle] of [['ar', 'ar'], ['zh-tw', 'zh'], ['it', 'it'], ['sk-SK', 'sk']] as const) {
         test(`ui language ${input} via CKEditorConfig`, async ({ page }, testInfo) => {
             await checkLanguage(page, testInfo, input, bundle, '&via=config');
         });
     }
+
+    // withLocale(Locale)：Locale.forLanguageTag 的结果经 add-on 转成语言标签后同样逐级回退
+    for (const [input, bundle] of [['sk-SK', 'sk'], ['sr-Latn-RS', 'sr-latn'], ['zh-Hant-TW', 'zh']] as const) {
+        test(`ui language ${input} via withLocale`, async ({ page }, testInfo) => {
+            await checkLanguage(page, testInfo, input, bundle, '&via=locale');
+        });
+    }
+
+    // 对象形式 { ui, content, textPartLanguage }：内容语言决定编辑区的 lang；
+    // 显式 withLanguage / withLocale 只替换 ui，保留 withConfig 里的内容语言
+    for (const [input, bundle, via] of [['sk', 'sk', 'config'], ['de', 'de', ''], ['sk-SK', 'sk', 'locale']] as const) {
+        test(`ui language ${input} with content language sk (${via || 'withLanguage'})`, async ({ page }, testInfo) => {
+            await checkLanguage(page, testInfo, input, bundle, `&content=sk${via ? `&via=${via}` : ''}`, 'sk');
+        });
+    }
 });
 
-async function checkLanguage(page: Page, testInfo: TestInfo, input: string, bundle: string, query: string): Promise<void> {
+async function checkLanguage(
+    page: Page, testInfo: TestInfo, input: string, bundle: string, query: string, contentLang?: string,
+): Promise<void> {
     const consoleErrors: string[] = [];
     const failedRequests: string[] = [];
     page.on('console', msg => {
@@ -152,6 +179,10 @@ async function checkLanguage(page: Page, testInfo: TestInfo, input: string, bund
     expect(actual, `toolbar labels for '${input}' (bundle ${bundle})`).toEqual(expected);
     expect(lang, 'editor lang attribute').toBe(bundle);
     expect(dir, 'editor dir attribute').toBe(expectedDir);
+    if (contentLang !== undefined) {
+        await expect(page.locator('vaadin-ckeditor#ckeditor .ck-editor__editable').first(),
+            'editable (content) lang attribute').toHaveAttribute('lang', contentLang);
+    }
     if (bundle !== 'en') {
         expect(probeKey, `bundle ${bundle} has no translated entry`).toBeDefined();
         expect(probe, `runtime translation of '${probeKey}'`).toBe(translationOf(dictionary, probeKey!));
