@@ -87,9 +87,11 @@ import java.util.regex.Pattern;
 public class VaadinCKEditorBuilder {
 
     /**
-     * Language code regex (ISO 639-1 or regional format, e.g. "en", "zh-cn", "pt-br")
+     * Language code regex: ISO 639-1/639-2 primary subtag with an optional region (2 letters)
+     * or script (4 letters) subtag, e.g. "en", "ast", "zh-cn", "pt-br", "sr-latn".
+     * Matches every translation bundle shipped by CKEditor 5.
      */
-    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}(-[a-z]{2})?$");
+    private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2,3}(-([a-z]{2}|[a-z]{4}))?$");
 
     /**
      * Toolbar separator
@@ -104,6 +106,8 @@ public class VaadinCKEditorBuilder {
     private final Set<CustomPlugin> customPlugins = new LinkedHashSet<>();
     private String[] toolbar;
     private CKEditorConfig config;
+    /** withLanguage() 是否被显式调用；未调用时保留 CKEditorConfig 里设置的语言 */
+    private boolean languageExplicit;
     private DependencyMode dependencyMode = DependencyMode.AUTO_RESOLVE;
     private boolean hideToolbar = false;
 
@@ -275,9 +279,14 @@ public class VaadinCKEditorBuilder {
      *
      * <p>Supported formats:</p>
      * <ul>
-     *   <li>ISO 639-1 two-letter code: "en", "zh", "ja", "ko"</li>
-     *   <li>With region: "en-us", "zh-cn", "pt-br"</li>
+     *   <li>ISO 639-1 / 639-2 code: "en", "zh", "ja", "ast"</li>
+     *   <li>With region: "en-gb", "zh-cn", "pt-br"</li>
+     *   <li>With script: "sr-latn"</li>
      * </ul>
+     *
+     * <p>The code is case-insensitive and stored in lower case, matching CKEditor's
+     * translation bundle names. {@code "zh-tw"} (the code CKEditor's documentation uses
+     * for Traditional Chinese) is resolved to CKEditor's {@code "zh"} bundle by the client.</p>
      *
      * @param language the language code (e.g., "en", "zh-cn")
      * @return this builder for chaining
@@ -285,7 +294,8 @@ public class VaadinCKEditorBuilder {
      */
     public VaadinCKEditorBuilder withLanguage(String language) {
         validateLanguageCode(language);
-        editor.setLanguageInternal(language);
+        editor.setLanguageInternal(language.toLowerCase(java.util.Locale.ROOT));
+        languageExplicit = true;
         return this;
     }
 
@@ -589,7 +599,13 @@ public class VaadinCKEditorBuilder {
         if (config != null) {
             editor.setConfigInternal(config);
         }
-        editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
+        // 语言：withLanguage() 显式设置时写入 config；否则保留 CKEditorConfig.setLanguage(...)
+        // 的设置（含 content / textPartLanguage 对象形式），并让组件属性与其 UI 语言保持一致
+        if (languageExplicit || config == null) {
+            editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
+        } else if (config.getLanguage() != null) {
+            editor.setLanguageInternal(config.getLanguage());
+        }
 
         // Check if CloudServices is in the final plugins - if so, enable allowConfigRequiredPlugins
         // This is needed because CloudServices requires special configuration and is normally filtered
@@ -790,7 +806,7 @@ public class VaadinCKEditorBuilder {
         if (!LANGUAGE_CODE_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
                 "Invalid language code format: '" + language + "'. " +
-                "Expected ISO 639-1 format (e.g., 'en', 'zh-cn', 'pt-br')");
+                "Expected ISO 639 format (e.g., 'en', 'zh-cn', 'pt-br', 'sr-latn')");
         }
     }
 }
