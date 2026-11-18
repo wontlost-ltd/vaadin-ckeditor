@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **语言代码归一化**：`withLanguage()` 现接受 3 字母主标签（`ast`）与 4 字母书写系统子标签（`sr-latn`），
   并统一存为小写（`pt-BR` → `pt-br`）；CKEditor 文档里繁体中文的 `zh-tw` 映射到其 `zh` 翻译包。
   `"eng"` 这类合法的 ISO 639-2 代码不再被拒绝。
+- **`CKEditorConfig.setLanguage(...)` 被 Builder 覆盖**：未调用 `withLanguage()` 时，Builder 此前仍把
+  config 的语言改写为默认 `en`，导致通过 `withConfig()` 设置的 UI 语言（及对象形式的 `content` /
+  `textPartLanguage`）失效。现仅在显式调用 `withLanguage()` 时覆盖；前端同样以 `config.language`
+  （字符串或对象的 `ui`）优先于组件 `language` 属性，并为其加载翻译包。
 - **CKEditor 49 误报 `ui-overlay-container-not-configured`**：EditorUI 沿扁平树收集所有祖先 shadow root，
   Vaadin 布局组件都带 shadow root，任何 Flow 视图都会触发该警告，而实际挂载点仍是 `document.body`。
   连接器现为 light DOM 中的宿主显式设置 `ui.overlayContainer = document.body`（与 CKEditor 自身选择一致，

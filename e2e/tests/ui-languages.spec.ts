@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { waitForEditorHost } from '../helpers/ck';
 
 /**
@@ -77,74 +77,85 @@ test('e2e ckeditor5 reference version matches the add-on pin', () => {
 test.describe('UI languages', () => {
     for (const [input, bundle] of CASES) {
         test(`ui language ${input}`, async ({ page }, testInfo) => {
-            const consoleErrors: string[] = [];
-            const failedRequests: string[] = [];
-            page.on('console', msg => {
-                if (msg.type() === 'error') {
-                    consoleErrors.push(msg.text());
-                }
-            });
-            page.on('pageerror', err => consoleErrors.push(err.message));
-            page.on('requestfailed', req => failedRequests.push(req.url()));
-            page.on('response', res => {
-                if (res.status() >= 400) {
-                    failedRequests.push(`${res.status()} ${res.url()}`);
-                }
-            });
+            await checkLanguage(page, testInfo, input, bundle, '');
+        });
+    }
 
-            await page.goto(`/language?lang=${encodeURIComponent(input)}`);
-            await expect(page.locator('#language-rejected, vaadin-ckeditor#ckeditor').first()).toBeAttached({ timeout: 30_000 });
-            const rejected = page.locator('#language-rejected');
-            if (await rejected.count() > 0) {
-                throw new Error(`add-on rejected '${input}': ${await rejected.textContent()}`);
-            }
-
-            await waitForEditorHost(page);
-            const root = page.locator('vaadin-ckeditor#ckeditor .ck.ck-editor').first();
-            await root.waitFor({ state: 'visible', timeout: 30_000 });
-
-            const dictionary = await loadDictionary(bundle);
-            const toolbarLabels = await page.locator('vaadin-ckeditor#ckeditor .ck-toolbar .ck-button__label').allTextContents();
-
-            const expected: string[] = [];
-            const actual: string[] = [];
-            let translatedCount = 0;
-            for (const label of LABELS) {
-                const want = translationOf(dictionary, label);
-                if (want !== label) {
-                    translatedCount++;
-                }
-                expected.push(want);
-                actual.push(toolbarLabels.includes(want) ? want : `<missing ${want}>`);
-            }
-
-            // 运行时探针：取字典里第一个真正译出的词条，经编辑器自身的 locale.t() 翻译。
-            // 部分包（hi、en-au、en-gb）恰好没译 BASIC 工具栏标签，靠它证明包确实生效。
-            const probeKey = Object.keys(dictionary)
-                .find(key => typeof dictionary[key] === 'string' && translationOf(dictionary, key) !== key);
-            const probe = probeKey === undefined ? undefined : await page.locator('vaadin-ckeditor#ckeditor')
-                .evaluate((host, key) => (host as unknown as { editor: { locale: { t: (k: string) => string } } })
-                    .editor.locale.t(key), probeKey);
-
-            const lang = await root.getAttribute('lang');
-            const dir = await root.getAttribute('dir');
-            const expectedDir = RTL.has(bundle.split('-')[0]) ? 'rtl' : 'ltr';
-
-            const result = {
-                input, bundle, lang, dir, expectedDir, translatedCount, probeKey, probe,
-                labels: toolbarLabels, consoleErrors, failedRequests,
-            };
-            testInfo.annotations.push({ type: 'ui-language', description: JSON.stringify(result) });
-
-            expect(actual, `toolbar labels for '${input}' (bundle ${bundle})`).toEqual(expected);
-            expect(lang, 'editor lang attribute').toBe(bundle);
-            expect(dir, 'editor dir attribute').toBe(expectedDir);
-            if (bundle !== 'en') {
-                expect(probeKey, `bundle ${bundle} has no translated entry`).toBeDefined();
-                expect(probe, `runtime translation of '${probeKey}'`).toBe(translationOf(dictionary, probeKey!));
-            }
-            expect(consoleErrors, 'console errors').toEqual([]);
-            expect(failedRequests, 'failed requests').toEqual([]);
+    // 只经 CKEditorConfig.setLanguage(ui, content, null) 设置语言：config.language 优先于组件属性
+    for (const [input, bundle] of [['ar', 'ar'], ['zh-tw', 'zh'], ['it', 'it']] as const) {
+        test(`ui language ${input} via CKEditorConfig`, async ({ page }, testInfo) => {
+            await checkLanguage(page, testInfo, input, bundle, '&via=config');
         });
     }
 });
+
+async function checkLanguage(page: Page, testInfo: TestInfo, input: string, bundle: string, query: string): Promise<void> {
+    const consoleErrors: string[] = [];
+    const failedRequests: string[] = [];
+    page.on('console', msg => {
+        if (msg.type() === 'error') {
+            consoleErrors.push(msg.text());
+        }
+    });
+    page.on('pageerror', err => consoleErrors.push(err.message));
+    page.on('requestfailed', req => failedRequests.push(req.url()));
+    page.on('response', res => {
+        if (res.status() >= 400) {
+            failedRequests.push(`${res.status()} ${res.url()}`);
+        }
+    });
+
+    await page.goto(`/language?lang=${encodeURIComponent(input)}${query}`);
+    await expect(page.locator('#language-rejected, vaadin-ckeditor#ckeditor').first()).toBeAttached({ timeout: 30_000 });
+    const rejected = page.locator('#language-rejected');
+    if (await rejected.count() > 0) {
+        throw new Error(`add-on rejected '${input}': ${await rejected.textContent()}`);
+    }
+
+    await waitForEditorHost(page);
+    const root = page.locator('vaadin-ckeditor#ckeditor .ck.ck-editor').first();
+    await root.waitFor({ state: 'visible', timeout: 30_000 });
+
+    const dictionary = await loadDictionary(bundle);
+    const toolbarLabels = await page.locator('vaadin-ckeditor#ckeditor .ck-toolbar .ck-button__label').allTextContents();
+
+    const expected: string[] = [];
+    const actual: string[] = [];
+    let translatedCount = 0;
+    for (const label of LABELS) {
+        const want = translationOf(dictionary, label);
+        if (want !== label) {
+            translatedCount++;
+        }
+        expected.push(want);
+        actual.push(toolbarLabels.includes(want) ? want : `<missing ${want}>`);
+    }
+
+    // 运行时探针：取字典里第一个真正译出的词条，经编辑器自身的 locale.t() 翻译。
+    // 部分包（hi、en-au、en-gb）恰好没译 BASIC 工具栏标签，靠它证明包确实生效。
+    const probeKey = Object.keys(dictionary)
+        .find(key => typeof dictionary[key] === 'string' && translationOf(dictionary, key) !== key);
+    const probe = probeKey === undefined ? undefined : await page.locator('vaadin-ckeditor#ckeditor')
+        .evaluate((host, key) => (host as unknown as { editor: { locale: { t: (k: string) => string } } })
+            .editor.locale.t(key), probeKey);
+
+    const lang = await root.getAttribute('lang');
+    const dir = await root.getAttribute('dir');
+    const expectedDir = RTL.has(bundle.split('-')[0]) ? 'rtl' : 'ltr';
+
+    const result = {
+        input, bundle, lang, dir, expectedDir, translatedCount, probeKey, probe,
+        labels: toolbarLabels, consoleErrors, failedRequests,
+    };
+    testInfo.annotations.push({ type: 'ui-language', description: JSON.stringify(result) });
+
+    expect(actual, `toolbar labels for '${input}' (bundle ${bundle})`).toEqual(expected);
+    expect(lang, 'editor lang attribute').toBe(bundle);
+    expect(dir, 'editor dir attribute').toBe(expectedDir);
+    if (bundle !== 'en') {
+        expect(probeKey, `bundle ${bundle} has no translated entry`).toBeDefined();
+        expect(probe, `runtime translation of '${probeKey}'`).toBe(translationOf(dictionary, probeKey!));
+    }
+    expect(consoleErrors, 'console errors').toEqual([]);
+    expect(failedRequests, 'failed requests').toEqual([]);
+}

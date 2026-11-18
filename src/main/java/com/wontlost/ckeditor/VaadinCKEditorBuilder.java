@@ -106,6 +106,8 @@ public class VaadinCKEditorBuilder {
     private final Set<CustomPlugin> customPlugins = new LinkedHashSet<>();
     private String[] toolbar;
     private CKEditorConfig config;
+    /** withLanguage() 是否被显式调用；未调用时保留 CKEditorConfig 里设置的语言 */
+    private boolean languageExplicit;
     private DependencyMode dependencyMode = DependencyMode.AUTO_RESOLVE;
     private boolean hideToolbar = false;
 
@@ -293,6 +295,7 @@ public class VaadinCKEditorBuilder {
     public VaadinCKEditorBuilder withLanguage(String language) {
         validateLanguageCode(language);
         editor.setLanguageInternal(language.toLowerCase(java.util.Locale.ROOT));
+        languageExplicit = true;
         return this;
     }
 
@@ -596,7 +599,13 @@ public class VaadinCKEditorBuilder {
         if (config != null) {
             editor.setConfigInternal(config);
         }
-        editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
+        // 语言：withLanguage() 显式设置时写入 config；否则保留 CKEditorConfig.setLanguage(...)
+        // 的设置（含 content / textPartLanguage 对象形式），并让组件属性与其 UI 语言保持一致
+        if (languageExplicit || config == null) {
+            editor.getConfigInternal().setLanguage(editor.getLanguageInternal());
+        } else if (config.getLanguage() != null) {
+            editor.setLanguageInternal(config.getLanguage());
+        }
 
         // Check if CloudServices is in the final plugins - if so, enable allowConfigRequiredPlugins
         // This is needed because CloudServices requires special configuration and is normally filtered

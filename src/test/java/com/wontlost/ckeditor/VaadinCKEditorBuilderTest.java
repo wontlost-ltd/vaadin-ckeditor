@@ -390,6 +390,34 @@ class VaadinCKEditorBuilderTest {
     }
 
     @Test
+    @DisplayName("CKEditorConfig.setLanguage should be kept when withLanguage is not called")
+    void configLanguageShouldBeKeptWithoutWithLanguage() {
+        CKEditorConfig config = new CKEditorConfig().setLanguage("ar", "he", null);
+
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(config)
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("ar");
+        assertThat(editor.getConfigInternal().toJson().get("language").get("content").asString()).isEqualTo("he");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("ar");
+    }
+
+    @Test
+    @DisplayName("withLanguage should override the CKEditorConfig language")
+    void withLanguageShouldOverrideConfigLanguage() {
+        VaadinCKEditor editor = VaadinCKEditor.create()
+            .withPreset(CKEditorPreset.BASIC)
+            .withConfig(new CKEditorConfig().setLanguage("pt"))
+            .withLanguage("de")
+            .build();
+
+        assertThat(editor.getConfigInternal().getLanguage()).isEqualTo("de");
+        assertThat(editor.getElement().getProperty("language")).isEqualTo("de");
+    }
+
+    @Test
     @DisplayName("Builder should reject invalid language codes")
     void builderShouldRejectInvalidLanguageCodes() {
 

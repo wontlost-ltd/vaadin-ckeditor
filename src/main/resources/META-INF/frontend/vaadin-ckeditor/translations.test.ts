@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 import { describe, it, expect, vi } from 'vitest';
-import { TRANSLATION_LOADERS, resolveUiLanguage, loadTranslations, withUiLanguage } from './translations';
+import {
+    TRANSLATION_LOADERS, effectiveUiLanguage, resolveUiLanguage, loadTranslations, withUiLanguage,
+} from './translations';
 
 /**
  * 当前 node_modules 中 ckeditor5 实际发布的非英文翻译包代码。
@@ -77,6 +79,40 @@ describe('loadTranslations', () => {
         const onError = vi.fn();
         expect(await loadTranslations('xx', onError)).toBeUndefined();
         expect(onError).toHaveBeenCalledWith(expect.stringContaining("'xx'"));
+    });
+});
+
+describe('effectiveUiLanguage (config.language 优先于 language 属性)', () => {
+    it('config string wins over the property', () => {
+        expect(effectiveUiLanguage('pt', 'en')).toBe('pt');
+    });
+
+    it('object form .ui wins over the property', () => {
+        expect(effectiveUiLanguage({ ui: 'ar', content: 'he' }, 'en')).toBe('ar');
+    });
+
+    it('falls back to the property when config has no language', () => {
+        expect(effectiveUiLanguage(undefined, 'de')).toBe('de');
+        expect(effectiveUiLanguage(null, 'de')).toBe('de');
+        expect(effectiveUiLanguage('', 'de')).toBe('de');
+        expect(effectiveUiLanguage({ content: 'ar' }, 'de')).toBe('de');
+    });
+
+    it('object form keeps content after resolving and writing back the ui', () => {
+        const configLanguage = { ui: 'ZH-TW', content: 'ar', textPartLanguage: [{ title: 'Arabic', languageCode: 'ar' }] };
+        const ui = resolveUiLanguage(effectiveUiLanguage(configLanguage, 'en'));
+        expect(ui).toBe('zh');
+        expect(withUiLanguage(configLanguage, ui)).toEqual({ ...configLanguage, ui: 'zh' });
+    });
+});
+
+describe('loadTranslations failure handling', () => {
+    it('resolves to undefined and reports a warning when the loader rejects', async () => {
+        const onError = vi.fn();
+        const loaders = { de: () => Promise.reject(new Error('chunk load failed')) };
+        await expect(loadTranslations('de', onError, loaders)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(expect.stringContaining('chunk load failed'));
     });
 });
 

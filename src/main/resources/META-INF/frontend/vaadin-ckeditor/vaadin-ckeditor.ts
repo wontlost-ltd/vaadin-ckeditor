@@ -30,7 +30,7 @@ import { shouldRecreateEditor } from './reconnect-decision';
 import { createRefcount } from './dark-theme-refcount';
 import { isAllowedCssUrl } from './css-url-validator';
 import { shouldLoadMediaEmbedResize, loadMediaEmbedResizePlugin } from './media-embed-resize';
-import { resolveUiLanguage, loadTranslations, withUiLanguage } from './translations';
+import { effectiveUiLanguage, resolveUiLanguage, loadTranslations, withUiLanguage } from './translations';
 
 // 内置插件
 import CommentPermissionEnforcer from './comment-permission-enforcer';
@@ -736,10 +736,6 @@ export class VaadinCKEditor extends LitElement {
             }
         }
 
-        // UI 语言：归一化（大小写、zh-tw 别名）后按需加载对应翻译包，失败时退回英文 UI
-        const uiLanguage = resolveUiLanguage(this.language);
-        const translations = await loadTranslations(uiLanguage, message => logger.warn(message));
-
         // 协作模式下检查频道是否已有数据，有则移除 initialData 避免警告
         const configAfterChannel = await this.stripInitialDataIfChannelExists(this.config);
 
@@ -747,6 +743,11 @@ export class VaadinCKEditor extends LitElement {
         const { config: configAfterAi, warnings: aiWarnings } = normalizeAIConfig48(configAfterChannel);
         const { rootConfig, remainingConfig, warnings: rootWarnings } =
             normalizeRootConfig(configAfterAi, this.editorType);
+
+        // UI 语言：config.language（字符串或对象的 ui）优先于 language 属性；归一化（大小写、zh-tw 别名）
+        // 后按需加载对应翻译包，加载失败时以英文 UI 继续创建编辑器
+        const uiLanguage = resolveUiLanguage(effectiveUiLanguage(remainingConfig.language, this.language));
+        const translations = await loadTranslations(uiLanguage, message => logger.warn(message));
 
         this.pendingRootConfig = rootConfig;
         this.warnConfigMigration([...aiWarnings, ...rootWarnings]);
@@ -756,7 +757,7 @@ export class VaadinCKEditor extends LitElement {
             plugins: resolvedPlugins as EditorConfig['plugins'],
             ...(translations ? { translations: [translations] } : {}),
             ...remainingConfig,
-            // 放在 remainingConfig 之后：Java 侧写入的 config.language 未做 zh-tw 等别名解析
+            // 放在 remainingConfig 之后，写回归一化后的 ui（对象形式保留 content / textPartLanguage）
             language: withUiLanguage(remainingConfig.language, uiLanguage) as EditorConfig['language'],
         };
 
