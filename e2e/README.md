@@ -14,6 +14,8 @@ in a real browser to catch issues that unit tests miss.
 | `ai-config-migration.spec.ts` | Top-level `initialData` migrates to `root.initialData` and editor reports `state === 'ready'` |
 | `collab-strip-initial-data.spec.ts` | `stripInitialDataIfChannelSeeded` writes localStorage seed key on first visit |
 | `value-binding.spec.ts` | 值双向绑定（客户端输入回传服务端、`setValue` 下发、`setValue(null)` 归一化）与只读切换 |
+| `i18n.spec.ts` | `sk` / `sk-SK` / `Locale` / `withConfig` / `sr-latn` 等界面语言实际翻译工具栏，内容区 `lang` 正确（#151） |
+| `dark-theme-states.spec.ts` | Lumo 明暗主题下 split button 两半悬停底色一致、激活按钮悬停保持激活态、书签图标对比度 ≥ 3:1 且颜色可配置（#149 / #150） |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 
 Each spec runs against Chromium and Firefox.

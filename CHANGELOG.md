@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **全部 CKEditor 界面语言**（[#151](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/151)）：此前只打包 10 种语言，
+  其余（如 `sk`）静默回退英文。现覆盖 `ckeditor5/translations/` 的全部 73 种语言，按需以独立 chunk 懒加载
+  （英文不下载；原先静态打包的 10 种语言也改为懒加载，主包变小）。
+- **`VaadinCKEditorBuilder.withLocale(Locale)`**：直接使用 Vaadin `UI#getLocale()`。
+- **`--ck-bookmark-icon-fill-color`**：书签图标未选中颜色可配置（悬停 / 选中沿用 CKEditor 的
+  `--ck-bookmark-icon-hover-fill-color` / `--ck-bookmark-icon-selected-fill-color`），见 User Guide「Theme Variables」。
+
+### Changed
+- `withLanguage(String)` 的格式校验放宽为 BCP 47 形态并统一为小写连字符：接受 `ast`、`sr-latn`、`sk-SK`、`sk_SK`、
+  `sr-Latn-RS`；仍拒绝空串、单字母、纯数字与畸形分隔。无精确翻译时逐级回退（`sk-SK` → `sk`），
+  原值保留为内容语言。
+- `CKEditorConfig.setLanguage(ui, content, String[] textPartLanguages)` 现生成 CKEditor 要求的
+  `{title, languageCode}` 对象（此前直接传字符串数组，Text Part Language 下拉项为 undefined）。
+
 ### Fixed
+- **`withConfig` 的语言被覆盖**（#151）：构建器总以默认 `"en"` 覆盖 `config.setLanguage(...)`；现仅在显式调用
+  `withLanguage` / `withLocale` 时替换界面语言，且保留内容语言与 textPartLanguage。
+- **暗色主题 split button 悬停高亮异常**（[#150](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/150)）：
+  CKEditor 49 在旧版变量缺省时回退到亮色基础 token（`--ck-color-base-hover` 等 `#f3f4f7`），insertImage 等
+  split button 悬停 / 展开时未被指向的一半呈亮块。暗色主题现覆盖 CKEditor 49 的基础 / 交互 token 与
+  `--ck-color-split-button-hover-background`；激活按钮悬停时不再丢失激活态，激活底色改为 `#2563eb`
+  （白字 5.2:1，满足 WCAG AA）；工具栏按钮与下拉列表项不再呈灰色方块。
+- **暗色主题书签几乎不可见**（[#149](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/149)）：未选中的书签
+  图标没有 fill，SVG 默认黑色；现使用正文颜色（亮色近黑、暗色近白）。
+- **`AUTO` 主题与 Vaadin 25 系统配色**：`Page#setColorScheme(SYSTEM)` 写入 `theme="light-dark"`，旧实现因字符串含
+  `dark` 固定为暗色，而 Lumo 跟随系统；现按词匹配并对 `light-dark` / `dark-light` 跟随 `prefers-color-scheme`。
 - **CKEditor 49 误报 `ui-overlay-container-not-configured`**：EditorUI 沿扁平树收集所有祖先 shadow root，
   Vaadin 布局组件都带 shadow root，任何 Flow 视图都会触发该警告，而实际挂载点仍是 `document.body`。
   连接器现为 light DOM 中的宿主显式设置 `ui.overlayContainer = document.body`（与 CKEditor 自身选择一致，
