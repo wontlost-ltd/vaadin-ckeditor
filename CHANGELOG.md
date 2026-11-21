@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **实时字数 / 字符数与上限校验**（[#70](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/70)，上游 ckeditor5#2573）：
+  `addWordCountChangeListener`（`WordCountChangeEvent#getWords` / `getCharacters`，数值来自 CKEditor WordCount 插件，
+  需要时自动加载；每 500 ms 至多上报一次、数值不变不上报，另有一次初始计数）、`setWordCountVisible`（编辑器下方显示计数，
+  超限变红）、`setMaxWords` / `setMaxCharacters` 及其错误消息模板、`VaadinCKEditorBuilder#withMaxWords` /
+  `withMaxCharacters` / `withWordCountVisible`。`VaadinCKEditor` 实现 `HasValidator<String>`：上限是 Binder 的默认校验器，
+  只改上限时也会通知 Binder 重新校验；`setManualValidation(true)` 关闭自校验。
+  计数逻辑以 add-on 的自定义插件机制提供：`VaadinWordCount` 插件（`word-count-plugin.ts`，依赖 CKEditor `WordCount`）注册在
+  浏览器端插件注册表中，Java 端按需以 `VaadinCKEditor.WORD_COUNT_PLUGIN` 加入；应用可同名注册子类来扩展或替换。
+- **`CustomPlugin.fromRegistry(name)` 与 `registerDefaultCKEditorPlugin`**：不带 importPath 的插件名在内置 CKEditor 插件中
+  找不到时回退到 `registerCKEditorPlugin` 注册表（内置名优先，向后兼容），从 Java 直接引用前端注册的插件。
+  **裁定**：超限只标记无效、不阻止输入（截断富文本会破坏粘贴、撤销与输入法组合，CKEditor 无内置硬上限，其示例同样只提示）；
+  校验在服务端按 WordCount 的规则从值计数（客户端无法绕过，且与显示的计数一致），无效状态随值同步更新。
+
+### Fixed
+- **`setInvalid` / `setErrorMessage` 在编辑器上没有任何显示**：`vaadin-ckeditor` 元素此前不处理 CustomField 写入的
+  `invalid` / `errorMessage` 属性。现在无效时编辑区显示错误色边框、下方显示错误消息（`role="alert"`），
+  可编辑区设置 `aria-invalid`。
+
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
   此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。

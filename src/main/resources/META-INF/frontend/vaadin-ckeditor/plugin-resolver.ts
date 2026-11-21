@@ -384,6 +384,22 @@ export function registerCKEditorPlugin(name: string, plugin: unknown): void {
 }
 
 /**
+ * Register a plugin unless the application already registered one under the same name.
+ * Used for the add-on's own registry plugins (e.g. `VaadinWordCount`) so that an application module that
+ * runs before the connector can still replace them.
+ *
+ * @returns true if the plugin was registered
+ */
+export function registerDefaultCKEditorPlugin(name: string, plugin: unknown): boolean {
+    const registry = getGlobalPluginRegistry();
+    if (Object.prototype.hasOwnProperty.call(registry, name)) {
+        return false;
+    }
+    registry[name] = plugin;
+    return true;
+}
+
+/**
  * Remove a custom plugin from the global registry.
  *
  * The registry is a process-global (window-level) map: custom plugins registered
@@ -601,9 +617,12 @@ export class PluginResolver {
             p => filteredSet.has(p.name) && p.importPath
         );
 
-        // Load standard plugins from registry
+        // Load standard plugins from registry; names that are not CKEditor plugins fall back to the
+        // global registry (registerCKEditorPlugin), so a registered plugin can be referenced from Java
+        // without an import path (CustomPlugin.fromRegistry). Built-in names keep precedence.
+        const globalRegistry = getGlobalPluginRegistry();
         for (const pluginConfig of standardPluginsToLoad) {
-            const plugin = PLUGIN_REGISTRY[pluginConfig.name];
+            const plugin = PLUGIN_REGISTRY[pluginConfig.name] ?? globalRegistry[pluginConfig.name];
             if (plugin) {
                 resolvedPlugins.push(plugin);
             } else {

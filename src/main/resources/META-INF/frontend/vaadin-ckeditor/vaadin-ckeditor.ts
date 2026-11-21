@@ -14,6 +14,7 @@ import { bindEditorErrors } from './error-reporter';
 import {
     PluginResolver,
     registerCKEditorPlugin,
+    registerDefaultCKEditorPlugin,
     type PluginConfig,
 } from './plugin-resolver';
 import {
@@ -37,6 +38,9 @@ import CommentPermissionEnforcer from './comment-permission-enforcer';
 
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
+import './word-count.css';
+import { WORD_COUNT_CONTAINER_CLASS } from './word-count-reporter';
+import VaadinWordCount, { VAADIN_WORD_COUNT_PLUGIN } from './word-count-plugin';
 import { withoutUnsupportedFullscreenItems, withoutUnsupportedFullscreenPlugin } from './fullscreen-support';
 import {
     configureOverlayContainer,
@@ -137,6 +141,10 @@ import 'ckeditor5/ckeditor5.css';
 // Re-export registerCKEditorPlugin for backward compatibility
 export { registerCKEditorPlugin };
 
+// add-on 自带的注册表插件（#70）：Java 端以 CustomPlugin.fromRegistry("VaadinWordCount") 引用；
+// 应用可用 registerCKEditorPlugin 以同名注册子类来替换（在本模块之前或之后注册均可）
+registerDefaultCKEditorPlugin(VAADIN_WORD_COUNT_PLUGIN, VaadinWordCount);
+
 /**
  * Server communication interface
  */
@@ -153,6 +161,8 @@ interface VaadinServer {
     syncContent(newContent: string, oldContent: string | null, source: string,
                 fireContentChange: boolean, syncToServer: boolean): void;
     fireFallback(mode: string, reason: string, originalError: string): void;
+    /** VaadinWordCount 插件的计数（节流、去重后，见 word-count-plugin.ts） */
+    fireWordCountChange(words: number, characters: number): void;
     // Upload handler
     handleFileUpload(uploadId: string, fileName: string, mimeType: string, base64Data: string): void;
 }
@@ -253,6 +263,13 @@ export class VaadinCKEditor extends LitElement {
         strictPluginLoading: { type: Boolean },
         allowConfigRequiredPlugins: { type: Boolean },
         contentChangeEvents: { type: Boolean },
+        wordCountEvents: { type: Boolean },
+        wordCountVisible: { type: Boolean },
+        maxWords: { type: Number },
+        maxCharacters: { type: Number },
+        // CustomField 的校验状态（HasValidationProperties 写入 invalid / errorMessage 属性）
+        invalid: { type: Boolean, reflect: true },
+        errorMessage: { type: String },
         fullscreenPage: { type: String },
         fullscreenPageWidth: { type: String },
         // 内部状态（原 @state）
@@ -355,6 +372,18 @@ export class VaadinCKEditor extends LitElement {
      * @default false
      */
     declare contentChangeEvents: boolean;
+    /** 服务端是否注册了 WordCountChange 监听器（#70）；为 true 时上报 VaadinWordCount 插件的计数 */
+    declare wordCountEvents: boolean;
+    /** 是否在编辑器下方显示 WordCount 计数（#70） */
+    declare wordCountVisible: boolean;
+    /** 字数上限（0 = 不限），仅用于计数显示的超限样式；校验在服务端 */
+    declare maxWords: number;
+    /** 字符数上限（0 = 不限），仅用于计数显示的超限样式；校验在服务端 */
+    declare maxCharacters: number;
+    /** 服务端 setInvalid() 写入；反射为 `invalid` attribute 供样式使用（#70） */
+    declare invalid: boolean;
+    /** 服务端 setErrorMessage() 写入；invalid 时显示在编辑器下方 */
+    declare errorMessage: string;
     /** 全屏页面宽度模式（issue #156），见 fullscreen-page.ts */
     declare fullscreenPage: string;
     /** fullscreenPage 为 custom 时的 CSS 宽度 */
@@ -474,6 +503,12 @@ export class VaadinCKEditor extends LitElement {
         this.fullscreenPage = DEFAULT_FULLSCREEN_PAGE.mode;
         this.fullscreenPageWidth = '';
         this.contentChangeEvents = false;
+        this.wordCountEvents = false;
+        this.wordCountVisible = false;
+        this.maxWords = 0;
+        this.maxCharacters = 0;
+        this.invalid = false;
+        this.errorMessage = '';
         this.editor = null;
         this.cursorPosition = null;
         this.aiSidebarCollapsed = true;
@@ -551,6 +586,19 @@ export class VaadinCKEditor extends LitElement {
 
         if (changedProperties.has('isEnabled') && this.editor) {
             this.updateEnabled();
+        }
+
+        // 监听器在编辑器创建后才注册：补发一次当前计数
+        if (changedProperties.has('wordCountEvents') && this.wordCountEvents) {
+            this.wordCountPlugin()?.resend();
+        }
+
+        if (changedProperties.has('maxWords') || changedProperties.has('maxCharacters')) {
+            this.wordCountPlugin()?.setLimits(this.maxWords, this.maxCharacters);
+        }
+
+        if (changedProperties.has('invalid') && this.editor) {
+            this.updateAriaInvalid();
         }
 
         if (changedProperties.has('hideToolbar') && this.editor) {
@@ -814,6 +862,19 @@ export class VaadinCKEditor extends LitElement {
                 },
             };
         }
+
+        // VaadinWordCount 插件（#70，由 Java 端作为自定义插件加入）：上报回调、计数容器与上限只能在客户端提供；
+        // 插件未加载时 CKEditor 忽略此项
+        (editorConfig as Record<string, unknown>).vaadinWordCount = {
+            onReport: (stats: { words: number; characters: number }) => {
+                if (this.wordCountEvents) {
+                    this.$server?.fireWordCountChange(stats.words, stats.characters);
+                }
+            },
+            container: this.querySelector<HTMLElement>(`.${WORD_COUNT_CONTAINER_CLASS}`),
+            maxWords: this.maxWords,
+            maxCharacters: this.maxCharacters,
+        };
 
         // Add general HTML support configuration
         if (this.ghsEnabled) {
@@ -1558,9 +1619,30 @@ export class VaadinCKEditor extends LitElement {
             this.setupAiSidebarCollapseObserver();
         }
 
+        this.updateAriaInvalid();
+
         // Fire editor ready event to Java backend
         if (this.$server) {
             this.$server.fireEditorReady(initTimeMs);
+        }
+    }
+
+    /** 已加载的 VaadinWordCount 插件（#70） */
+    private wordCountPlugin(): VaadinWordCount | null {
+        const editor = this.editor;
+        return editor && editor.plugins.has(VAADIN_WORD_COUNT_PLUGIN)
+            ? editor.plugins.get(VAADIN_WORD_COUNT_PLUGIN) as VaadinWordCount
+            : null;
+    }
+
+    /** 让辅助技术得知编辑区无效（CKEditor 的可编辑根是实际获得焦点的元素） */
+    private updateAriaInvalid(): void {
+        const editable = this.editor?.ui.getEditableElement();
+        if (!editable) return;
+        if (this.invalid) {
+            editable.setAttribute('aria-invalid', 'true');
+        } else {
+            editable.removeAttribute('aria-invalid');
         }
     }
 
@@ -2458,6 +2540,12 @@ export class VaadinCKEditor extends LitElement {
      *   - editor-container__editor: editor wrapper with A4 styling
      */
     render() {
+        // 计数容器在所有布局之后（#70）；VaadinWordCount 插件初始化时把 WordCount 的计数元素放进去
+        // 错误消息：CustomField 的 invalid / errorMessage（如 setMaxWords 超限）
+        return html`${this.renderEditorLayout()}<div class="${WORD_COUNT_CONTAINER_CLASS}" ?hidden="${!this.wordCountVisible}"></div><div class="vaadin-ckeditor-error-message" role="alert" ?hidden="${!this.invalid || !this.errorMessage}">${this.invalid ? this.errorMessage : ''}</div>`;
+    }
+
+    private renderEditorLayout() {
         if (this.editorType === 'decoupled') {
             const includeOutlineClass = this.documentOutlineEnabled ? 'editor-container_include-outline' : '';
             const includeMinimapClass = this.minimapEnabled ? 'editor-container_include-minimap' : '';

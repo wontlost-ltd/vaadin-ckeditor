@@ -634,6 +634,49 @@ Change sources:
 - `COLLABORATION` - Collaborative editing sync
 - `UNKNOWN` - Unknown source
 
+### Word Count and Limits
+
+Live word and character counts come from CKEditor's
+[WordCount](https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html) plugin through the
+add-on's `VaadinWordCount` [registry plugin](#plugins-from-the-browser-registry)
+(`VaadinCKEditor.WORD_COUNT_PLUGIN`), which requires `WordCount`. It is added automatically when a
+listener is registered or the counter is shown, so any preset works.
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.STANDARD)
+    .withMaxWords(500)            // 0 = no limit
+    .withMaxCharacters(3000)
+    .withWordCountVisible(true)   // "Words: 12  Characters: 64" below the editor
+    .build();
+
+editor.addWordCountChangeListener(e ->
+    status.setText(e.getWords() + " / 500 words"));
+
+editor.setMaxWordsErrorMessage("Keep it under {0} words (now {1})");
+
+Binder<Post> binder = new Binder<>(Post.class);
+binder.forField(editor).bind(Post::getBody, Post::setBody);   // the limits are part of the default validator
+```
+
+- **Rate:** CKEditor updates the count at most every 250 ms; the add-on forwards it to the server at
+  most once per 500 ms, only when a number changed, plus once with the initial counts. Register the
+  listener (or show the counter) before the editor is attached so the plugin is loaded.
+- **Limits mark the field invalid; they do not block input.** Over the limit the editor shows Vaadin's
+  error state (red border, error message, `aria-invalid`), the counter turns red, and a bound `Binder`
+  fails `validate()` / `writeBean()`. Truncating rich text would break paste, undo and IME composition,
+  and CKEditor has no built-in hard limit; its own
+  [demo](https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html) warns instead of blocking.
+- **Counted on the server.** Validation counts the value on the server with the WordCount rules
+  (characters exclude block boundaries; words match `([\p{L}\p{N}]+\S?)+`), so a client cannot bypass
+  it and the number matches the counter. The invalid state follows the value, i.e. it updates on every
+  change by default and on blur with `setSynchronized(false)`.
+- `setManualValidation(true)` stops the editor from marking itself invalid; the default validator still
+  applies through `Binder`. `getWordCount()` / `getCharacterCount()` keep their old estimate and can differ.
+- Show only one number with `config.set("wordCount", Map.of("displayCharacters", false))` (needs the
+  dotted-path `set` overloads) or the equivalent `JsonNode`.
+- Commercial license keys must include the WordCount feature; the `GPL` key works.
+
 ### Autosave
 
 ```java
@@ -976,6 +1019,27 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
+### Plugins from the browser registry
+
+A plugin class registered in the frontend with `registerCKEditorPlugin` can be referenced by name,
+without an import path (`CustomPlugin.fromRegistry`). Built-in CKEditor plugin names take precedence.
+
+```ts
+// src/main/frontend/my-plugins.ts, loaded with @JsModule("./my-plugins.ts") on a view or the app shell
+// (Vaadin copies the add-on's frontend files to Frontend/generated/jar-resources/)
+import { registerCKEditorPlugin } from 'Frontend/generated/jar-resources/vaadin-ckeditor/plugin-resolver';
+import Highlighter from './highlighter';
+registerCKEditorPlugin('Highlighter', Highlighter);
+```
+
+```java
+builder.addCustomPlugin(CustomPlugin.fromRegistry("Highlighter"));
+```
+
+The add-on's own word count bridge (`VaadinCKEditor.WORD_COUNT_PLUGIN`, `VaadinWordCount`) is such a
+plugin; register a subclass under the same name to extend or replace it (an application registration
+wins whether it runs before or after the connector).
+
 ---
 
 ## Premium Features
@@ -1080,6 +1144,17 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | `addAutosaveListener(listener)` | Listen for autosave |
 | `addEditorErrorListener(listener)` | Listen for errors |
 | `addFallbackListener(listener)` | Listen for fallback |
+| `addWordCountChangeListener(listener)` | Live word / character count |
+
+#### Word Count and Validation
+
+| Method | Description |
+|--------|-------------|
+| `setMaxWords(int)` / `setMaxCharacters(int)` | Limits; over them the field is invalid (0 = no limit) |
+| `setMaxWordsErrorMessage(String)` / `setMaxCharactersErrorMessage(String)` | Messages, `{0}` = limit, `{1}` = count |
+| `setWordCountVisible(boolean)` | Show CKEditor's counter below the editor |
+| `getDefaultValidator()` | Limit validator used by `Binder` |
+| `setManualValidation(boolean)` | Do not mark the field invalid automatically |
 
 ### VaadinCKEditorBuilder Methods
 
@@ -1090,6 +1165,8 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | `withViewOnly()` | Sets readOnly + hideToolbar + READ_ONLY fallback mode |
 | `withReadOnly(boolean)` | Alias for `readOnly(boolean)` |
 | `withHideToolbar(boolean)` | Hide/show toolbar in built editor |
+| `withMaxWords(int)` / `withMaxCharacters(int)` | Word / character limits |
+| `withWordCountVisible(boolean)` | Show the word count below the editor |
 
 ---
 
