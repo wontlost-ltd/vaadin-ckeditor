@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **同级别标题变体与标题元素类名**（[#158](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/158)、
+  [#159](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/159)）：`HeadingOption.withModel(String)` 为选项指定
+  独立的 model 名（须以 `heading` 开头），`HeadingOption.withViewClasses(String...)` 生成 CKEditor 的
+  `view: {name, classes}` 并以 `converterPriority: 'high'` 转换，输出 `<h1 class="style1">` 这类带类名的标题，
+  读入时也能与同级普通标题区分。见 User Guide「Heading options」。
+
+### Fixed
+- **同一级别配置两个 `HeadingOption` 后编辑器无法使用**（#158）：两个选项映射到同一个 model（如 `heading1`），
+  CKEditor 初始化抛出 `schema-cannot-register-item-twice`，add-on 只剩降级的文本框。`setHeading` 现在立即以
+  `IllegalArgumentException` 拒绝重复的 model，并在消息中给出 `withModel(...)` 的写法。
+
+### Changed
+- **`HeadingOption` 的 `className` 语义写入 Javadoc 与文档**（#159）：与 CKEditor 的 `class` 属性一致，它是标题下拉
+  列表项的类名（如 `ck-heading_heading1`），从未也不会写到内容里的标题元素上；行为不变。
+
 ## [6.1.0] - 2026-11-19
 
 ### Added
