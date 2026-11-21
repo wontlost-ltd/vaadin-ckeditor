@@ -22,6 +22,7 @@ in a real browser to catch issues that unit tests miss.
 | `sticky-toolbar.spec.ts` | AppLayout + 铺满 TabSheet（滚动容器在 shadow DOM 中）的 `/sticky-toolbar` 夹具：聚焦后滚动，工具栏贴住滚动容器顶部，滚动事件当帧与稳定后都没有 CKEditor 粘性占位块、工具栏不被设为 `fixed`（#157） |
 | `heading-options.spec.ts` | `/heading` 夹具：同级别两个标题选项（独立 model + view 类名）时编辑器正常初始化，`<h1 class>` / `<h4 class>` 往返不丢类名，从下拉应用变体时内容带上类名（#158 / #159） |
 | `fullscreen-overflow.spec.ts` | `/fullscreen-doc` 夹具（1366×768）：`custom(1200px)` 与 `html` 覆盖 1200px（A4_FIT / FULL_WIDTH）× {无侧栏、minimap、大纲、两者}——页面与侧栏按边界框互不重叠，放不下时全屏区域横向滚动、两侧侧栏滚到可见，minimap 在可横向滚动时仍同步并驱动滚动；放得下的 `custom(60%)` / A4_FIT / FULL_WIDTH 不出现横向滚动（#156） |
+| `collaboration-bridge.spec.ts` | `/collab-bridge` 夹具：真实连接器 + `VaadinCollaborationBridge` 插件 ↔ Java `CollaborationBridge` / 内存 store 的往返——启动加载用户、权限、线程、建议；伪造 `authorId` 被服务端覆盖；编辑他人评论与评论者提建议被拒绝；拆分建议沿用原作者；接受建议；新建与解决线程；重新加载后数据回到编辑器。需要以 `CKEDITOR_PREMIUM_STUB=1` 构建 sample（premium 包替换为同 API 形状的替身，见下文），否则跳过 |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 
 Each spec runs against Chromium and Firefox.
@@ -122,6 +123,20 @@ The sample app jar is started/stopped automatically by Playwright's `webServer`
 configuration (`playwright.config.ts`). To run the server on a non-default
 port, set `E2E_PORT=9090 npm test`; Playwright forwards it to Spring Boot via
 `--server.port`.
+
+## Premium plugin stand-ins (`CKEDITOR_PREMIUM_STUB=1`)
+
+Comments and track changes are CKEditor premium features; without a licence the real plugins lock the editor. To test
+the persistence bridge end to end anyway, build the sample with `CKEDITOR_PREMIUM_STUB=1`: the committed
+[`vite.config.ts`](../examples/spring-boot-sample/vite.config.ts) then aliases `ckeditor5-premium-features` to
+[`src/main/frontend/premium-stub/`](../examples/spring-boot-sample/src/main/frontend/premium-stub/index.ts), stand-ins
+with the 49.x API shape of `Users`, `Permissions`, `CommentsRepository`, `Comments` and `TrackChanges`. CI builds the
+sample this way; specs that need the real premium package (`E2E_PREMIUM=1`) are skipped there anyway.
+
+```bash
+cd examples/spring-boot-sample && CKEDITOR_PREMIUM_STUB=1 mvn -Pproduction -DskipTests package
+cd ../../e2e && CKEDITOR_PREMIUM_STUB=1 npx playwright test collaboration-bridge
+```
 
 ## Visual regression baselines
 

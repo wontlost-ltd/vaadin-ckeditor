@@ -165,6 +165,18 @@ public enum CKEditorPlugin {
      */
     CKFINDER("CKFinder", Category.UPLOAD),
 
+    /**
+     * CKBox 云端文件管理与图片上传（toolbar {@code ckbox}）。
+     * 插件类由免费 umbrella {@code ckeditor5} 导出（{@code ckeditor5-premium-features} 并不导出它，
+     * 所以 {@code CustomPlugin.fromPremium("CKBox")} 无效），但它是付费的 CKBox 服务：需要商业 license key
+     * 与 {@code ckbox.tokenUrl}（或 {@code cloudServices.tokenUrl}）。缺配置会报错，故与 CKFinder 一样
+     * 归入"需配置插件"。会自动带上 CloudServices。
+     */
+    CKBOX("CKBox", Category.UPLOAD, "ckbox"),
+
+    /** CKBox 图片编辑（toolbar {@code ckboxImageEdit}），依赖 {@link #CKBOX}；同样需要 CKBox 订阅。 */
+    CKBOX_IMAGE_EDIT("CKBoxImageEdit", Category.UPLOAD, "ckboxImageEdit"),
+
     // ==================== Tables ====================
 
     /** Basic table support */

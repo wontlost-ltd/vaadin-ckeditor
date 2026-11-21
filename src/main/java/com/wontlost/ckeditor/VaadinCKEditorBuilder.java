@@ -488,6 +488,19 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Persist comments and track-changes suggestions through a server-side store (no CKEditor Cloud).
+     *
+     * @param bridge the bridge
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCollaborationBridge(com.wontlost.ckeditor.collaboration.CollaborationBridge)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCollaborationBridge(com.wontlost.ckeditor.collaboration.CollaborationBridge bridge) {
+        editor.setCollaborationBridge(bridge);
+        return this;
+    }
+
+    /**
      * Set the page width used in fullscreen mode. Defaults to {@link FullscreenPage#A4_FIT}.
      *
      * @param page the page width, not null

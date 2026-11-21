@@ -356,3 +356,35 @@ describe('CommentPermissionEnforcer', () => {
         });
     });
 });
+
+describe('CommentPermissionEnforcer 与 VaadinCollaborationBridge 联动', () => {
+    const run = (permissions: string[]) => {
+        const { domRoot, sidebar } = setupCommentDom();
+        const mine = createCommentElement('Me', 'user-1');
+        const theirs = createCommentElement('Other', 'user-2');
+        sidebar.appendChild(mine.comment);
+        sidebar.appendChild(theirs.comment);
+        const { editor, triggerReady } = createMockEditor(domRoot, 'user-1');
+        (editor.plugins as Record<string, unknown>).has = (name: string) => name === 'VaadinCollaborationBridge';
+        const originalGet = editor.plugins.get;
+        (editor.plugins as { get: (name: string) => unknown }).get = (name: string) => name === 'VaadinCollaborationBridge'
+            ? { canModifyAllComments: permissions.includes('comment:modify_all') }
+            : originalGet(name);
+        const plugin = new CommentPermissionEnforcer(editor as any);
+        plugin.init();
+        triggerReady();
+        return { mine, theirs };
+    };
+
+    it('服务端未授予 comment:modify_all：隐藏他人评论的菜单', () => {
+        const { mine, theirs } = run(['comment:write']);
+        expect(theirs.dropdown.style.getPropertyValue('display')).toBe('none');
+        expect(mine.dropdown.style.getPropertyValue('display')).toBe('');
+    });
+
+    it('服务端授予 comment:modify_all：不隐藏任何菜单', () => {
+        const { theirs } = run(['comment:write', 'comment:modify_all']);
+        expect(theirs.dropdown.style.getPropertyValue('display')).toBe('');
+        expect(observeSpy).not.toHaveBeenCalled();
+    });
+});

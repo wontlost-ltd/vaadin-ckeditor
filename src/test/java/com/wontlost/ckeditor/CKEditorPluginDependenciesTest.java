@@ -392,7 +392,19 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChatBalloon")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorConfig")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ProposedChanges")).isTrue();
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isTrue();
+    }
+
+    @Test
+    @DisplayName("CKBox 由免费 ckeditor5 导出：不在 premium 表中，作为 CKEditorPlugin 带上 CloudServices")
+    void ckboxIsAFreeUmbrellaPluginWithCloudServices() {
+        assertThat(CKEditorPluginDependencies.getKnownPremiumPlugins()).doesNotContain("CKBox", "CKBoxImageEdit");
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isFalse();
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.CKBOX))
+            .contains(CKEditorPlugin.CLOUD_SERVICES, CKEditorPlugin.IMAGE_UPLOAD);
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.CKBOX_IMAGE_EDIT))
+            .containsExactly(CKEditorPlugin.CKBOX);
+        assertThat(CKEditorPluginDependencies.resolve(Set.of(CKEditorPlugin.CKBOX_IMAGE_EDIT)))
+            .contains(CKEditorPlugin.CKBOX, CKEditorPlugin.CLOUD_SERVICES);
     }
 
     @Test

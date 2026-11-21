@@ -56,10 +56,16 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>AIEditorConfig</td><td>-</td><td>Register custom plugins with the AI agent (v49.1.0+)</td></tr>
  *   <tr><td>ProposedChanges</td><td>-</td><td>Editing Toolkit: compare versions and apply differences (v49.1.0+)</td></tr>
  *   <tr><td>RealTimeContentFetcher</td><td>-</td><td>Real-time collaboration content fetcher (v49.1.0+)</td></tr>
+ *   <tr><td>Footnotes</td><td>insertFootnote</td><td>Footnotes</td></tr>
+ *   <tr><td>Uploadcare</td><td>uploadcare</td><td>Image upload and optimization (Uploadcare add-on)</td></tr>
+ *   <tr><td>MultiLevelList</td><td>multiLevelList</td><td>Multi-level lists</td></tr>
+ *   <tr><td>PasteFromOfficeEnhanced</td><td>-</td><td>Enhanced paste from Word / Excel / Google Docs</td></tr>
  * </table>
  *
- * <p>{@code TableLayout} is exported by the free {@code ckeditor5} umbrella (license-gated at runtime);
- * use {@link CKEditorPlugin#TABLE_LAYOUT} instead of this enum.</p>
+ * <p>{@code TableLayout}, {@code CKBox} and {@code CKBoxImageEdit} are exported by the free {@code ckeditor5}
+ * umbrella (license-gated at runtime); use {@link CKEditorPlugin#TABLE_LAYOUT}, {@link CKEditorPlugin#CKBOX} and
+ * {@link CKEditorPlugin#CKBOX_IMAGE_EDIT} instead of this enum. The plan each plugin needs is listed in
+ * {@code docs/PREMIUM_INTEGRATION.md}.</p>
  *
  * <h2>License:</h2>
  * <p>Premium features require a commercial license. You can:</p>
@@ -327,7 +333,16 @@ public final class VaadinCKEditorPremium {
         PROPOSED_CHANGES("ProposedChanges"),
 
         /** 实时协作内容拉取（v49.1.0+） */
-        REAL_TIME_CONTENT_FETCHER("RealTimeContentFetcher");
+        REAL_TIME_CONTENT_FETCHER("RealTimeContentFetcher"),
+
+        /** 脚注（toolbar {@code insertFootnote}；编号样式等属性另见 {@code FootnotesProperties}）。 */
+        FOOTNOTES("Footnotes", "insertFootnote"),
+
+        /**
+         * Uploadcare 图片上传与优化（CKEditor 的 Image Optimizer 付费附加服务，toolbar {@code uploadcare}）；
+         * 需要配置 {@code uploadcare.pubKey}。
+         */
+        UPLOADCARE("Uploadcare", "uploadcare");
 
         private final String pluginName;
         private final String[] toolbarItems;

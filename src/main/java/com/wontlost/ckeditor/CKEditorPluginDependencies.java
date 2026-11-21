@@ -150,6 +150,10 @@ public final class CKEditorPluginDependencies {
         // ==================== Easy Image Dependencies ====================
         // EasyImage requires CloudServices and ImageUpload
         deps.put(CKEditorPlugin.EASY_IMAGE, Set.of(CKEditorPlugin.CLOUD_SERVICES, CKEditorPlugin.IMAGE_UPLOAD));
+        // CKBox 自身 requires CloudServices / ImageUploadEditing / PictureEditing；这里显式列出 CloudServices，
+        // 以便 builder 识别到「需配置插件」并放行（与 EasyImage 一致）
+        deps.put(CKEditorPlugin.CKBOX, Set.of(CKEditorPlugin.CLOUD_SERVICES, CKEditorPlugin.IMAGE_UPLOAD));
+        deps.put(CKEditorPlugin.CKBOX_IMAGE_EDIT, Set.of(CKEditorPlugin.CKBOX));
 
         // ==================== Minimap Dependencies ====================
         // Minimap requires Widget
@@ -289,9 +293,11 @@ public final class CKEditorPluginDependencies {
         // Comments and TrackChanges can work standalone but benefit from CloudServices
         // for real-time sync - we don't add hard dependency here
 
-        // CKBox requires CloudServices
-        premDeps.put("CKBox", cloudServicesDeps);
-        premDeps.put("CKBoxImageEdit", Set.of(CKEditorPlugin.CLOUD_SERVICES));
+        // CKBox / CKBoxImageEdit 不在此表：它们由免费 ckeditor5 导出，见 CKEditorPlugin.CKBOX
+
+        // 脚注；Uploadcare（需 uploadcare.pubKey 配置，Image Optimizer 付费附加服务）
+        premDeps.put("Footnotes", Set.of());
+        premDeps.put("Uploadcare", Set.of());
 
         // Email 相关 premium 插件
         premDeps.put("EmailConfigurationHelper", Set.of());

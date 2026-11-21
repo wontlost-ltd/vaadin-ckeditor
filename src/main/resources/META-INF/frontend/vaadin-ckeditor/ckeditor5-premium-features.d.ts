@@ -33,6 +33,13 @@ declare module 'ckeditor5-premium-features' {
     export const AIEditorConfig: unknown;
     export const ProposedChanges: unknown;
     export const RealTimeContentFetcher: unknown;
+    export const Footnotes: unknown;
+    export const Uploadcare: unknown;
+    export const LineHeight: unknown;
+    export const PasteFromOfficeEnhanced: unknown;
+    export const Users: unknown;
+    export const Permissions: unknown;
+    export const CommentsRepository: unknown;
 
     // CKEditor 48 AI configuration type placeholders
     // 这些类型只覆盖项目主动消费的配置字段，未列出的字段保持运行时透传

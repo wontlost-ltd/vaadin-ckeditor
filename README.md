@@ -227,31 +227,48 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ### Available Premium Plugins
 
-| Plugin | Description | Toolbar Item |
-|--------|-------------|--------------|
-| `ExportPdf` | Export to PDF | `exportPdf` |
-| `ExportWord` | Export to Word | `exportWord` |
-| `ImportWord` | Import from Word | `importWord` |
-| `FormatPainter` | Copy formatting | `formatPainter` |
-| `SlashCommand` | Slash commands | - |
-| `TableOfContents` | Table of contents | `tableOfContents` |
-| `DocumentOutline` | Document outline | - |
-| `Template` | Content templates | `insertTemplate` |
-| `CaseChange` | Change text case | `caseChange` |
-| `MergeFields` | Mail merge fields | `mergeFields` |
-| `Pagination` | Page breaks | `pageBreak` |
-| `AIAssistant` | AI writing assistant | `aiAssistant` |
-| `AIChat` | AI chat sidebar | `toggleAi` |
-| `AIQuickActions` | AI quick actions | `aiQuickActions` |
-| `AIEditorIntegration` | AI editor integration | - |
-| `AIReviewMode` | AI review mode | - |
-| `AITranslate` | AI translation | - |
-| `AIChatBalloon` | Balloon UI for AI Chat (49.1+) | - |
-| `AIEditorConfig` | Register custom plugins with the AI agent (49.1+) | - |
-| `ProposedChanges` | Editing Toolkit: compare versions, apply differences (49.1+) | - |
-| `RealTimeContentFetcher` | Real-time collaboration content fetcher (49.1+) | - |
+Load any of them with `CustomPlugin.fromPremium("<Plugin>")`. The plan is from [ckeditor.com/pricing](https://ckeditor.com/pricing)
+(2026-11-22); the [Premium Integration Guide](docs/PREMIUM_INTEGRATION.md#premium-plugin-catalogue) links each feature's docs.
+*Essential+* = Essential, Professional and Custom plans.
 
-> `TableLayout` ships in the free `ckeditor5` umbrella but is license-gated: use `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) together with a commercial license key.
+| Plugin | Description | Toolbar Item | Plan |
+|--------|-------------|--------------|------|
+| `ExportPdf` | Export to PDF | `exportPdf` | All plans (monthly quota) |
+| `ExportWord` | Export to Word | `exportWord` | All plans (monthly quota) |
+| `ImportWord` | Import from Word | `importWord` | Professional, Custom |
+| `PasteFromOfficeEnhanced` | Enhanced paste from Word / Excel / Google Docs | - | Essential+ |
+| `FormatPainter` | Copy formatting | `formatPainter` | Essential+ |
+| `CaseChange` | Change text case | `caseChange` | Essential+ |
+| `SlashCommand` | Slash commands | - | Essential+ |
+| `Template` | Content templates | `insertTemplate` | Essential+ |
+| `MergeFields` | Mail merge fields | `insertMergeField` | Essential+ |
+| `TableOfContents` | Table of contents | `tableOfContents` | Essential+ |
+| `DocumentOutline` | Document outline | - | Essential+ |
+| `Footnotes` | Footnotes | `insertFootnote` | Essential+ |
+| `MultiLevelList` | Multi-level lists | `multiLevelList` | Essential+ |
+| `LineHeight` | Line height | `lineHeight` | Essential+ |
+| `Pagination` | Page breaks and pagination | - | Custom |
+| `EmailConfigurationHelper` | Email editor configuration helper | - | Essential+ |
+| `ExportInlineStyles` | Inline styles for email clients | - | Essential+ |
+| `SourceEditingEnhanced` | Source editing with HTML validation | `sourceEditingEnhanced` | Essential+ |
+| `Uploadcare` | Image upload and optimization (needs `uploadcare.pubKey`) | `uploadcare` | Image Optimizer add-on |
+| `AIChat` | AI chat sidebar | `toggleAi` | CKEditor AI add-on |
+| `AIQuickActions` | AI quick actions | `aiQuickActions` | CKEditor AI add-on |
+| `AIEditorIntegration` | AI editor integration | - | CKEditor AI add-on |
+| `AIReviewMode` | AI review mode | - | CKEditor AI add-on |
+| `AITranslate` | AI translation | - | CKEditor AI add-on |
+| `AIChatBalloon` | Balloon UI for AI Chat (49.1+) | - | CKEditor AI add-on |
+| `AIEditorConfig` | Register custom plugins with the AI agent (49.1+) | - | CKEditor AI add-on |
+| `AIAssistant` | AI writing assistant (deprecated) | `aiAssistant` | CKEditor AI add-on |
+| `ProposedChanges` | Editing Toolkit: compare versions, apply differences (49.1+) | - | Not on the pricing page |
+| `Comments` | Comments | `comment` | Collaboration add-on (Professional), Custom |
+| `TrackChanges` / `TrackChangesData` / `TrackChangesPreview` | Track changes | `trackChanges` | Collaboration add-on |
+| `RevisionHistory` | Revision history | `revisionHistory` | Collaboration add-on |
+| `RealTimeCollaborativeEditing` / `…Comments` / `…TrackChanges` / `…RevisionHistory`, `RealTimeContentFetcher`, `PresenceList` | Real-time collaboration (CKEditor Cloud Services) | - | Collaboration add-on |
+
+> `CKBox` / `CKBoxImageEdit` and `TableLayout` ship in the free `ckeditor5` package but are licence-gated: use
+> `CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT` (CKBox add-on) and `CKEditorPlugin.TABLE_LAYOUT` (Essential+) with a
+> commercial licence key, not `fromPremium(...)`.
 
 ### Collaboration Features
 
@@ -264,6 +281,27 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .addCustomPlugin(CustomPlugin.fromPremium("RevisionHistory"))
     .build();
 ```
+
+**Persist comments and suggestions on your server, without CKEditor Cloud** (since 6.2.0): implement
+`CollaborationStore` (or start with `InMemoryCollaborationStore`) and attach a `CollaborationBridge`. Authors,
+timestamps and permissions are decided on the server.
+
+```java
+CollaborationBridge bridge = CollaborationBridge.builder(store, "document-42",
+        new CollaborationUser(user.getId(), user.getName())).build();
+
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withType(CKEditorType.DECOUPLED)
+    .withLicenseKey(System.getenv("CKEDITOR_LICENSE_KEY"))
+    .addCustomPlugin(CustomPlugin.fromPremium("Comments"))
+    .addCustomPlugin(CustomPlugin.fromPremium("TrackChanges"))
+    .withCollaborationBridge(bridge)
+    .build();
+```
+
+Built against the documented CKEditor 49.x adapter API and tested with mock plugins only, without a licence. See
+[Comments and Track Changes Without CKEditor Cloud](docs/PREMIUM_INTEGRATION.md#comments-and-track-changes-without-ckeditor-cloud)
+for what still needs checking with a licensed key.
 
 ---
 

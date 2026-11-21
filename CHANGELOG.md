@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **评论 / 修订建议持久化桥 `CollaborationBridge`**（`com.wontlost.ckeditor.collaboration`，不依赖 CKEditor Cloud）：
+  按 CKEditor 49.x 的 adapter 集成，把 `CommentsRepository` / `TrackChanges` 的 adapter 调用经 Vaadin RPC 转到服务端
+  `CollaborationStore`（异步 `CompletableFuture`，镜像 `addCommentThread`、`addComment`、`addSuggestion` 等），
+  启动时加载用户（`Users#addUser` / `defineMe`）、权限（`Permissions#setPermissions`）、线程与建议。作者、时间、
+  `resolvedBy` 由服务端决定，权限与归属（自己的评论 / 线程、`comment:modify_all`、`comment:admin`、拆分建议沿用原作者）
+  在服务端校验。附 `InMemoryCollaborationStore` 参考实现。浏览器端是 add-on 的自定义插件 `VaadinCollaborationBridge`
+  （经 `registerCKEditorPlugin` 登记，与 `CustomPlugin.fromPremium("Comments")` 组合）；`comment-permission-enforcer`
+  读取服务端授予的权限。**未使用 CKEditor license**：以文档形状的 mock 插件测试，真实 premium 行为仍需用 license 验证，
+  见 Premium Integration Guide「Comments and Track Changes Without CKEditor Cloud」。
+- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 由免费 `ckeditor5` 导出（付费 CKBox 服务，需 license key 与
+  `ckbox.tokenUrl`），自动带上 CloudServices 与 ImageUpload。
+- **`PremiumPlugin.FOOTNOTES` / `UPLOADCARE`** 及其依赖登记。
+
+### Fixed
+- **CKBox 被错列为 premium 插件**：`CKEditorPluginDependencies` 的 premium 表含 `CKBox` / `CKBoxImageEdit`，但它们不由
+  `ckeditor5-premium-features` 导出，`CustomPlugin.fromPremium("CKBox")` 从未能加载。现从 premium 表移除，改用
+  `CKEditorPlugin.CKBOX`；新增测试保证 premium 清单中的名称都不是免费包导出的插件。
+
+### Documentation
+- Premium Integration Guide 重写套餐表（ckeditor.com/pricing，2026-11-22），新增全部 premium 插件目录（工具栏项、所需套餐、
+  功能文档链接），补上 README 缺少的 Footnotes、Uploadcare、MultiLevelList、PasteFromOfficeEnhanced、
+  EmailConfigurationHelper、ExportInlineStyles、SourceEditingEnhanced，并说明 premium 插件与自定义插件的组合方式。
+
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
   此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。

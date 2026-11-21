@@ -1019,6 +1019,22 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `RealTimeContentFetcher` - Real-time collaboration content fetcher (CKEditor 49.1+)
 - `AIReviewMode` - AI review mode
 - `AITranslate` - AI translation
+- `Footnotes`, `MultiLevelList`, `LineHeight`, `PasteFromOfficeEnhanced`, `Uploadcare`, `EmailConfigurationHelper`,
+  `ExportInlineStyles`, `SourceEditingEnhanced`, `TrackChangesData`, `TrackChangesPreview`, `PresenceList`, …
+
+The [Premium Plugin Catalogue](PREMIUM_INTEGRATION.md#premium-plugin-catalogue) lists every plugin with its toolbar item,
+the CKEditor plan it needs and its feature documentation. `CKBox` and `TableLayout` are licence-gated plugins of the free
+package: use `CKEditorPlugin.CKBOX` / `CKEditorPlugin.TABLE_LAYOUT`.
+
+### Persisting Comments and Suggestions (no CKEditor Cloud)
+
+`VaadinCKEditorBuilder#withCollaborationBridge(CollaborationBridge)` connects the comments and track changes plugins to a
+server-side `CollaborationStore`: users, permissions, threads and suggestions are loaded when the editor starts, and every
+change is checked and saved on the server (authors and timestamps are set there, never taken from the browser). The bridge
+is the add-on's custom plugin `VaadinCollaborationBridge`, combined with `CustomPlugin.fromPremium("Comments")` /
+`fromPremium("TrackChanges")`. Setup, API, security rules and the verification status (mock-tested; real premium behaviour
+needs a licensed key) are in
+[Comments and Track Changes Without CKEditor Cloud](PREMIUM_INTEGRATION.md#comments-and-track-changes-without-ckeditor-cloud).
 
 ---
 

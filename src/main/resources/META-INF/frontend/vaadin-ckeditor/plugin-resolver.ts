@@ -54,6 +54,8 @@ import {
     Base64UploadAdapter,
     SimpleUploadAdapter,
     CKFinder,
+    CKBox,
+    CKBoxImageEdit,
     // Tables
     Table,
     TableToolbar,
@@ -213,6 +215,9 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'Base64UploadAdapter': Base64UploadAdapter,
     'SimpleUploadAdapter': SimpleUploadAdapter,
     'CKFinder': CKFinder,
+    // 免费 umbrella 导出、功能属付费 CKBox 服务（需 license key 与 ckbox.tokenUrl）
+    'CKBox': CKBox,
+    'CKBoxImageEdit': CKBoxImageEdit,
     // Tables
     'Table': Table,
     'TableToolbar': TableToolbar,
@@ -318,6 +323,9 @@ const PLUGINS_REQUIRING_CONFIG: readonly string[] = [
     // CKFinder 需要 config.ckfinder.uploadUrl / 服务端 CKFinder，缺配置会报错，
     // 故从"全选"中过滤；显式配置后通过 allowConfigRequiredPlugins 放行。
     'CKFinder',
+    // CKBox 需要 ckbox.tokenUrl 或 cloudServices.tokenUrl 与 CKBox 订阅
+    'CKBox',
+    'CKBoxImageEdit',
 ];
 
 /**
