@@ -419,8 +419,8 @@ config.setHtmlSupport(HtmlSupport.create()
   view, not the data. Sanitize on the server before storing or displaying the HTML (see below).
 - Patterns are Java `Pattern`s in the syntax Java and JavaScript share; they run in the browser.
   Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported.
-- The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` when the config has `allow` rules (not in
-  `DependencyMode.MANUAL`). `fullPageAllowRenderStylesFromHead` also needs the `FullPage` plugin; the
+- The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
+  `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`). `fullPageAllowRenderStylesFromHead` also needs the `FullPage` plugin; the
   `sanitizeCss` callback CKEditor recommends cannot be passed from Java.
 - `setHtmlSupport(true)` is `HtmlSupport.allowAll()`: every element with all attributes, classes and
   styles, except scripts, iframes and `on*` attributes. Before 6.2.0 it sent the name as the string

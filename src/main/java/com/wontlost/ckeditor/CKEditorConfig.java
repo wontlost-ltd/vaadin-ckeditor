@@ -1406,11 +1406,12 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * 是否配置了 GHS allow 规则（构建器据此加载 GeneralHtmlSupport 插件）。
+     * 是否配置了任何 GHS 选项（构建器据此加载 GeneralHtmlSupport 插件）：allow / disallow / allowEmpty /
+     * htmlIframeSandbox 等都由该插件处理；setHtmlSupport(false) 写入的空对象不算。
      */
-    boolean hasHtmlSupportRules() {
-        JsonNode allow = configs.get("htmlSupport") == null ? null : configs.get("htmlSupport").get("allow");
-        return allow != null && allow.isArray() && !allow.isEmpty();
+    boolean hasHtmlSupportOptions() {
+        JsonNode node = configs.get("htmlSupport");
+        return node != null && node.isObject() && !node.isEmpty();
     }
 
     /** 规则名省略（GHS 视为所有元素）或为匹配一切的正则。 */

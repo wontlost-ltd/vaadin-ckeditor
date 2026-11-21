@@ -157,12 +157,20 @@ class HtmlSupportTest {
     }
 
     @Test
-    @DisplayName("builder loads GeneralHtmlSupport when htmlSupport has rules (except in MANUAL mode)")
+    @DisplayName("builder loads GeneralHtmlSupport when htmlSupport has any option (except in MANUAL mode)")
     void builderAddsGhsPlugin() {
         CKEditorConfig config = new CKEditorConfig().setHtmlSupport(HtmlSupport.create()
             .allow(HtmlSupport.Rule.elements("details", "summary")));
         VaadinCKEditor editor = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC).withConfig(config).build();
         assertThat(editor.getPluginsInternal()).contains(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+
+        // 只有 disallow / iframeSandbox 等选项也需要插件
+        VaadinCKEditor optionsOnly = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .withConfig(new CKEditorConfig().setHtmlSupport(HtmlSupport.create().iframeSandbox(false))).build();
+        assertThat(optionsOnly.getPluginsInternal()).contains(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        VaadinCKEditor empty = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .withConfig(new CKEditorConfig().setHtmlSupport(false)).build();
+        assertThat(empty.getPluginsInternal()).doesNotContain(CKEditorPlugin.GENERAL_HTML_SUPPORT);
 
         VaadinCKEditor plain = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC).build();
         assertThat(plain.getPluginsInternal()).doesNotContain(CKEditorPlugin.GENERAL_HTML_SUPPORT);
