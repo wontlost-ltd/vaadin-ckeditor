@@ -98,6 +98,24 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
     overflow: visible;
 }
 
+/* ==================== Fullscreen editable width (issue #156) ==================== */
+/*
+ * CKEditor 全屏模式把编辑区（及源码视图）固定为 A4 纸宽 795.701px，没有配置项
+ * （ckeditor5-fullscreen theme/fullscreen.css；官方文档建议用 CSS 覆盖）。
+ * 这里开放 --ck-fullscreen-editable-width，未设置时回退到 CKEditor 的默认值，行为不变。
+ * 全屏容器在 light DOM 宿主下挂在 document.body，在 Dialog 内挂在宿主里，
+ * 因此不以 vaadin-ckeditor 限定，变量应设在 html（:root）上才能在两种位置都继承到。
+ * 选择器比 CKEditor 的多一个 .ck，以特异性胜出，无需 !important。
+ */
+.ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
+    width: var(--ck-fullscreen-editable-width, 795.701px);
+    max-width: var(--ck-fullscreen-editable-width, 795.701px);
+}
+
+.ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck-source-editing-area {
+    width: var(--ck-fullscreen-editable-width, 795.701px);
+}
+
 /* ==================== Dark Theme Support ==================== */
 /*
  * Supports both:

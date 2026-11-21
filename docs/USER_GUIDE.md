@@ -507,6 +507,21 @@ vaadin-ckeditor {
 `--ck-bookmark-icon-fill-color` defaults to the editor text color (`--ck-color-text`), so the icon is
 dark in the light theme and near-white in the dark theme.
 
+#### Fullscreen editable width
+
+In fullscreen mode CKEditor shows the content as an A4-wide page (`795.701px`); CKEditor has no
+option for this. Set `--ck-fullscreen-editable-width` on `html` to use another width: any CSS width value,
+such as `1200px`, `90vw` or `min(1400px, 90vw)`.
+The fullscreen container is attached to `<body>`, so set it on `html` rather than on `vaadin-ckeditor`:
+
+```css
+html {
+    --ck-fullscreen-editable-width: min(1400px, 90vw);
+}
+```
+
+It applies to both the editing view and the source view. Browser zoom (Ctrl/Cmd + / −) also works in fullscreen.
+
 ### Custom CSS
 
 ```java

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`--ck-fullscreen-editable-width`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）：CKEditor
+  全屏模式把编辑区与源码视图固定为 A4 纸宽 `795.701px`，没有配置项。现可在 `html` 上设置该变量（任意 CSS 宽度值，
+  如 `1200px`、`90vw`、`min(1400px, 90vw)`）加宽全屏编辑区；未设置时保持 CKEditor 默认宽度。见 User Guide「Fullscreen editable width」。
+
 ## [6.1.0] - 2026-11-19
 
 ### Added
