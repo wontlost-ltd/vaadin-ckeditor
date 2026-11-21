@@ -277,6 +277,30 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
+#### Heading options
+
+The third argument of `HeadingOption.heading(level, title, className)` is the CSS class of the
+**item in the heading dropdown** (CKEditor's `class` property, e.g. `ck-heading_heading1`). It is
+not added to the heading in the content. To output a class on the heading element, use
+`withViewClasses(...)`. Each option needs its own model name; to offer a second variant of a level
+that already has an entry, give it one with `withModel(...)`:
+
+```java
+config.setHeading(
+    HeadingOption.paragraph("Paragraph", "ck-heading_paragraph"),
+    HeadingOption.heading(1, "Heading 1", "ck-heading_heading1"),          // <h1>
+    HeadingOption.heading(1, "Article title", "")                          // <h1 class="article">
+        .withModel("heading1Article")
+        .withViewClasses("article"),
+    HeadingOption.heading(4, "Section", "").withViewClasses("section"));   // <h4 class="section">
+```
+
+Variants with view classes are converted with `converterPriority: 'high'`, as in the CKEditor
+[custom heading elements](https://ckeditor.com/docs/ckeditor5/latest/features/headings.html) guide,
+so `<h1 class="article">` loads as the variant and a plain `<h1>` as "Heading 1".
+`setHeading` rejects two options with the same model with an `IllegalArgumentException`:
+CKEditor would otherwise fail to start with `schema-cannot-register-item-twice`.
+
 ### Common Configuration Options
 
 **Emoji** (needs `CKEditorPlugin.EMOJI`; `definitions` inlines the emoji database instead of downloading it, CKEditor 49.1+):
