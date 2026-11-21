@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **滚动时粘性工具栏上方出现矩形空白并闪烁**（[#157](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/157)）：
+  add-on 用 CSS `position: sticky` 固定工具栏，但 CKEditor 自带的 StickyPanelView 在编辑器聚焦且滚动时仍会显示与工具栏
+  等高的占位块并把工具栏设为 `fixed`。连接器原先在滚动事件后的下一帧用 JS 清掉这些内联样式，且只监听沿 light DOM
+  找到的第一个滚动祖先；滚动容器在 TabSheet / AppLayout 的 shadow DOM 里时监听不到，占位块一直留在工具栏上方，
+  临界位置随 CKEditor 切换粘性状态而闪烁。现改由 `sticky-toolbar.css` 以 `!important` 压制占位块与 `fixed` 定位
+  （作者样式的 `!important` 优先于内联样式），从第一帧起生效且与滚动容器无关；删除连接器中的滚动监听与延时清理。
 ### Added
 - **同级别标题变体与标题元素类名**（[#158](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/158)、
   [#159](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/159)）：`HeadingOption.withModel(String)` 为选项指定
