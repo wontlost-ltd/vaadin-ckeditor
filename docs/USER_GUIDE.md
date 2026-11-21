@@ -381,6 +381,40 @@ config.setStyle(
 );
 ```
 
+### Any CKEditor option: `set(path, value)`
+
+Options without a dedicated setter (premium features, AI, cloud services, ...) are set with
+`set(path, value)`. The path uses dots for nesting, the same notation CKEditor uses in its
+[`Config`](https://ckeditor.com/docs/ckeditor5/latest/api/module_utils_config-Config.html) API
+(`config.get('toolbar.collapsed')`), so the keys from the CKEditor documentation can be copied as-is:
+
+```java
+CKEditorConfig config = new CKEditorConfig()
+    // https://ckeditor.com/docs/ckeditor5/latest/api/module_cloud-services_cloudservicesconfig-CloudServicesConfig.html
+    .set("cloudServices.tokenUrl", "https://example.com/cs-token")
+    .set("cloudServices.webSocketUrl", "wss://example.com/ws")
+    .set("collaboration.channelId", "document-" + documentId)
+    // values: String, int / long / double / boolean, Number, List, Map, JsonNode
+    .set("fontSize.options", List.of(10, 12, "default", 16, 20))
+    .set("ai", Map.of(
+        "openAI.apiUrl", "https://example.com/openai",   // map keys are paths too
+        "chat.context.document.enabled", true));
+// → { cloudServices: { tokenUrl, webSocketUrl }, collaboration: { channelId },
+//     fontSize: { options: [...] }, ai: { openAI: { apiUrl }, chat: { context: { document: { enabled } } } } }
+```
+
+- Parents are **merged**: `set("cloudServices.webSocketUrl", ...)` keeps an existing `tokenUrl`,
+  also inside objects built by the typed setters (`set("ui.viewportOffset.top", 56)` after
+  `setUiViewportOffset(...)` keeps the other sides).
+- The last segment is **replaced**: `set("cloudServices", Map.of(...))` replaces the whole object,
+  as in earlier versions. A parent that is not an object (e.g. a toolbar array) is replaced by one.
+- **Keys cannot contain a literal dot.** CKEditor splits every key on `.` at every level when the
+  editor is created, so such a key could never reach a plugin; there is no escape syntax.
+  Empty segments (`"a..b"`, `".a"`) throw `IllegalArgumentException`.
+- `getJsonNode`, `getString`, `getInt`, `getBoolean` and `hasConfig` accept the same paths.
+- Callbacks (functions) and DOM elements cannot be passed from Java, e.g. a token *function* for
+  `cloudServices.tokenUrl`; use a URL.
+
 ---
 
 ## Toolbar Customization

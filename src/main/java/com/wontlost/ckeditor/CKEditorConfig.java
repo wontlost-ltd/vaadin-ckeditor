@@ -1020,12 +1020,211 @@ public class CKEditorConfig implements java.io.Serializable {
         return this;
     }
 
+    // ==================== Generic configuration (dotted paths) ====================
+
     /**
-     * Set custom configuration value
+     * Set any CKEditor configuration value by key or dotted path.
+     *
+     * <p>The key is a path in the CKEditor configuration object: every {@code .} starts a nested
+     * object, exactly as CKEditor 5's own {@code Config} reads its options
+     * ({@code config.get('toolbar.collapsed')}, {@code config.set('resize.width', ...)}; see
+     * <a href="https://ckeditor.com/docs/ckeditor5/latest/api/module_utils_config-Config.html">Config</a>).
+     * Parent objects that already exist are merged, not replaced, so options can be set one by one:</p>
+     * <pre>
+     * config.set("cloudServices.tokenUrl", "https://example.com/cs-token")
+     *       .set("cloudServices.webSocketUrl", "wss://example.com/ws")
+     *       .set("collaboration.channelId", "document-123");
+     * // → { cloudServices: { tokenUrl: ..., webSocketUrl: ... }, collaboration: { channelId: ... } }
+     * </pre>
+     *
+     * <p>Rules:</p>
+     * <ul>
+     *   <li>Only the last path segment is assigned: the value replaces whatever was stored there
+     *       (an object value replaces the whole object). {@code set("cloudServices", Map.of(...))}
+     *       therefore still replaces {@code cloudServices} as in previous versions.</li>
+     *   <li>A parent that exists but is not an object (a string, array, ...) is replaced by an object.</li>
+     *   <li>Keys of object values ({@link Map} / {@link ObjectNode}) are paths too:
+     *       {@code Map.of("openAI.apiUrl", url)} is stored as {@code {openAI: {apiUrl: url}}}.
+     *       Arrays are not traversed (CKEditor does not traverse them either).</li>
+     *   <li><b>Keys cannot contain a literal dot.</b> CKEditor itself splits every key of the
+     *       configuration object on {@code .} (at every nesting level) when the editor is created,
+     *       so a key such as {@code "a.b"} could never reach a plugin as one key; there is no escape.</li>
+     *   <li>Empty segments ({@code "a..b"}, {@code ".a"}, {@code "a."}) are rejected.</li>
+     * </ul>
+     *
+     * <p>Strings, numbers, booleans, lists and maps can be passed directly, see
+     * {@link #set(String, Object)} and the primitive overloads.</p>
+     *
+     * @param path  configuration key or dotted path, e.g. {@code "ai.openAI.apiUrl"}
+     * @param value the value; {@code null} stores JSON {@code null}
+     * @return this config for chaining
+     * @throws IllegalArgumentException if the path is null, blank or has an empty segment
      */
-    public CKEditorConfig set(String key, JsonNode value) {
-        configs.put(key, value);
+    public CKEditorConfig set(String path, JsonNode value) {
+        String[] segments = splitPath(path);
+        JsonNode normalized = expandDottedKeys(value);
+        synchronized (configs) {
+            if (segments.length == 1) {
+                configs.put(segments[0], normalized);
+                return this;
+            }
+            ObjectNode parent = objectChild(configs.get(segments[0]));
+            configs.put(segments[0], parent);
+            for (int i = 1; i < segments.length - 1; i++) {
+                ObjectNode child = objectChild(parent.get(segments[i]));
+                parent.set(segments[i], child);
+                parent = child;
+            }
+            parent.set(segments[segments.length - 1], normalized);
+        }
         return this;
+    }
+
+    /**
+     * Set a boolean value by key or dotted path, e.g. {@code set("toolbar.shouldNotGroupWhenFull", true)}.
+     *
+     * @see #set(String, JsonNode)
+     */
+    public CKEditorConfig set(String path, boolean value) {
+        return set(path, JsonUtil.valueToTree(value));
+    }
+
+    /**
+     * Set an integer value by key or dotted path, e.g. {@code set("autosave.waitingTime", 2000)}.
+     *
+     * @see #set(String, JsonNode)
+     */
+    public CKEditorConfig set(String path, int value) {
+        return set(path, JsonUtil.valueToTree(value));
+    }
+
+    /**
+     * Set a long value by key or dotted path (kept exact, not widened to {@code double}).
+     *
+     * @see #set(String, JsonNode)
+     */
+    public CKEditorConfig set(String path, long value) {
+        return set(path, JsonUtil.valueToTree(value));
+    }
+
+    /**
+     * Set a floating-point value by key or dotted path, e.g. {@code set("ui.viewportOffset.top", 56.5)}.
+     *
+     * @see #set(String, JsonNode)
+     */
+    public CKEditorConfig set(String path, double value) {
+        return set(path, JsonUtil.valueToTree(value));
+    }
+
+    /**
+     * Set any other value by key or dotted path: a {@link String}, a {@link Number}, a {@link java.util.List}
+     * or array, a {@link Map} (whose keys are paths too, see {@link #set(String, JsonNode)}), or nested
+     * combinations of them. The value is converted with Jackson, so records and beans work as well.
+     * <pre>
+     * config.set("cloudServices.tokenUrl", "https://example.com/cs-token")
+     *       .set("fontSize.options", List.of(10, 12, "default", 16))
+     *       .set("ai", Map.of(
+     *           "openAI.apiUrl", "https://example.com/openai",
+     *           "chat.context.document.enabled", true));
+     * </pre>
+     *
+     * <p>Strings, lists and maps share this one {@code Object} overload on purpose: a dedicated
+     * {@code String}, {@code List} or {@code Map} overload would make existing calls such as
+     * {@code set(key, null)} or {@code set(key, mapper.valueToTree(x))} ambiguous and stop them compiling.
+     * Both keep resolving to {@link #set(String, JsonNode)}.</p>
+     *
+     * @param path  configuration key or dotted path
+     * @param value the value; {@code null} stores JSON {@code null}
+     * @return this config for chaining
+     * @throws IllegalArgumentException if the path is invalid or the value cannot be converted to JSON
+     */
+    public CKEditorConfig set(String path, Object value) {
+        if (value instanceof JsonNode node) {
+            return set(path, node);
+        }
+        JsonNode tree;
+        try {
+            tree = JsonUtil.valueToTree(value);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(
+                "Value for configuration key '" + path + "' cannot be converted to JSON: "
+                    + value.getClass().getName(), e);
+        }
+        return set(path, tree);
+    }
+
+    /**
+     * Split a configuration path into its segments.
+     */
+    private static String[] splitPath(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("Configuration key must not be null or blank");
+        }
+        String[] segments = path.split("\\.", -1);
+        for (String segment : segments) {
+            if (segment.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Configuration key must not contain empty segments: '" + path + "'");
+            }
+        }
+        return segments;
+    }
+
+    /** 已有的对象节点直接沿用（合并），否则（缺失 / 非对象）换成新对象——与 CKEditor Config#_setToTarget 一致。 */
+    private static ObjectNode objectChild(JsonNode existing) {
+        return existing instanceof ObjectNode object ? object : createObjectNode();
+    }
+
+    /**
+     * 返回值的副本，其中对象（不含数组）的点号键被展开为嵌套对象，同级展开后合并：
+     * {@code {"a.b":1,"a.c":2}} → {@code {"a":{"b":1,"c":2}}}。与 CKEditor 创建编辑器时
+     * 对配置对象逐层按点号拆分键的行为一致，从而服务端 getter 与连接器读取到的结构和 CKEditor 相同。
+     * 复制也隔离了调用方之后对传入节点的修改。
+     */
+    private static JsonNode expandDottedKeys(JsonNode value) {
+        if (value == null) {
+            return getMapper().nullNode();
+        }
+        if (!value.isObject()) {
+            return value.deepCopy();
+        }
+        ObjectNode result = createObjectNode();
+        for (Map.Entry<String, JsonNode> entry : value.properties()) {
+            String[] segments = splitPath(entry.getKey());
+            ObjectNode parent = result;
+            for (int i = 0; i < segments.length - 1; i++) {
+                ObjectNode child = objectChild(parent.get(segments[i]));
+                parent.set(segments[i], child);
+                parent = child;
+            }
+            String leaf = segments[segments.length - 1];
+            JsonNode expanded = expandDottedKeys(entry.getValue());
+            JsonNode current = parent.get(leaf);
+            if (current instanceof ObjectNode currentObject && expanded instanceof ObjectNode expandedObject) {
+                // 同一对象里 "a.b" 与 "a" 并存时合并而非互相覆盖（CKEditor 对对象值也是合并）
+                currentObject.setAll(expandedObject);
+            } else {
+                parent.set(leaf, expanded);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 按键或点号路径读取存储的节点（内部节点，调用方不得修改）。
+     */
+    private JsonNode lookup(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        String[] segments = path.split("\\.", -1);
+        synchronized (configs) {
+            JsonNode node = configs.get(segments[0]);
+            for (int i = 1; i < segments.length && node != null; i++) {
+                node = node.isObject() ? node.get(segments[i]) : null;
+            }
+            return node;
+        }
     }
 
     /**
@@ -1114,45 +1313,45 @@ public class CKEditorConfig implements java.io.Serializable {
     /**
      * Check if a configuration key is set.
      *
-     * @param key the configuration key
+     * @param key the configuration key or dotted path (e.g. {@code "cloudServices.tokenUrl"})
      * @return true if the key exists
      */
     public boolean hasConfig(String key) {
-        return configs.containsKey(key);
+        return lookup(key) != null;
     }
 
     /**
      * Get a string configuration value.
      *
-     * @param key the configuration key
+     * @param key the configuration key or dotted path (e.g. {@code "cloudServices.tokenUrl"})
      * @return the string value, or null if not set or not a string
      */
     public String getString(String key) {
-        JsonNode node = configs.get(key);
+        JsonNode node = lookup(key);
         return node != null && node.isString() ? node.asString() : null;
     }
 
     /**
      * Get a boolean configuration value.
      *
-     * @param key the configuration key
+     * @param key the configuration key or dotted path (e.g. {@code "cloudServices.tokenUrl"})
      * @param defaultValue the default value if not set
      * @return the boolean value, or defaultValue if not set
      */
     public boolean getBoolean(String key, boolean defaultValue) {
-        JsonNode node = configs.get(key);
+        JsonNode node = lookup(key);
         return node != null && node.isBoolean() ? node.asBoolean() : defaultValue;
     }
 
     /**
      * Get an integer configuration value.
      *
-     * @param key the configuration key
+     * @param key the configuration key or dotted path (e.g. {@code "cloudServices.tokenUrl"})
      * @param defaultValue the default value if not set
      * @return the integer value, or defaultValue if not set
      */
     public int getInt(String key, int defaultValue) {
-        JsonNode node = configs.get(key);
+        JsonNode node = lookup(key);
         return node != null && node.isNumber() ? node.asInt() : defaultValue;
     }
 
@@ -1454,13 +1653,13 @@ public class CKEditorConfig implements java.io.Serializable {
      * Get the raw JSON node for a configuration key.
      * Use this for complex configurations that don't have dedicated getters.
      *
-     * @param key the configuration key
+     * @param key the configuration key or dotted path (e.g. {@code "cloudServices.tokenUrl"})
      * @return the JSON node, or null if not set
      */
     public JsonNode getJsonNode(String key) {
         // 返回深拷贝：JsonNode 可变，直接交出内部节点会让调用方绕过本类封装
         // 直接改动真实配置（与 toJson()/getConfigs() 的处理保持一致）。
-        JsonNode node = configs.get(key);
+        JsonNode node = lookup(key);
         return node == null ? null : node.deepCopy();
     }
 

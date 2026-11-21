@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`CKEditorConfig.set(path, value)` 支持点号路径与常用值类型**：`set("cloudServices.tokenUrl", "https://…")`、
+  `set("ai.openAI.apiUrl", url)` 写成嵌套对象，与 CKEditor `Config` 的点号语义一致；已存在的父对象合并而不是覆盖
+  （包括 `setUiViewportOffset` 等类型化 setter 建立的对象），最后一段照旧整体替换。新增 `set(String, boolean | int | long | double)`
+  与 `set(String, Object)`（String、Number、List、Map、数组及其嵌套，经 Jackson 转换；Map 的键同样按路径展开），
+  `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
+  键中不能含字面量点号：CKEditor 创建编辑器时会在每一层按 `.` 拆分键，无法转义；空段（`a..b`）抛 `IllegalArgumentException`。
+
+### Fixed
+- **文档中的高级配置示例无法编译**：`CKEditorPreset.COLLABORATIVE` 的 Javadoc 用了不存在的 `set(String, String)` 与
+  `withConfig(lambda)`，README 与 `PREMIUM_INTEGRATION.md` 用了不存在的 `withCustomConfig` / `withHeading` /
+  `withFontSizes` / `withImageUploadUrl`；全部改为可编译的写法。
+- **点号键不被连接器识别**：此前即使通过 `set(key, JsonNode)` 写入 `"collaboration.channelId"` 之类的字面量键，
+  CKEditor 自己能展开，但连接器读取 `collaboration.channelId`、`ai.container` 等嵌套配置的逻辑看不到它；现在服务端即写成嵌套对象。
+
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
   此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。

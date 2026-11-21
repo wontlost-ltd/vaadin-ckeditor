@@ -194,15 +194,8 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .withLicenseKey(LICENSE_KEY)
     .addCustomPlugin(CustomPlugin.fromPremium("AIAssistant"))
     .withConfig(new CKEditorConfig()
-        .withCustomConfig("ai", Map.of(
-            "openAI", Map.of(
-                "apiUrl", "https://api.openai.com/v1",
-                "requestHeaders", Map.of(
-                    "Authorization", "Bearer " + openAiKey
-                )
-            )
-        ))
-    )
+        .set("ai.openAI.apiUrl", "https://api.openai.com/v1")
+        .set("ai.openAI.requestHeaders.Authorization", "Bearer " + openAiKey))
     .build();
 ```
 
@@ -212,7 +205,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withCustomConfig("exportPdf", Map.of(
+    .set("exportPdf", Map.of(
         "fileName", "document.pdf",
         "converterOptions", Map.of(
             "format", "A4",
@@ -237,13 +230,9 @@ Real-time collaboration requires CKEditor Cloud Services:
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withCustomConfig("cloudServices", Map.of(
-        "tokenUrl", "https://your-server.com/ckeditor-token",
-        "webSocketUrl", "wss://your-collaboration-server.com"
-    ))
-    .withCustomConfig("collaboration", Map.of(
-        "channelId", "document-" + documentId
-    ));
+    .set("cloudServices.tokenUrl", "https://your-server.com/ckeditor-token")
+    .set("cloudServices.webSocketUrl", "wss://your-collaboration-server.com")
+    .set("collaboration.channelId", "document-" + documentId);
 
 VaadinCKEditor editor = VaadinCKEditor.create()
     .withPreset(CKEditorPreset.FULL)
