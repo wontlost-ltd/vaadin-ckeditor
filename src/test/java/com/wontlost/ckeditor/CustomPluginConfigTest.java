@@ -42,6 +42,10 @@ class CustomPluginConfigTest {
         assertThatThrownBy(() -> builder.withConfig("", JsonUtil.createObjectNode())).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.withConfig(null, JsonUtil.createObjectNode())).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.withConfig("ok", null)).isInstanceOf(NullPointerException.class);
+        for (String reserved : new String[] {"__proto__", "constructor", "prototype"}) {
+            assertThatThrownBy(() -> builder.withConfig(reserved, JsonUtil.createObjectNode()))
+                .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     @Test

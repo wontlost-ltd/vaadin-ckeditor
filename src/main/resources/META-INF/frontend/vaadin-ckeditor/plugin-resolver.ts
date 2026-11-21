@@ -161,7 +161,8 @@ export const PLUGIN_CONFIG_EVENT = 'vaadin:pluginConfig';
 
 /** 插件列表中各自定义插件的配置：configKey → config。 */
 export function pluginConfigEntries(plugins: readonly PluginConfig[] | null | undefined): Record<string, unknown> {
-    const entries: Record<string, unknown> = {};
+    // 无原型对象：配置键即使是 "__proto__" 也只是普通属性（Java 端另有校验）
+    const entries: Record<string, unknown> = Object.create(null);
     for (const plugin of plugins ?? []) {
         if (plugin.configKey) {
             entries[plugin.configKey] = plugin.config;

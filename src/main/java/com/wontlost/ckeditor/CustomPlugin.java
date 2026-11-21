@@ -77,6 +77,9 @@ public class CustomPlugin implements java.io.Serializable {
         Pattern.CASE_INSENSITIVE
     );
 
+    /** 会与 JavaScript 对象原型冲突的配置键。 */
+    private static final Set<String> RESERVED_CONFIG_KEYS = Set.of("__proto__", "constructor", "prototype");
+
     private final String jsName;
     private final String importPath;
     private final Set<String> toolbarItems;
@@ -286,12 +289,15 @@ public class CustomPlugin implements java.io.Serializable {
          * @param configKey the editor configuration key, a JavaScript identifier
          * @param value the configuration value, not null
          * @return this builder
-         * @throws IllegalArgumentException if the key is not a JavaScript identifier
+         * @throws IllegalArgumentException if the key is not a JavaScript identifier, or is
+         *         {@code __proto__}, {@code constructor} or {@code prototype}
          * @since 6.2.0
          */
         public Builder withConfig(String configKey, JsonNode value) {
-            if (configKey == null || !configKey.matches("[A-Za-z_$][A-Za-z0-9_$]*")) {
-                throw new IllegalArgumentException("Config key must be a JavaScript identifier: " + configKey);
+            if (configKey == null || !configKey.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+                    || RESERVED_CONFIG_KEYS.contains(configKey)) {
+                throw new IllegalArgumentException(
+                    "Config key must be a JavaScript identifier other than __proto__, constructor, prototype: " + configKey);
             }
             this.configKey = configKey;
             this.config = Objects.requireNonNull(value, "value").deepCopy();
