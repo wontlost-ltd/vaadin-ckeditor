@@ -266,9 +266,11 @@ Load any of them with `CustomPlugin.fromPremium("<Plugin>")`. The plan is from [
 | `RevisionHistory` | Revision history | `revisionHistory` | Collaboration add-on |
 | `RealTimeCollaborativeEditing` / `…Comments` / `…TrackChanges` / `…RevisionHistory`, `RealTimeContentFetcher`, `PresenceList` | Real-time collaboration (CKEditor Cloud Services) | - | Collaboration add-on |
 
-> `CKBox` / `CKBoxImageEdit` and `TableLayout` ship in the free `ckeditor5` package but are licence-gated: use
-> `CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT` (CKBox add-on) and `CKEditorPlugin.TABLE_LAYOUT` (Essential+) with a
-> commercial licence key, not `fromPremium(...)`.
+> **`CKBox` / `CKBoxImageEdit` and `TableLayout` are premium features too.** CKBox needs a commercial plan plus the CKBox
+> add-on ([docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html)); TableLayout needs Essential+ ([docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html)); both have a 14-day trial and need
+> `withLicenseKey(...)`. They are exported by the open-source `ckeditor5` package, not by `ckeditor5-premium-features`,
+> so load them with `CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT` / `TABLE_LAYOUT` (`requiresLicense()` is true), not
+> `fromPremium(...)`.
 
 ### Collaboration Features
 

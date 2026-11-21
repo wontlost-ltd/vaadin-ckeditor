@@ -100,6 +100,8 @@ public class VaadinCKEditorBuilder {
      * Toolbar separator
      */
     private static final String TOOLBAR_SEPARATOR = "|";
+    private static final java.util.logging.Logger LOGGER =
+        java.util.logging.Logger.getLogger(VaadinCKEditorBuilder.class.getName());
 
     private final VaadinCKEditor editor;
     private boolean built = false;
@@ -680,6 +682,13 @@ public class VaadinCKEditorBuilder {
             editor.setAllowConfigRequiredPlugins(true);
         }
 
+        Set<CKEditorPlugin> unlicensed = licenseRequiredWithoutKey(finalPlugins, editor.getLicenseKeyInternal());
+        if (!unlicensed.isEmpty()) {
+            LOGGER.warning(() -> "Plugins " + unlicensed + " are CKEditor premium features: they need a commercial plan "
+                + "and withLicenseKey(...); with the GPL key CKEditor reports a licence error. See "
+                + "https://ckeditor.com/pricing");
+        }
+
         // Initialize
         editor.initialize();
 
@@ -689,6 +698,22 @@ public class VaadinCKEditorBuilder {
         }
 
         return editor;
+    }
+
+    /**
+     * 需要商业 license（{@link CKEditorPlugin#requiresLicense()}）但未配置 license key（为空或默认的 GPL）的插件。
+     */
+    static Set<CKEditorPlugin> licenseRequiredWithoutKey(Set<CKEditorPlugin> plugins, String licenseKey) {
+        boolean noKey = licenseKey == null || licenseKey.isBlank() || "GPL".equalsIgnoreCase(licenseKey.trim());
+        Set<CKEditorPlugin> result = EnumSet.noneOf(CKEditorPlugin.class);
+        if (noKey) {
+            for (CKEditorPlugin plugin : plugins) {
+                if (plugin.requiresLicense()) {
+                    result.add(plugin);
+                }
+            }
+        }
+        return result;
     }
 
     /**

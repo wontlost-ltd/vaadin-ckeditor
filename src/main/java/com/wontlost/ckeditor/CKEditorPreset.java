@@ -527,7 +527,7 @@ public enum CKEditorPreset {
      *     .addCustomPlugin(CustomPlugin.fromPremium("MergeFields"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("Template"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("PasteFromOfficeEnhanced"))
-     *     .addPlugin(CKEditorPlugin.TABLE_LAYOUT) // 免费 umbrella 导出，运行时需商业 license
+     *     .addPlugin(CKEditorPlugin.TABLE_LAYOUT) // premium feature：需商业 plan 与 license key（由开源 ckeditor5 包导出）
      *     // Add premium toolbar items:
      *     .withToolbar("undo", "redo", "|",
      *         "insertMergeField", "previewMergeFields", "|",

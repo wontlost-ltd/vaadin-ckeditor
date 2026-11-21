@@ -215,7 +215,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'Base64UploadAdapter': Base64UploadAdapter,
     'SimpleUploadAdapter': SimpleUploadAdapter,
     'CKFinder': CKFinder,
-    // 免费 umbrella 导出、功能属付费 CKBox 服务（需 license key 与 ckbox.tokenUrl）
+    // premium feature（商业 plan + CKBox 附加服务 + license key，另需 ckbox.tokenUrl），由开源 ckeditor5 包导出
     'CKBox': CKBox,
     'CKBoxImageEdit': CKBoxImageEdit,
     // Tables
@@ -225,7 +225,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'TableCellProperties': TableCellProperties,
     'TableCaption': TableCaption,
     'TableColumnResize': TableColumnResize,
-    // 免费 umbrella 导出但 TableLayoutEditing 带 license 门控
+    // premium feature（商业 plan + license key），由开源 ckeditor5 包导出
     'TableLayout': TableLayout,
     'PlainTableOutput': PlainTableOutput,
     // Media

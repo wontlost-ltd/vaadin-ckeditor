@@ -184,7 +184,7 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Tables:**
 - `TABLE`, `TABLE_TOOLBAR`, `TABLE_PROPERTIES`, `TABLE_CELL_PROPERTIES`
-- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`；免费包导出但运行时需商业 license key）
+- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`；premium feature，需商业 plan 与 license key，由开源 `ckeditor5` 包导出）
 
 **Media & Code:**
 - `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
@@ -1023,8 +1023,10 @@ VaadinCKEditor editor = VaadinCKEditor.create()
   `ExportInlineStyles`, `SourceEditingEnhanced`, `TrackChangesData`, `TrackChangesPreview`, `PresenceList`, …
 
 The [Premium Plugin Catalogue](PREMIUM_INTEGRATION.md#premium-plugin-catalogue) lists every plugin with its toolbar item,
-the CKEditor plan it needs and its feature documentation. `CKBox` and `TableLayout` are licence-gated plugins of the free
-package: use `CKEditorPlugin.CKBOX` / `CKEditorPlugin.TABLE_LAYOUT`.
+the CKEditor plan it needs and its feature documentation. `CKBox` and `TableLayout` are premium features as well (commercial
+plan and licence key; CKBox also needs the CKBox add-on), but they are exported by the open-source `ckeditor5` package
+rather than `ckeditor5-premium-features`: load them with `CKEditorPlugin.CKBOX` / `CKEditorPlugin.TABLE_LAYOUT`
+(`requiresLicense()` is true).
 
 ### Persisting Comments and Suggestions (no CKEditor Cloud)
 

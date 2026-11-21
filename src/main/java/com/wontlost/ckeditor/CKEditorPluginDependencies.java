@@ -293,7 +293,8 @@ public final class CKEditorPluginDependencies {
         // Comments and TrackChanges can work standalone but benefit from CloudServices
         // for real-time sync - we don't add hard dependency here
 
-        // CKBox / CKBoxImageEdit 不在此表：它们由免费 ckeditor5 导出，见 CKEditorPlugin.CKBOX
+        // CKBox / CKBoxImageEdit 不在此表：它们由开源 ckeditor5 包导出（仍是需要商业 plan + CKBox 附加服务的
+        // premium feature），见 CKEditorPlugin.CKBOX
 
         // 脚注；Uploadcare（需 uploadcare.pubKey 配置，Image Optimizer 付费附加服务）
         premDeps.put("Footnotes", Set.of());

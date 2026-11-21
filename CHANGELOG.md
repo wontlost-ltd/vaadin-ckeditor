@@ -17,14 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （经 `registerCKEditorPlugin` 登记，与 `CustomPlugin.fromPremium("Comments")` 组合）；`comment-permission-enforcer`
   读取服务端授予的权限。**未使用 CKEditor license**：以文档形状的 mock 插件测试，真实 premium 行为仍需用 license 验证，
   见 Premium Integration Guide「Comments and Track Changes Without CKEditor Cloud」。
-- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 由免费 `ckeditor5` 导出（付费 CKBox 服务，需 license key 与
-  `ckbox.tokenUrl`），自动带上 CloudServices 与 ImageUpload。
+- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 是 **premium feature**，需要商业 CKEditor plan 加 CKBox
+  附加服务与 license key（可先 14 天试用，见 [CKBox 文档](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html)），另需 `ckbox.tokenUrl`。插件类由开源的
+  `ckeditor5` 包导出（与免费功能同一个包），不属于 `ckeditor5-premium-features`，因此以 `CKEditorPlugin` 常量加载；
+  自动带上 CloudServices 与 ImageUpload。
+- **`CKEditorPlugin#requiresLicense()` / `getLicenseRequiredPlugins()`**：标出由 `ckeditor5` 包导出、但需要商业 license
+  的插件（`CKBOX`、`CKBOX_IMAGE_EDIT`、`TABLE_LAYOUT`）；builder 在这些插件与默认 `GPL` key 同用时记录警告。
 - **`PremiumPlugin.FOOTNOTES` / `UPLOADCARE`** 及其依赖登记。
 
 ### Fixed
 - **CKBox 被错列为 premium 插件**：`CKEditorPluginDependencies` 的 premium 表含 `CKBox` / `CKBoxImageEdit`，但它们不由
   `ckeditor5-premium-features` 导出，`CustomPlugin.fromPremium("CKBox")` 从未能加载。现从 premium 表移除，改用
-  `CKEditorPlugin.CKBOX`；新增测试保证 premium 清单中的名称都不是免费包导出的插件。
+  `CKEditorPlugin.CKBOX`（仍是需要商业 plan 与 CKBox 附加服务的 premium feature）；新增测试保证 premium 包清单中的名称
+  都不是 `ckeditor5` 包导出的插件。
 
 ### Documentation
 - Premium Integration Guide 重写套餐表（ckeditor.com/pricing，2026-11-22），新增全部 premium 插件目录（工具栏项、所需套餐、
@@ -151,8 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **运行期编辑器错误上报**：CKEditor 49 移除 Watchdog 与崩溃自动重启，连接器改用 `onEditorError()`
   观察逃逸出编辑器的错误，并以 `EDITOR_RUNTIME_ERROR`（severity `ERROR`、recoverable）触发既有的
   `EditorErrorEvent`；编辑器销毁时自动退订。
-- **`CKEditorPlugin.TABLE_LAYOUT`**（`insertTableLayout`）：预设表格布局。该插件由免费 `ckeditor5`
-  umbrella 导出，但 `TableLayoutEditing` 带商业 license 门控，使用时仍需 license key。
+- **`CKEditorPlugin.TABLE_LAYOUT`**（`insertTableLayout`）：预设表格布局。premium feature，需商业 plan 与
+  license key；由开源 `ckeditor5` umbrella 包导出（不属于 `ckeditor5-premium-features`），`TableLayoutEditing` 带 license 门控。
 - **`PremiumPlugin` 新增** CKEditor 49.1 的 `AIChatBalloon`、`AIEditorConfig`、`ProposedChanges`、
   `RealTimeContentFetcher`，并补齐 CloudServices 依赖登记。
 

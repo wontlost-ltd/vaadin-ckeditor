@@ -62,9 +62,10 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>PasteFromOfficeEnhanced</td><td>-</td><td>Enhanced paste from Word / Excel / Google Docs</td></tr>
  * </table>
  *
- * <p>{@code TableLayout}, {@code CKBox} and {@code CKBoxImageEdit} are exported by the free {@code ckeditor5}
- * umbrella (license-gated at runtime); use {@link CKEditorPlugin#TABLE_LAYOUT}, {@link CKEditorPlugin#CKBOX} and
- * {@link CKEditorPlugin#CKBOX_IMAGE_EDIT} instead of this enum. The plan each plugin needs is listed in
+ * <p>{@code TableLayout}, {@code CKBox} and {@code CKBoxImageEdit} are premium features too (commercial plan and licence
+ * key; CKBox also needs the CKBox add-on), but they are exported by the open-source {@code ckeditor5} package, not by
+ * {@code ckeditor5-premium-features}: use {@link CKEditorPlugin#TABLE_LAYOUT}, {@link CKEditorPlugin#CKBOX} and
+ * {@link CKEditorPlugin#CKBOX_IMAGE_EDIT} (see {@link CKEditorPlugin#requiresLicense()}) instead of this enum. The plan each plugin needs is listed in
  * {@code docs/PREMIUM_INTEGRATION.md}.</p>
  *
  * <h2>License:</h2>

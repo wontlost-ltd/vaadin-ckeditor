@@ -193,7 +193,7 @@ describe('PLUGIN_REGISTRY', () => {
         expect(PLUGIN_REGISTRY).toHaveProperty('Italic');
     });
 
-    it('registers TableLayout from the free umbrella (license-gated at runtime, not a premium export)', () => {
+    it('registers TableLayout from the ckeditor5 package (a premium feature needing a licence, not a ckeditor5-premium-features export)', () => {
         expect(PLUGIN_REGISTRY).toHaveProperty('TableLayout');
     });
 

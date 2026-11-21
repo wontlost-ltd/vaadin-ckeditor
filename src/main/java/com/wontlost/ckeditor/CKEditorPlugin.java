@@ -2,6 +2,7 @@ package com.wontlost.ckeditor;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -166,15 +167,21 @@ public enum CKEditorPlugin {
     CKFINDER("CKFinder", Category.UPLOAD),
 
     /**
-     * CKBox 云端文件管理与图片上传（toolbar {@code ckbox}）。
-     * 插件类由免费 umbrella {@code ckeditor5} 导出（{@code ckeditor5-premium-features} 并不导出它，
-     * 所以 {@code CustomPlugin.fromPremium("CKBox")} 无效），但它是付费的 CKBox 服务：需要商业 license key
-     * 与 {@code ckbox.tokenUrl}（或 {@code cloudServices.tokenUrl}）。缺配置会报错，故与 CKFinder 一样
-     * 归入"需配置插件"。会自动带上 CloudServices。
+     * <b>Premium feature</b>：CKBox 文件管理与图片上传（toolbar {@code ckbox}）。需要商业 CKEditor plan 加
+     * CKBox 附加服务（npm 自托管分发也要求商业 plan）以及有效的 license key；可先用 CKEditor Premium Features
+     * 14 天试用。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>。
+     * <p>插件类由开源的 {@code ckeditor5} 包导出（与免费功能同一个包），不属于 {@code ckeditor5-premium-features}，
+     * 所以要用本常量而不是 {@code CustomPlugin.fromPremium("CKBox")}。另需配置 {@code ckbox.tokenUrl}
+     * （或 {@code cloudServices.tokenUrl}），缺配置会报错，故与 CKFinder 一样归入"需配置插件"；会自动带上
+     * CloudServices。{@link #requiresLicense()} 为 true。</p>
      */
     CKBOX("CKBox", Category.UPLOAD, "ckbox"),
 
-    /** CKBox 图片编辑（toolbar {@code ckboxImageEdit}），依赖 {@link #CKBOX}；同样需要 CKBox 订阅。 */
+    /**
+     * <b>Premium feature</b>：CKBox 图片编辑（toolbar {@code ckboxImageEdit}），依赖 {@link #CKBOX}；需要商业 plan、
+     * CKBox 附加服务与 license key（同 {@link #CKBOX}，见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>）。
+     * 由开源的 {@code ckeditor5} 包导出，不属于 {@code ckeditor5-premium-features}。
+     */
     CKBOX_IMAGE_EDIT("CKBoxImageEdit", Category.UPLOAD, "ckboxImageEdit"),
 
     // ==================== Tables ====================
@@ -198,9 +205,11 @@ public enum CKEditorPlugin {
     TABLE_COLUMN_RESIZE("TableColumnResize", Category.TABLE),
 
     /**
-     * 预设表格布局模板（insertTableLayout）。
-     * 由 ckeditor5 免费 umbrella 导出（ckeditor5-premium-features 并不导出它），
-     * 但其 TableLayoutEditing 带商业 license 门控：未配置有效 license key 时 CKEditor 会报 license 错误。
+     * <b>Premium feature</b>：预设表格布局（Layout tables，toolbar {@code insertTableLayout}）。需要包含该功能的
+     * 商业 CKEditor plan（ckeditor.com/pricing 2026-11-22：Essential、Professional、Custom）与有效 license key；
+     * 可先 14 天试用。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html">Layout tables 文档</a>。
+     * <p>由开源的 {@code ckeditor5} 包导出（与免费功能同一个包），不属于 {@code ckeditor5-premium-features}；
+     * 未配置有效 license key 时 CKEditor 会报 license 错误。{@link #requiresLicense()} 为 true。</p>
      */
     TABLE_LAYOUT("TableLayout", Category.TABLE, "insertTableLayout"),
 
@@ -474,13 +483,38 @@ public enum CKEditorPlugin {
 
     /**
      * 是否经 {@code ckeditor5-premium-features} 包加载。
-     * <p>本枚举全部由免费 {@code ckeditor5} umbrella 导出，因此恒为 false；它描述的是
-     * <b>加载通道</b>，不是 license 判断：{@link #TABLE_LAYOUT} 虽由免费包导出，运行时仍需商业
-     * license key。premium 包里的插件请用 {@link CustomPlugin#fromPremium(String)}。
+     * <p>本枚举全部由开源的 {@code ckeditor5} 包导出，因此恒为 false；它描述的是<b>加载通道</b>，
+     * 不是 license 判断——是否需要商业 license 见 {@link #requiresLicense()}。premium 包里的插件请用
+     * {@link CustomPlugin#fromPremium(String)}。
      * @return 内置插件恒为 false
      */
     public boolean isPremium() {
         return false;
+    }
+
+    /** 由开源 {@code ckeditor5} 包导出、但属 premium feature 的插件（需商业 plan 与 license key）。 */
+    private static final Set<CKEditorPlugin> LICENSE_REQUIRED = Collections.unmodifiableSet(
+        EnumSet.of(CKBOX, CKBOX_IMAGE_EDIT, TABLE_LAYOUT));
+
+    /**
+     * Whether this plugin is a CKEditor premium feature that needs a commercial plan and a licence key
+     * ({@code withLicenseKey(...)}), even though the open-source {@code ckeditor5} package exports it:
+     * {@link #CKBOX}, {@link #CKBOX_IMAGE_EDIT} (also the CKBox add-on) and {@link #TABLE_LAYOUT}.
+     * With the default {@code GPL} key the builder logs a warning for these plugins.
+     *
+     * @return true if a commercial licence key is required
+     * @since 6.2.0
+     */
+    public boolean requiresLicense() {
+        return LICENSE_REQUIRED.contains(this);
+    }
+
+    /**
+     * @return the plugins for which {@link #requiresLicense()} is true
+     * @since 6.2.0
+     */
+    public static Set<CKEditorPlugin> getLicenseRequiredPlugins() {
+        return LICENSE_REQUIRED;
     }
 
     /**

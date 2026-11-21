@@ -395,8 +395,18 @@ class CKEditorPluginDependenciesTest {
     }
 
     @Test
-    @DisplayName("CKBox 由免费 ckeditor5 导出：不在 premium 表中，作为 CKEditorPlugin 带上 CloudServices")
-    void ckboxIsAFreeUmbrellaPluginWithCloudServices() {
+    @DisplayName("CKBox 由开源 ckeditor5 包导出、属 premium feature：不在 premium 包清单中，requiresLicense，带上 CloudServices")
+    void ckboxIsALicensedPluginOfTheCkeditor5PackageWithCloudServices() {
+        assertThat(CKEditorPlugin.getLicenseRequiredPlugins())
+            .containsExactlyInAnyOrder(CKEditorPlugin.CKBOX, CKEditorPlugin.CKBOX_IMAGE_EDIT, CKEditorPlugin.TABLE_LAYOUT);
+        for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
+            // 需要 license 的内置插件绝不会出现在 premium 包清单里（加载通道不同）
+            assertThat(plugin.isPremium()).isFalse();
+            if (plugin.requiresLicense()) {
+                assertThat(CKEditorPluginDependencies.getKnownPremiumPlugins()).doesNotContain(plugin.getJsName());
+            }
+        }
+        assertThat(CKEditorPlugin.BOLD.requiresLicense()).isFalse();
         assertThat(CKEditorPluginDependencies.getKnownPremiumPlugins()).doesNotContain("CKBox", "CKBoxImageEdit");
         assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isFalse();
         assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.CKBOX))

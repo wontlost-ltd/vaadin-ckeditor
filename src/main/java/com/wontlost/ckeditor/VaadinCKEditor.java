@@ -1240,6 +1240,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     void setEditorDataInternal(String data) { this.editorData = data != null ? data : ""; }
     void setReadOnlyInternal(boolean readOnly) { this.readOnly = readOnly; }
     void setLicenseKeyInternal(String licenseKey) { this.licenseKey = licenseKey; }
+    String getLicenseKeyInternal() { return this.licenseKey; }
     void setToolbarInternal(String[] toolbar) { this.toolbar = toolbar != null ? toolbar.clone() : null; }
     void setConfigInternal(CKEditorConfig config) { this.config = config; }
     CKEditorConfig getConfigInternal() { return this.config; }

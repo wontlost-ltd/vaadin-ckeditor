@@ -184,18 +184,22 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 | `RealTimeContentFetcher` | - | Collaboration add-on (Professional), Custom + CKEditor Cloud Services | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/collaboration/real-time-collaboration/real-time-collaboration.html) |
 | `PresenceList` | - | Collaboration add-on (Professional), Custom + CKEditor Cloud Services | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/collaboration/real-time-collaboration/users-in-real-time-collaboration.html) |
 
-### Licence-gated plugins in the free package
+### Premium features exported by the `ckeditor5` package
 
-These are exported by the free `ckeditor5` package, not by `ckeditor5-premium-features`, so `fromPremium(...)` cannot
-load them. Add them as regular plugins and configure a licence key:
+These are **premium features** that need a commercial plan (and, for CKBox, the CKBox add-on) plus a licence key; each
+has a 14-day trial. Unlike the plugins above they are exported by the open-source `ckeditor5` package (the same package
+as the free features), not by `ckeditor5-premium-features`, so `fromPremium(...)` cannot load them. Add them with their
+`CKEditorPlugin` constant (`requiresLicense()` returns true; the builder warns when they are used with the default
+`GPL` key) and configure `withLicenseKey(...)`:
 
 | Plugin | Java | Plan | Feature docs |
 |--------|------|------|--------------|
-| `CKBox`, `CKBoxImageEdit` | `CKEditorPlugin.CKBOX`, `CKEditorPlugin.CKBOX_IMAGE_EDIT` (toolbar `ckbox`, `ckboxImageEdit`; needs `ckbox.tokenUrl` or `cloudServices.tokenUrl`) | CKBox add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html) |
-| `TableLayout` | `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html) |
+| `CKBox`, `CKBoxImageEdit` | `CKEditorPlugin.CKBOX`, `CKEditorPlugin.CKBOX_IMAGE_EDIT` (toolbar `ckbox`, `ckboxImageEdit`; needs `ckbox.tokenUrl` or `cloudServices.tokenUrl`; npm: `ckeditor5 ckbox`) | Premium: commercial plan + CKBox add-on (Essential, Professional), included in Custom. "Using the self-hosted distribution channel (npm) requires having an appropriate commercial plan" | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html) |
+| `TableLayout` | `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) | Premium: Essential, Professional, Custom ("Layout Tables" on the pricing page) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html) |
 
-> Before 6.2.0 the add-on listed CKBox as a premium plugin; `CustomPlugin.fromPremium("CKBox")` never worked, because
-> the premium package does not export it. Use `CKEditorPlugin.CKBOX`.
+> Before 6.2.0 the add-on listed CKBox among the `ckeditor5-premium-features` plugins; `CustomPlugin.fromPremium("CKBox")`
+> never worked, because that package does not export it. CKBox is still a premium feature: use `CKEditorPlugin.CKBOX`
+> with a licence key that includes the CKBox add-on.
 
 ### Combining premium and custom plugins
 
