@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ Behaviour change (6.2.0): fullscreen page width
+- **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
+  此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。
+  现在页宽 = 编辑列宽 − 两侧各 28px 留白（`--ck-fullscreen-editor-top-margin`）；编辑列 = 全屏区域减去所有可见侧栏
+  及其外边距（左侧大纲、右侧 minimap、CKEditor 的批注 / AI 面板），侧栏保持自身宽度、不与页面重叠，缺席的侧栏把空间让给页面；
+  页边距（20mm × 12mm）与最小高度（297mm）按 A4 比例随页宽缩放，窗口缩放与浏览器缩放都会改变页面大小；
+  页面高度随内容增长，不限制宽度。全屏模式下空的侧栏不再占位（A4 模式除外）。CKEditor 全屏只支持 CLASSIC 与
+  DECOUPLED，BALLOON / INLINE 编辑器上 `setFullscreenPage` 不起作用。
+  **恢复旧观感**：`editor.setFullscreenPage(FullscreenPage.A4)` 或 `builder.withFullscreenPage(FullscreenPage.A4)`。
+
+### Added
+- **`FullscreenPage` 与 `VaadinCKEditor#setFullscreenPage` / `getFullscreenPage`、`VaadinCKEditorBuilder#withFullscreenPage`**
+  （#156）：`A4_FIT`（默认）、`A4`（CKEditor 的 795.701px）、`FULL_WIDTH`（铺满编辑列）、`custom(String)`（任意 CSS 宽度，
+  如 `1200px`、`80%`、`min(1400px, 90%)`；只接受「数字 + 单位 / %」及 `calc` / `min` / `max` / `clamp`，拒绝关键字、
+  `var()` / `url()`、引号、分号等，无法注入 CSS）。按编辑器实例生效，可在全屏打开时切换；源码视图同宽。
+- **`--ck-fullscreen-editable-width`**（#156）：设在 `html` 上的应用级覆盖，优先于所有编辑器的 `FullscreenPage`。
+
+### Fixed
+- **全屏页面被 `setWidth` / `setHeight` 压窄**（#156）：连接器把编辑器尺寸写成编辑根的内联 `width` / `height`，
+  全屏时它们压过 CKEditor 的页面宽度（如 `setWidthFull()` 下 A4 页只剩 545px，文档编辑器带大纲时只剩 92px）。
+  全屏布局现在接管页面的宽 / 高，退出全屏后内联尺寸照常生效。
+- **文档编辑器的 minimap 在全屏模式下不可用**（#156）：CKEditor 的 Fullscreen 插件会把大纲移进全屏左侧栏，
+  但不处理 minimap——它留在被隐藏的原容器里，且仍绑定原滚动容器。add-on 现把 minimap 挪到全屏页面右侧（经 CKEditor
+  公开的 `moveToFullscreen`，退出时由 CKEditor 放回），并在进入与退出后重新绑定滚动，minimap 在全屏中跟随并驱动滚动。
 ### Fixed
 - **BALLOON / INLINE 编辑器上的全屏按钮让整页变空白**（[#163](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/163)）：
   CKEditor 5 的全屏只支持 Classic 与 Decoupled（`FullscreenCommand` 只为这两种编辑器创建处理器，其它类型的

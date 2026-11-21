@@ -488,6 +488,18 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Set the page width used in fullscreen mode. Defaults to {@link FullscreenPage#A4_FIT}.
+     *
+     * @param page the page width, not null
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setFullscreenPage(FullscreenPage)
+     */
+    public VaadinCKEditorBuilder withFullscreenPage(FullscreenPage page) {
+        editor.setFullscreenPage(page);
+        return this;
+    }
+
+    /**
      * Enable autosave with callback and waiting time.
      *
      * @param callback the callback to invoke when autosave triggers

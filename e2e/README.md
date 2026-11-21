@@ -16,6 +16,8 @@ in a real browser to catch issues that unit tests miss.
 | `value-binding.spec.ts` | 值双向绑定（客户端输入回传服务端、`setValue` 下发、`setValue(null)` 归一化）与只读切换 |
 | `ui-languages.spec.ts` | 每个 ckeditor5 翻译包（及 `zh-tw`、大小写混写代码、`sk-SK` / `sr-Latn-RS` / `zh-Hans` / `zh-Hant-TW` 等逐级回退代码）：add-on 接受代码、工具栏标签与字典一致、运行期 `locale.t()` 生效、`lang`/`dir`（ar/fa/he/ku/ug/ur 为 RTL）正确、无控制台错误；另覆盖 `withLocale`、`CKEditorConfig` 设置语言以及显式语言保留内容语言（#151）；期望值取自 e2e 自带的同版本 `ckeditor5` |
 | `dark-theme-states.spec.ts` | Lumo 明暗主题下 split button 两半悬停底色一致、激活按钮悬停保持激活态、书签图标对比度 ≥ 3:1 且颜色可配置（#149 / #150） |
+| `fullscreen-sidebars.spec.ts` | `/fullscreen-doc` 夹具：文档编辑器 × {无侧栏、minimap、大纲、两者} × {A4_FIT、A4、FULL_WIDTH} × 两种视口——编辑列 = 全屏宽度 − 可见侧栏，页面不与侧栏重叠、侧栏不被压缩，minimap 在全屏中跟随并驱动滚动，大纲可跳转，退出后布局复原；CLASSIC 在 `setWidthFull()` 下的页宽；BALLOON / INLINE 上 `setFullscreenPage` 无作用。大纲是付费插件：布局用例需 `E2E_PREMIUM=1`（sample 安装 ckeditor5-premium-features），跳转另需 `CKEDITOR_LICENSE_KEY`（#156） |
+| `fullscreen-width.spec.ts` | `/fullscreen` 夹具（`?page=` / `?page2=` / `?width=`）：默认 A4_FIT 在 1024 / 1600 / 2400px 视口与 200 % 缩放（`deviceScaleFactor: 2`）下页宽 = 编辑列 − 56px 且页边距、最小高度保持 A4 比例，窗口缩放即时生效；A4 = 795.701px；FULL_WIDTH 铺满编辑列；`custom(1000px / 60%)` 含源码视图；两个编辑器各自生效；运行期切换；`html` 覆盖优先；不影响非全屏编辑器（#156） |
 | `fullscreen-editor-types.spec.ts` | `/fullscreen-types` 夹具：经 `AI_DOCUMENT` 预设、`withToolbar`、`CKEditorConfig.setToolbar` 三种途径请求全屏时，BALLOON / INLINE 工具栏无全屏按钮、未加载 Fullscreen 插件、`Ctrl+Shift+F` 不进入全屏；CLASSIC / DECOUPLED 的全屏按钮照常进入与退出（#163） |
 | `sticky-toolbar.spec.ts` | AppLayout + 铺满 TabSheet（滚动容器在 shadow DOM 中）的 `/sticky-toolbar` 夹具：聚焦后滚动，工具栏贴住滚动容器顶部，滚动事件当帧与稳定后都没有 CKEditor 粘性占位块、工具栏不被设为 `fixed`（#157） |
 | `heading-options.spec.ts` | `/heading` 夹具：同级别两个标题选项（独立 model + view 类名）时编辑器正常初始化，`<h1 class>` / `<h4 class>` 往返不丢类名，从下拉应用变体时内容带上类名（#158 / #159） |
