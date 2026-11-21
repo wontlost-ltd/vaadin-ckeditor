@@ -396,11 +396,14 @@ CKEditorConfig config = new CKEditorConfig()
     .set("collaboration.channelId", "document-" + documentId)
     // values: String, int / long / double / boolean, Number, List, Map, JsonNode
     .set("fontSize.options", List.of(10, 12, "default", 16, 20))
-    .set("ai", Map.of(
-        "openAI.apiUrl", "https://example.com/openai",   // map keys are paths too
-        "chat.context.document.enabled", true));
-// → { cloudServices: { tokenUrl, webSocketUrl }, collaboration: { channelId },
-//     fontSize: { options: [...] }, ai: { openAI: { apiUrl }, chat: { context: { document: { enabled } } } } }
+    // AI Assistant with the OpenAI adapter (add CustomPlugin.fromPremium("AIAssistant") and
+    // CustomPlugin.fromPremium("OpenAITextAdapter")):
+    // https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html
+    .set("ai.assistant.adapter.openAI", Map.of(
+        "apiUrl", "https://example.com/ai-proxy",          // your proxy, keeps the API key off the client
+        "requestParameters.model", "gpt-4o"));             // map keys are paths too
+// → { cloudServices: { tokenUrl, webSocketUrl }, collaboration: { channelId }, fontSize: { options: [...] },
+//     ai: { assistant: { adapter: { openAI: { apiUrl, requestParameters: { model } } } } } }
 ```
 
 - Parents are **merged**: `set("cloudServices.webSocketUrl", ...)` keeps an existing `tokenUrl`,

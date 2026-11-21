@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **`CKEditorConfig.set(path, value)` 支持点号路径与常用值类型**：`set("cloudServices.tokenUrl", "https://…")`、
-  `set("ai.openAI.apiUrl", url)` 写成嵌套对象，与 CKEditor `Config` 的点号语义一致；已存在的父对象合并而不是覆盖
+  `set("ai.assistant.adapter.openAI.apiUrl", url)` 写成嵌套对象，与 CKEditor `Config` 的点号语义一致；已存在的父对象合并而不是覆盖
   （包括 `setUiViewportOffset` 等类型化 setter 建立的对象），最后一段照旧整体替换。新增 `set(String, boolean | int | long | double)`
   与 `set(String, Object)`（String、Number、List、Map、数组及其嵌套，经 Jackson 转换；Map 的键同样按路径展开），
   `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **文档中的高级配置示例无法编译**：`CKEditorPreset.COLLABORATIVE` 的 Javadoc 用了不存在的 `set(String, String)` 与
   `withConfig(lambda)`，README 与 `PREMIUM_INTEGRATION.md` 用了不存在的 `withCustomConfig` / `withHeading` /
-  `withFontSizes` / `withImageUploadUrl`；全部改为可编译的写法。
+  `withFontSizes` / `withImageUploadUrl`；改为可编译的写法（`PREMIUM_INTEGRATION.md` 中旧的 AI Assistant 示例另由 #170 处理）。
 - **点号键不被连接器识别**：此前即使通过 `set(key, JsonNode)` 写入 `"collaboration.channelId"` 之类的字面量键，
   CKEditor 自己能展开，但连接器读取 `collaboration.channelId`、`ai.container` 等嵌套配置的逻辑看不到它；现在服务端即写成嵌套对象。
 

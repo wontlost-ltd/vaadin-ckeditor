@@ -194,8 +194,15 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .withLicenseKey(LICENSE_KEY)
     .addCustomPlugin(CustomPlugin.fromPremium("AIAssistant"))
     .withConfig(new CKEditorConfig()
-        .set("ai.openAI.apiUrl", "https://api.openai.com/v1")
-        .set("ai.openAI.requestHeaders.Authorization", "Bearer " + openAiKey))
+        .withCustomConfig("ai", Map.of(
+            "openAI", Map.of(
+                "apiUrl", "https://api.openai.com/v1",
+                "requestHeaders", Map.of(
+                    "Authorization", "Bearer " + openAiKey
+                )
+            )
+        ))
+    )
     .build();
 ```
 

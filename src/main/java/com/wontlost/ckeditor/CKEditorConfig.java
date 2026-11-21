@@ -1044,7 +1044,7 @@ public class CKEditorConfig implements java.io.Serializable {
      *       therefore still replaces {@code cloudServices} as in previous versions.</li>
      *   <li>A parent that exists but is not an object (a string, array, ...) is replaced by an object.</li>
      *   <li>Keys of object values ({@link Map} / {@link ObjectNode}) are paths too:
-     *       {@code Map.of("openAI.apiUrl", url)} is stored as {@code {openAI: {apiUrl: url}}}.
+     *       {@code Map.of("adapter.openAI.apiUrl", url)} is stored as {@code {adapter: {openAI: {apiUrl: url}}}}.
      *       Keys that lead to the same object are merged recursively; when a key assigns a non-object
      *       where another assigns an object, the later key in iteration order wins (as in CKEditor),
      *       so use an ordered map ({@link LinkedHashMap}) for such conflicts.
@@ -1062,7 +1062,7 @@ public class CKEditorConfig implements java.io.Serializable {
      * <p>Strings, numbers, booleans, lists and maps can be passed directly, see
      * {@link #set(String, Object)} and the primitive overloads.</p>
      *
-     * @param path  configuration key or dotted path, e.g. {@code "ai.openAI.apiUrl"}
+     * @param path  configuration key or dotted path, e.g. {@code "ai.assistant.adapter.openAI.apiUrl"}
      * @param value the value; {@code null} stores JSON {@code null}
      * @return this config for chaining
      * @throws IllegalArgumentException if the path is null, blank or has an empty segment
@@ -1130,9 +1130,11 @@ public class CKEditorConfig implements java.io.Serializable {
      * <pre>
      * config.set("cloudServices.tokenUrl", "https://example.com/cs-token")
      *       .set("fontSize.options", List.of(10, 12, "default", 16))
-     *       .set("ai", Map.of(
-     *           "openAI.apiUrl", "https://example.com/openai",
-     *           "chat.context.document.enabled", true));
+     *       // AI Assistant + OpenAITextAdapter, see
+     *       // https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html
+     *       .set("ai.assistant.adapter.openAI", Map.of(
+     *           "apiUrl", "https://example.com/ai-proxy",
+     *           "requestParameters.model", "gpt-4o"));
      * </pre>
      *
      * <p>Strings, lists and maps share this one {@code Object} overload on purpose: a dedicated

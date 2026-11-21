@@ -46,16 +46,16 @@ class CKEditorConfigPathTest {
     void dottedPathsMergeIntoExistingObjects() {
         config.set("cloudServices", Map.of("tokenUrl", "https://a/token"));
         config.set("cloudServices.webSocketUrl", "wss://a/ws");
-        config.set("ai.openAI.apiUrl", "https://a/openai");
-        config.set("ai.openAI.requestHeaders.Authorization", "Bearer x");
-        config.set("ai.chat.context.document.enabled", true);
+        config.set("ai.assistant.adapter.openAI.apiUrl", "https://a/openai");
+        config.set("ai.assistant.adapter.openAI.requestHeaders.Authorization", "Bearer x");
+        config.set("ai.assistant.adapter.openAI.requestParameters.stream", true);
 
         ObjectNode json = config.toJson();
         assertThat(json.get("cloudServices").toString())
             .isEqualTo("{\"tokenUrl\":\"https://a/token\",\"webSocketUrl\":\"wss://a/ws\"}");
         assertThat(json.get("ai").toString()).isEqualTo(
-            "{\"openAI\":{\"apiUrl\":\"https://a/openai\",\"requestHeaders\":{\"Authorization\":\"Bearer x\"}},"
-                + "\"chat\":{\"context\":{\"document\":{\"enabled\":true}}}}");
+            "{\"assistant\":{\"adapter\":{\"openAI\":{\"apiUrl\":\"https://a/openai\","
+                + "\"requestHeaders\":{\"Authorization\":\"Bearer x\"},\"requestParameters\":{\"stream\":true}}}}}");
     }
 
     @Test
@@ -129,17 +129,18 @@ class CKEditorConfigPathTest {
     @Test
     @DisplayName("dotted keys inside object values are expanded and merged, arrays are not traversed")
     void dottedKeysInValuesAreExpanded() {
+        // 正确的 AI Assistant 键：ai.assistant.adapter.openAI.*（OpenAITextAdapter）
         Map<String, Object> ai = new LinkedHashMap<>();
-        ai.put("openAI.apiUrl", "https://a/openai");
-        ai.put("openAI.requestHeaders", Map.of("Authorization", "Bearer x"));
-        ai.put("openAI", Map.of("requestParameters", Map.of("model", "gpt")));
-        ai.put("quickActions.extraCommands", List.of(Map.of("id.with.dot", "kept")));
+        ai.put("assistant.adapter.openAI.apiUrl", "https://a/openai");
+        ai.put("assistant.adapter.openAI.requestHeaders", Map.of("Authorization", "Bearer x"));
+        ai.put("assistant", Map.of("adapter", Map.of("openAI", Map.of("requestParameters", Map.of("model", "gpt-4o")))));
+        ai.put("assistant.commands", List.of(Map.of("id.with.dot", "kept")));
         config.set("ai", ai);
 
         assertThat(config.toJson().get("ai").toString()).isEqualTo(
-            "{\"openAI\":{\"apiUrl\":\"https://a/openai\",\"requestHeaders\":{\"Authorization\":\"Bearer x\"},"
-                + "\"requestParameters\":{\"model\":\"gpt\"}},"
-                + "\"quickActions\":{\"extraCommands\":[{\"id.with.dot\":\"kept\"}]}}");
+            "{\"assistant\":{\"adapter\":{\"openAI\":{\"apiUrl\":\"https://a/openai\","
+                + "\"requestHeaders\":{\"Authorization\":\"Bearer x\"},\"requestParameters\":{\"model\":\"gpt-4o\"}}},"
+                + "\"commands\":[{\"id.with.dot\":\"kept\"}]}}");
     }
 
     @Test
