@@ -299,6 +299,67 @@ class WordCountLimitTest {
     }
 
     @Test
+    @DisplayName("going back under the limit keeps another Binder validator's error")
+    void underLimitKeepsBinderError() {
+        VaadinCKEditor editor = editor();
+        editor.setMaxWords(2);
+        Binder<Post> binder = new Binder<>(Post.class);
+        binder.forField(editor)
+            .withValidator(v -> !v.contains("forbidden"), "No forbidden words")
+            .bind(Post::getBody, Post::setBody);
+        binder.setBean(new Post());
+
+        type(editor, "<p>forbidden one two</p>");      // 超限且含禁词
+        assertThat(editor.isInvalid()).isTrue();
+        type(editor, "<p>forbidden</p>");              // 回到上限内，但仍含禁词
+        assertThat(editor.isInvalid()).isTrue();
+        assertThat(editor.getErrorMessage()).isEqualTo("No forbidden words");
+
+        // 应用接管错误状态后，回到上限内不清除它
+        type(editor, "<p>a b c</p>");
+        editor.setErrorMessage("set by app");
+        editor.setInvalid(true);
+        binder.removeBinding(editor);
+        type(editor, "<p>a</p>");
+        assertThat(editor.isInvalid()).isTrue();
+        assertThat(editor.getErrorMessage()).isEqualTo("set by app");
+    }
+
+    @Test
+    @DisplayName("invalid client counts are ignored")
+    void invalidClientCountsIgnored() throws Exception {
+        VaadinCKEditor editor = editor();
+        List<WordCountChangeEvent> events = new ArrayList<>();
+        editor.addWordCountChangeListener(events::add);
+        fireFromClient(editor, -1, 5);
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a Binder-bound editor survives session serialization and keeps validating")
+    void serializationWithBinder() throws Exception {
+        VaadinCKEditor editor = editor();
+        editor.setMaxWords(1);
+        Binder<Post> binder = new Binder<>(Post.class);
+        binder.forField(editor).bind(Post::getBody, Post::setBody);
+        binder.setBean(new Post());
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(binder);
+        }
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            @SuppressWarnings("unchecked")
+            Binder<Post> copy = (Binder<Post>) in.readObject();
+            VaadinCKEditor copyEditor = (VaadinCKEditor) copy.getFields().findFirst().orElseThrow();
+            type(copyEditor, "<p>one two</p>");
+            assertThat(copy.validate().isOk()).isFalse();
+            copyEditor.setMaxWords(5);
+            assertThat(copy.isValid()).isTrue();
+        }
+    }
+
+    @Test
     @DisplayName("limits survive session serialization")
     void serialization() throws Exception {
         VaadinCKEditor editor = editor();

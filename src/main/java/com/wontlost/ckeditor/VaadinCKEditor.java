@@ -178,6 +178,8 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     private boolean manualValidation;
     /** 当前 invalid 状态是否由字数 / 字符数上限设置——只撤销自己设置的状态，不覆盖应用自己的 setInvalid。 */
     private boolean limitInvalid;
+    /** 上限校验最近一次设置的错误消息。 */
+    private String limitErrorMessage;
     private final List<ValidationStatusChangeListener<String>> validationStatusListeners = new ArrayList<>();
 
     // Internal managers
@@ -1006,11 +1008,15 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
         }
         ValidationResult result = checkLimits(getValue());
         if (result.isError()) {
-            setErrorMessage(result.getErrorMessage());
+            limitErrorMessage = result.getErrorMessage();
+            setErrorMessage(limitErrorMessage);
             setInvalid(true);
             limitInvalid = true;
         } else if (limitInvalid) {
-            setInvalid(false);
+            // 只撤销仍由上限设置的状态：错误消息已被 Binder / 应用换成别的，说明状态已不属于这里
+            if (isInvalid() && Objects.equals(getErrorMessage(), limitErrorMessage)) {
+                setInvalid(false);
+            }
             limitInvalid = false;
         }
     }
@@ -1312,6 +1318,10 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
      */
     @ClientCallable
     private void fireWordCountChange(int words, int characters) {
+        if (words < 0 || characters < 0) {
+            logger.fine("Ignoring invalid word count from client");
+            return;
+        }
         eventDispatcher.fireWordCountChange(words, characters);
     }
 

@@ -108,6 +108,11 @@ const CORPUS = [
     '<p>你好世界 こんにちは 안녕하세요</p>',
     '<p>héllo wörld 123 emoji 😀 here</p>',
     '<p>   </p><p>after empty</p>',
+    '<blockquote><p>a</p><p>b c</p></blockquote><p>tail</p>',
+    '<p>x<code>y z</code> <i>w</i><u>v</u></p>',
+    '<ul><li><p>nested</p><ul><li>deep item</li></ul></li></ul>',
+    '<pre><code>  indented\n    code();</code></pre>',
+    '<p>tab\tand\nnewline in source</p>',
 ];
 
 test('server-side counting matches the WordCount plugin', async ({ page }) => {
