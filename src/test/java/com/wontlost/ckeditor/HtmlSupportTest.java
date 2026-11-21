@@ -120,9 +120,20 @@ class HtmlSupportTest {
         assertThatThrownBy(() -> HtmlSupport.Rule.elements("div", "x|y")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> HtmlSupport.Rule.element("p").attributes(" ")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> HtmlSupport.create().allowEmpty("1x")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> HtmlSupport.Rule.element("p").classes("a b")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> HtmlSupport.Rule.element("p").style("font size", "x")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(HtmlSupport.Rule.element("p").attributes("data-x", "aria-label", "xml:lang").toJson().get("attributes").size())
+            .isEqualTo(3);
         assertThatThrownBy(() -> HtmlSupport.Rule.element(Pattern.compile("x", Pattern.COMMENTS)))
             .isInstanceOf(IllegalArgumentException.class);
         assertThat(HtmlSupport.Rule.elements("div").toJson().toString()).isEqualTo("{\"name\":\"div\"}");
+        for (String javaOnly : new String[] {"\\Qa.b\\E", "(?i)div", "\\Adiv\\z", "a++", "x{2}+"}) {
+            assertThatThrownBy(() -> HtmlSupport.Rule.element(Pattern.compile(javaOnly)))
+                .as(javaOnly).isInstanceOf(IllegalArgumentException.class);
+        }
+        // 共同语法照常通过（含转义加号、字符类中的 +、非捕获组）
+        HtmlSupport.Rule.element(Pattern.compile("^(?:h[1-6]|p)$"));
+        HtmlSupport.Rule.element("a").attribute("href", Pattern.compile("^https://[a-z+.-]+/\\+x"));
     }
 
     @Test

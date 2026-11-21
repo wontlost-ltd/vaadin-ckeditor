@@ -245,7 +245,18 @@ public final class HtmlSupport implements Serializable {
         return json;
     }
 
+    /**
+     * Java 专有、JavaScript RegExp 不支持或含义不同的写法：引用块 \\Q..\\E、\\A / \\Z / \\z 锚点、
+     * 内联标志 (?i)、占有量词 *+ ++ ?+ }+。在服务端尽早拒绝，而不是等到浏览器创建编辑器时报错。
+     */
+    private static final Pattern JAVA_ONLY_SYNTAX =
+        Pattern.compile("\\\\[QEAZz]|\\(\\?[a-zA-Z-]+[):]|[*+?}]\\+");
+
     static ObjectNode regexp(Pattern pattern) {
+        if (JAVA_ONLY_SYNTAX.matcher(pattern.pattern()).find()) {
+            throw new IllegalArgumentException("Pattern uses Java-only syntax that browsers do not support: "
+                + pattern.pattern());
+        }
         ObjectNode node = createObjectNode();
         node.put(REGEXP_KEY, pattern.pattern());
         node.put(FLAGS_KEY, jsFlags(pattern.flags()));
@@ -422,9 +433,13 @@ public final class HtmlSupport implements Serializable {
             return name;
         }
 
+        /** 属性 / 类名 / 样式名：单个记号，不含空白、引号、{@code = < > /}（HTML 中无法出现在名称里）。 */
+        private static final Pattern TOKEN = Pattern.compile("[^\\s\"'=<>/]+");
+
         private static String requireName(String name, String kind) {
-            if (name == null || name.isBlank()) {
-                throw new IllegalArgumentException("The " + kind + " name must not be blank");
+            if (name == null || !TOKEN.matcher(name).matches()) {
+                throw new IllegalArgumentException("Invalid " + kind + " name: '" + name
+                    + "' (use a single name; use a Pattern to match several)");
             }
             return name;
         }
