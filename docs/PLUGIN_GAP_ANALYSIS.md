@@ -1,5 +1,12 @@
 # CKEditor 插件差集分析报告（ckeditor5 48.2.0）
 
+> **已被取代（2026-11-22，ckeditor5 49.1.0）**：本报告中关于 license 的判断有误，以
+> [Premium Integration Guide](PREMIUM_INTEGRATION.md#licensing-for-self-hosted-npm-builds) 为准。
+> CKEditor 内核（`@ckeditor/ckeditor5-core` 的 `checkPluginsAllowedByLicenseKey`）对 `'GPL'` key 直接返回、不做插件
+> license 检查；拦截依据是插件的 `licenseFeatureCode`，且只针对商业 key。因此 `MediaEmbedResize`、`TableLayout` 等
+> 在 GPL 下**不会**报 license 错误；CKEditor 文档把它们标为 premium feature，商业使用需要 CKEditor 标明的 plan。
+> `isPremiumPlugin` 只用于用量统计。下文 §2.1 等处的"GPL 下会报错"说法保留仅作历史记录。
+
 > **版本说明（2026-09-24 更新）**：本库依赖已升级至 **48.5.2**。本报告的全部结论与
 > 核验数据均基于分析当时的 48.2.0，为保持证据链可追溯，正文中的版本号一律保留不改。
 > 升级到 48.4.0、48.5.0、48.5.2 后均已用 `tsc --noEmit` 复核：`plugin-resolver.ts` 导入的
@@ -54,8 +61,7 @@
 ### 2.1 "功能性 premium" 概念
 
 部分插件的 **glue 类**本身 `isPremiumPlugin === false`（看起来免费），但其 `requires` 依赖链上的
-`*Editing` 子插件 `isPremiumPlugin === true`。CKEditor 的 license 校验按依赖链整体判定：在 GPL license 下
-加载这类插件会触发 license 报错。`MediaEmbedResize`、`TableLayout` 即属此类——**umbrella 可 import，但功能需商业 license**。
+`*Editing` 子插件 `isPremiumPlugin === true`。（**更正**：此句原称"GPL 下加载会触发 license 报错"，不对——内核对 GPL 跳过插件检查，见文首说明。）`MediaEmbedResize`、`TableLayout` 即属此类——**umbrella 可 import，CKEditor 文档标为 premium feature**。
 
 ### 2.2 `MediaEmbedResize` 真相
 

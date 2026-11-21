@@ -56,7 +56,7 @@ above; the other plans are listed because the pricing page describes features in
 | **Free** | $0 | No premium plugins; Export to PDF / Word 5 conversions a month |
 | **Essential** | $160/month ($144 billed annually) | Productivity, document and email features below; Export to PDF / Word 200 a month; CKEditor AI, CKBox or Image Optimizer (Uploadcare) as paid add-ons |
 | **Professional** | $319/month ($289 billed annually) | Everything in Essential; Import from Word and Export to PDF / Word 1,000 a month; **Collaboration add-on** ($299/month: comments, track changes, revision history, real-time co-authoring) |
-| **Custom** | Quote | All add-ons included, Pagination, Editing Toolkit, LTS edition, **self-hosted (npm) distribution, which this add-on uses** |
+| **Custom** | Quote | Tailored plan: add-ons (CKEditor AI, Collaboration, CKBox, Image Optimizer, Editing Toolkit), Custom-only features such as Pagination, LTS edition, and the **self-hosted (npm) distribution this add-on uses**, as agreed in the quote |
 
 ## Quick Setup
 

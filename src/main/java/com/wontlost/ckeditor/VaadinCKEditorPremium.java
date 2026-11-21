@@ -237,7 +237,8 @@ public final class VaadinCKEditorPremium {
         /**
          * Pagination: shows page boundaries as they will appear in exported PDF / Word documents (toolbar
          * {@code previousPage}, {@code nextPage}, {@code pageNavigation}). Custom plan only
-         * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/pagination/pagination.html">docs</a>). Not the free {@code pageBreak} feature.
+         * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/pagination/pagination.html">docs</a>). A different feature from
+         * {@code PageBreak} ({@link CKEditorPlugin#PAGE_BREAK}, toolbar {@code pageBreak}).
          */
         PAGINATION("Pagination", "previousPage", "nextPage", "pageNavigation"),
 
