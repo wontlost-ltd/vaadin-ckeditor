@@ -170,7 +170,11 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
 
 .ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable {
     flex: 1 1 0;
-    min-width: 0;
+    /* 编辑列不能窄于固定宽度的页面，否则页面会伸到右侧栏（minimap）下面且不产生横向滚动：
+       html 上的应用级覆盖生效时以其宽度为下限；custom 时以连接器算出的固定部分为下限（相对编辑列的 %、cqw
+       记为 0，写入 --vaadin-ckeditor-fullscreen-page-min-width）；都没有时为 0，A4_FIT / FULL_WIDTH 不受影响。
+       放不下时全屏区域（.ck-fullscreen__editable-wrapper）横向滚动 */
+    min-width: var(--ck-fullscreen-editable-width, var(--vaadin-ckeditor-fullscreen-page-min-width, 0px));
     margin-left: 0;
     container-type: inline-size;
 }
@@ -193,6 +197,16 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
 .ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck-source-editing-area {
     margin-left: auto;
     margin-right: auto;
+}
+
+/* 页面不超过编辑列：相对编辑列的表达式（如 calc(100% + 120px)）不能撑出编辑列压到侧栏；
+   固定下限已由编辑列的 min-width 保证，二者合起来只会横向滚动、不会重叠 */
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
+    max-width: min(var(--vaadin-ckeditor-fullscreen-resolved-width), 100cqw) !important;
+}
+
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck-source-editing-area {
+    max-width: 100cqw;
 }
 
 .ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page="a4-fit"] .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {

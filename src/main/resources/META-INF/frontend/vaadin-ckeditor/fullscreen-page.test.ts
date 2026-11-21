@@ -5,8 +5,10 @@ import { describe, it, expect, vi } from 'vitest';
 import {
     DEFAULT_FULLSCREEN_PAGE,
     FULLSCREEN_PAGE_ATTR,
+    FULLSCREEN_PAGE_MIN_WIDTH_VAR,
     FULLSCREEN_PAGE_WIDTH_VAR,
     applyFullscreenPage,
+    pageMinWidth,
     resolveFullscreenPage,
     wrapFullscreenPageCallbacks,
 } from './fullscreen-page';
@@ -49,7 +51,42 @@ describe('resolveFullscreenPage', () => {
     });
 });
 
+describe('pageMinWidth', () => {
+    it.each([
+        ['1200px', '1200px'],
+        ['90vw', '90vw'],
+        ['calc(1200px + 2rem)', 'calc(1200px + 2rem)'],
+        ['80%', '0px'],
+        ['50cqw', '0px'],
+        ['62.5cqi', '0px'],
+        ['calc(100% - 40px)', '0px'],
+        // 减去相对项：页面随编辑列变窄，不设下限，避免不必要的横向滚动
+        ['calc(1200px - 10%)', '0px'],
+        ['max(800px, calc(1200px - 5cqw))', '0px'],
+        ['calc(1200px - min(10%, 20px))', '0px'],
+        ['calc(1200px - 40px)', 'calc(1200px - 40px)'],
+        ['calc(100% + 120px)', 'calc(0px + 120px)'],
+        ['min(1400px, 90%)', 'min(1400px, 0px)'],
+        ['max(50cqw, 1200px)', 'max(0px, 1200px)'],
+        ['clamp(600px, 80%, 1400px)', 'clamp(600px, 0px, 1400px)'],
+        ['calc(100% * 0.5)', 'calc(0px * 0.5)'],
+    ])('%s → %s (column-relative terms count as 0)', (width, expected) => {
+        expect(pageMinWidth(width)).toBe(expected);
+    });
+});
+
 describe('applyFullscreenPage', () => {
+    it('sets the column min-width variable for custom widths only (issue #156 overlap)', () => {
+        const el = document.createElement('div');
+        applyFullscreenPage(el, { mode: 'custom', width: '1200px' });
+        expect(el.style.getPropertyValue(FULLSCREEN_PAGE_MIN_WIDTH_VAR)).toBe('1200px');
+        applyFullscreenPage(el, { mode: 'custom', width: 'max(50cqw, 1200px)' });
+        expect(el.style.getPropertyValue(FULLSCREEN_PAGE_MIN_WIDTH_VAR)).toBe('max(0px, 1200px)');
+        applyFullscreenPage(el, { mode: 'custom', width: '1200px' });
+        applyFullscreenPage(el, { mode: 'a4-fit', width: null });
+        expect(el.style.getPropertyValue(FULLSCREEN_PAGE_MIN_WIDTH_VAR)).toBe('');
+    });
+
     it('writes the mode attribute and sets / removes the width variable', () => {
         const el = document.createElement('div');
         applyFullscreenPage(el, { mode: 'custom', width: '1200px' });

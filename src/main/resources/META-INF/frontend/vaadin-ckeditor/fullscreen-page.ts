@@ -21,6 +21,8 @@ export interface FullscreenPage {
 
 export const FULLSCREEN_PAGE_ATTR = 'data-ck-fullscreen-page';
 export const FULLSCREEN_PAGE_WIDTH_VAR = '--vaadin-ckeditor-fullscreen-page-width';
+/** custom 页面宽度中与编辑列无关的下限写入此变量，编辑列以它为最小宽度，放不下时横向滚动而不压到侧栏 */
+export const FULLSCREEN_PAGE_MIN_WIDTH_VAR = '--vaadin-ckeditor-fullscreen-page-min-width';
 export const DEFAULT_FULLSCREEN_PAGE: FullscreenPage = { mode: 'a4-fit', width: null };
 
 const MODES: ReadonlySet<string> = new Set(['a4-fit', 'a4', 'full-width', 'custom']);
@@ -76,12 +78,37 @@ export function resolveFullscreenPage(
 }
 
 /** 把页面设置写到元素上：模式属性 + 自定义宽度变量（其它模式移除变量，交给 CSS 计算）。 */
+/**
+ * custom 页面宽度对编辑列宽度的下限：把相对编辑列的项（百分比、cqw / cqi）替换为 0px。
+ * 固定宽度原样返回（1200px → 1200px），纯相对宽度得到 0px（60% → 0px），混合表达式得到其固定部分：
+ * max(50cqw, 1200px) → max(0px, 1200px)，clamp(600px, 80%, 1400px) → clamp(600px, 0px, 1400px)；
+ * 含减去相对项的表达式（calc(1200px - 10%)）不设下限（0px）。
+ * 页面另由 CSS 限制为不超过编辑列（max-width: min(..., 100cqw)），二者合起来保证页面既不压到侧栏，
+ * 固定部分放不下时又能让全屏区域横向滚动。
+ */
+export function pageMinWidth(width: string): string {
+    // 减去相对项（calc(1200px - 10%)）时页面随编辑列变窄，把它记为 0 会高估下限、造成不必要的横向滚动；
+    // 这类表达式不设下限，由页面不超过编辑列（max-width: min(..., 100cqw)）保证不重叠
+    // calc() 的二元减号两侧必须有空白；含减法且含相对项时（含嵌套，如 calc(1200px - min(10%, 20px))）一律不设下限
+    const relative = /\d*\.?\d+(?:%|cq[a-z]+)/;
+    if (/\s-\s/.test(width) && relative.test(width)) {
+        return '0px';
+    }
+    return width.replace(new RegExp(relative.source, 'g'), '0px');
+}
+
+/** 把页面设置写到元素上：模式属性 + 自定义宽度变量（其它模式移除变量，交给 CSS 计算）。 */
 export function applyFullscreenPage(element: HTMLElement, page: FullscreenPage): void {
     element.setAttribute(FULLSCREEN_PAGE_ATTR, page.mode);
     if (page.width) {
         element.style.setProperty(FULLSCREEN_PAGE_WIDTH_VAR, page.width);
     } else {
         element.style.removeProperty(FULLSCREEN_PAGE_WIDTH_VAR);
+    }
+    if (page.width) {
+        element.style.setProperty(FULLSCREEN_PAGE_MIN_WIDTH_VAR, pageMinWidth(page.width));
+    } else {
+        element.style.removeProperty(FULLSCREEN_PAGE_MIN_WIDTH_VAR);
     }
 }
 
