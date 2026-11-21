@@ -16,12 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<script>`、`<iframe>`、`on*` 属性，需 `allowScripts()` / `allowIframes()` / `allowEventHandlers()` 显式放开。
   `Pattern` 以 `{"$regexp", "$flags"}` 传到客户端并还原为 `RegExp`。配置了 htmlSupport 选项时构建器自动加载 `GeneralHtmlSupport`
   （`DependencyMode.MANUAL` 除外）。服务端 `HtmlSanitizer` 与 GHS 相互独立，User Guide 给出与规则对应的 safelist 示例。
+- **`CKEditorConfig.set(path, value)` 支持点号路径与常用值类型**：`set("cloudServices.tokenUrl", "https://…")`、
+  `set("ai.assistant.adapter.openAI.apiUrl", url)` 写成嵌套对象，与 CKEditor `Config` 的点号语义一致；已存在的父对象合并而不是覆盖
+  （包括 `setUiViewportOffset` 等类型化 setter 建立的对象），最后一段照旧整体替换。新增 `set(String, boolean | int | long | double)`
+  与 `set(String, Object)`（String、Number、List、Map、数组及其嵌套，经 Jackson 转换；Map 的键同样按路径展开），
+  `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
+  键中不能含字面量点号：CKEditor 创建编辑器时会在每一层按 `.` 拆分键，无法转义；空段（`a..b`）抛 `IllegalArgumentException`。
 
 ### Fixed
 - **`CKEditorConfig.setHtmlSupport(true)` 不起作用**：元素名以字符串 `"/.*/"` 发送，CKEditor 按字面比较字符串名，
   实际不匹配任何元素。现为 `HtmlSupport.allowAll()`：允许所有元素及其属性、类名、样式，但不含脚本、iframe 与 `on*` 属性
   （行为变化：此前什么也不保留）。`isHtmlSupportAllowAll()` 识别新结构；`setGeneralHtmlSupportEnabled(true)` 不变。
 - **README 中不存在的 `setGhsEnabled`** 改为可用的写法。
+- **文档中的高级配置示例无法编译**：`CKEditorPreset.COLLABORATIVE` 的 Javadoc 用了不存在的 `set(String, String)` 与
+  `withConfig(lambda)`，README 与 `PREMIUM_INTEGRATION.md` 用了不存在的 `withCustomConfig` / `withHeading` /
+  `withFontSizes` / `withImageUploadUrl`；改为可编译的写法（`PREMIUM_INTEGRATION.md` 中旧的 AI Assistant 示例另由 #170 处理）。
+- **点号键不被连接器识别**：此前即使通过 `set(key, JsonNode)` 写入 `"collaboration.channelId"` 之类的字面量键，
+  CKEditor 自己能展开，但连接器读取 `collaboration.channelId`、`ai.container` 等嵌套配置的逻辑看不到它；现在服务端即写成嵌套对象。
 
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。

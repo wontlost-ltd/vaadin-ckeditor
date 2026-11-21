@@ -292,10 +292,9 @@ public enum CKEditorPreset {
      *     .addCustomPlugin(CustomPlugin.fromPremium("RealTimeCollaborativeEditing"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("RealTimeCollaborativeComments"))
      *     .addCustomPlugin(CustomPlugin.fromPremium("PresenceList"))
-     *     .withConfig(config -&gt; config
+     *     .withConfig(new CKEditorConfig()
      *         .set("cloudServices.tokenUrl", "https://your-server/token")
-     *         .set("collaboration.channelId", "document-123")
-     *     )
+     *         .set("collaboration.channelId", "document-123"))
      *     .build();
      * </pre>
      *
