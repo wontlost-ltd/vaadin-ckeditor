@@ -74,8 +74,6 @@ const logger = {
 // Timing constants
 /** Delay (ms) for toolbar repaint mouse-leave event */
 const TOOLBAR_REPAINT_DELAY_MS = 10;
-/** Delay (ms) for sticky panel setup after CKEditor initialization */
-const STICKY_PANEL_SETUP_DELAY_MS = 100;
 /** Timeout (ms) for requestIdleCallback during editor destruction */
 const DESTROY_IDLE_TIMEOUT_MS = 100;
 /**
@@ -2539,8 +2537,6 @@ export class VaadinCKEditor extends LitElement {
         VaadinCKEditor.acquirePaginationErrorHandler();
         this.paginationHandlerAcquired = true;
 
-        // Setup scroll handler for sticky panel (must be called on each connection)
-        this.setupStickyPanelObserver();
 
         // 重挂载时重建编辑器与主题系统。
         //
@@ -2895,9 +2891,6 @@ export class VaadinCKEditor extends LitElement {
             VaadinCKEditor.releasePaginationErrorHandler();
             this.paginationHandlerAcquired = false;
         }
-
-        // Clean up sticky panel observer
-        this.cleanupStickyPanelObserver();
 
         // Clean up AI sidebar collapse observer
         if (this.aiSidebarCollapseObserver) {

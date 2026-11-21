@@ -47,6 +47,27 @@ vaadin-ckeditor .ck.ck-editor .ck.ck-sticky-panel {
     position: static !important;
 }
 
+/*
+ * 停用 CKEditor 自带 StickyPanelView 的视觉效果（issue #157）。
+ * 粘性由上面的 .ck-editor__top { position: sticky } 负责；CKEditor 的面板仍会在编辑器聚焦且滚动时
+ * 切换 isSticky，写入内联 style：占位块 display:block + 工具栏高度、内容 position:fixed + top/width/margin-left。
+ * 作者样式的 !important 优先于不带 !important 的内联样式，所以这里在样式层直接压制，
+ * 从第一帧起就不会出现占位块（工具栏上方的矩形空白）或 fixed 定位与 sticky 互相拉扯造成的闪烁，
+ * 也不依赖找到哪个祖先在滚动（滚动容器可能在 TabSheet / AppLayout 的 shadow DOM 里）。
+ * isSticky 本身不受影响：CKEditor 仍据此让气泡面板与对话框避开贴顶的工具栏。
+ */
+vaadin-ckeditor .ck.ck-editor .ck-sticky-panel__placeholder {
+    display: none !important;
+}
+
+vaadin-ckeditor .ck.ck-editor .ck-sticky-panel__content {
+    position: static !important;
+    width: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    margin-left: 0 !important;
+}
+
 /* ==================== Dialog / Overlay Stacking (issue #56) ==================== */
 /*
  * Inside a Vaadin Dialog/overlay the editor's floating panels (dropdowns,

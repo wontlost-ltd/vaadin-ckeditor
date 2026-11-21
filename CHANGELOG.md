@@ -31,6 +31,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **文档编辑器的 minimap 在全屏模式下不可用**（#156）：CKEditor 的 Fullscreen 插件会把大纲移进全屏左侧栏，
   但不处理 minimap——它留在被隐藏的原容器里，且仍绑定原滚动容器。add-on 现把 minimap 挪到全屏页面右侧（经 CKEditor
   公开的 `moveToFullscreen`，退出时由 CKEditor 放回），并在进入与退出后重新绑定滚动，minimap 在全屏中跟随并驱动滚动。
+### Fixed
+- **滚动时粘性工具栏上方出现矩形空白并闪烁**（[#157](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/157)）：
+  add-on 用 CSS `position: sticky` 固定工具栏，但 CKEditor 自带的 StickyPanelView 在编辑器聚焦且滚动时仍会显示与工具栏
+  等高的占位块并把工具栏设为 `fixed`。连接器原先在滚动事件后的下一帧用 JS 清掉这些内联样式，且只监听沿 light DOM
+  找到的第一个滚动祖先；滚动容器在 TabSheet / AppLayout 的 shadow DOM 里时监听不到，占位块一直留在工具栏上方，
+  临界位置随 CKEditor 切换粘性状态而闪烁。现改由 `sticky-toolbar.css` 以 `!important` 压制占位块与 `fixed` 定位
+  （作者样式的 `!important` 优先于内联样式），从第一帧起生效且与滚动容器无关；删除连接器中的滚动监听与延时清理。
+### Added
+- **同级别标题变体与标题元素类名**（[#158](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/158)、
+  [#159](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/159)）：`HeadingOption.withModel(String)` 为选项指定
+  独立的 model 名（须以 `heading` 开头），`HeadingOption.withViewClasses(String...)` 生成 CKEditor 的
+  `view: {name, classes}` 并以 `converterPriority: 'high'` 转换，输出 `<h1 class="style1">` 这类带类名的标题，
+  读入时也能与同级普通标题区分。见 User Guide「Heading options」。
+
+### Fixed
+- **同一级别配置两个 `HeadingOption` 后编辑器无法使用**（#158）：两个选项映射到同一个 model（如 `heading1`），
+  CKEditor 初始化抛出 `schema-cannot-register-item-twice`，add-on 只剩降级的文本框。`setHeading` 现在立即以
+  `IllegalArgumentException` 拒绝重复的 model，并在消息中给出 `withModel(...)` 的写法。
+
+### Changed
+- **`HeadingOption` 的 `className` 语义写入 Javadoc 与文档**（#159）：与 CKEditor 的 `class` 属性一致，它是标题下拉
+  列表项的类名（如 `ck-heading_heading1`），从未也不会写到内容里的标题元素上；行为不变。
 
 ## [6.1.0] - 2026-11-19
 

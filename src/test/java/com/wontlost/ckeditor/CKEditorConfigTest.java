@@ -408,6 +408,108 @@ class CKEditorConfigTest {
     }
 
     @Test
+    @DisplayName("setHeading 拒绝重复的 model：CKEditor 会抛 schema-cannot-register-item-twice 导致编辑器无法初始化（#158）")
+    void setHeadingRejectsDuplicateModel() {
+        // issue #158 报告者的原始配置：两个 heading(1, ...) 都映射到 model heading1
+        assertThatThrownBy(() -> config.setHeading(
+            CKEditorConfig.HeadingOption.paragraph("Normálny", ""),
+            CKEditorConfig.HeadingOption.heading(1, "Nadpis 1", ""),
+            CKEditorConfig.HeadingOption.heading(2, "Nadpis 2", ""),
+            CKEditorConfig.HeadingOption.heading(3, "Nadpis 3", ""),
+            CKEditorConfig.HeadingOption.heading(1, "H1 článok", "style1")
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("'heading1'")
+            .hasMessageContaining("withModel(");
+        // 校验失败时不留下半截配置
+        assertThat(config.getHeadingOptions()).isNull();
+    }
+
+    @Test
+    @DisplayName("HeadingOption 的 className 只是下拉项的类名（CKEditor 的 class 语义），不会输出到标题元素上（#159）")
+    void headingClassNameIsDropdownItemClass() {
+        ObjectNode json = CKEditorConfig.HeadingOption.heading(4, "H4 článok", "style4").toJson();
+
+        assertThat(json.get("model").asString()).isEqualTo("heading4");
+        assertThat(json.get("view").asString()).isEqualTo("h4");
+        assertThat(json.get("class").asString()).isEqualTo("style4");
+        assertThat(json.has("converterPriority")).isFalse();
+    }
+
+    @Test
+    @DisplayName("withViewClasses 生成 CKEditor 的 view {name, classes} 并以 high 优先级转换（#159）")
+    void headingWithViewClassesEmitsViewDefinition() {
+        ObjectNode json = CKEditorConfig.HeadingOption.heading(4, "H4 článok", "")
+            .withViewClasses("style4", "article")
+            .toJson();
+
+        assertThat(json.get("model").asString()).isEqualTo("heading4");
+        assertThat(json.get("view").get("name").asString()).isEqualTo("h4");
+        assertThat(json.get("view").get("classes")).hasSize(2);
+        assertThat(json.get("view").get("classes").get(0).asString()).isEqualTo("style4");
+        assertThat(json.get("view").get("classes").get(1).asString()).isEqualTo("article");
+        assertThat(json.get("class").asString()).isEmpty();
+        // 带类名的变体须先于同级的普通标题匹配，否则 <h4 class="style4"> 会被读回为普通 heading4
+        assertThat(json.get("converterPriority").asString()).isEqualTo("high");
+    }
+
+    @Test
+    @DisplayName("withModel + withViewClasses 允许同一级别的多个标题变体共存（#158）")
+    void headingVariantsOfSameLevelCoexist() {
+        config.setHeading(
+            CKEditorConfig.HeadingOption.paragraph("Normálny", ""),
+            CKEditorConfig.HeadingOption.heading(1, "Nadpis 1", ""),
+            CKEditorConfig.HeadingOption.heading(1, "H1 článok", "")
+                .withModel("heading1Article")
+                .withViewClasses("style1")
+        );
+
+        var options = config.getHeadingOptions();
+        assertThat(options).hasSize(3);
+        assertThat(options.get(1).get("model").asString()).isEqualTo("heading1");
+        assertThat(options.get(1).get("view").asString()).isEqualTo("h1");
+        assertThat(options.get(2).get("model").asString()).isEqualTo("heading1Article");
+        assertThat(options.get(2).get("view").get("name").asString()).isEqualTo("h1");
+        assertThat(options.get(2).get("view").get("classes").get(0).asString()).isEqualTo("style1");
+        assertThat(options.get(2).get("title").asString()).isEqualTo("H1 článok");
+    }
+
+    @Test
+    @DisplayName("HeadingOption 的 with* 方法返回新实例，原实例不变")
+    void headingOptionWithMethodsAreImmutable() {
+        CKEditorConfig.HeadingOption base = CKEditorConfig.HeadingOption.heading(2, "Heading 2", "");
+        CKEditorConfig.HeadingOption variant = base.withModel("heading2Fancy").withViewClasses("fancy");
+
+        assertThat(variant).isNotSameAs(base);
+        assertThat(base.toJson().get("model").asString()).isEqualTo("heading2");
+        assertThat(base.toJson().get("view").isString()).isTrue();
+        assertThat(variant.toJson().get("model").asString()).isEqualTo("heading2Fancy");
+    }
+
+    @Test
+    @DisplayName("withModel 校验：必须以 heading 开头且非空；paragraph 不能带 view 类名")
+    void headingOptionValidation() {
+        CKEditorConfig.HeadingOption h1 = CKEditorConfig.HeadingOption.heading(1, "H1", "");
+
+        assertThatThrownBy(() -> h1.withModel(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withModel("  ")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withModel("heading")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withModel("paragraph")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withModel("articleTitle")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses()).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses("ok", " ")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses("two words")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses("foo.bar")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses("foo\"bar")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> h1.withViewClasses("1col")).isInstanceOf(IllegalArgumentException.class);
+        assertThatCode(() -> h1.withViewClasses("style1", "_x", "-is-wide", "a-b_c")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> CKEditorConfig.HeadingOption.paragraph("P", "").withViewClasses("lead"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> CKEditorConfig.HeadingOption.paragraph("P", "").withModel("heading9"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     @DisplayName("Fluent API should allow method chaining")
     void fluentApiShouldAllowMethodChaining() {
         CKEditorConfig result = config
