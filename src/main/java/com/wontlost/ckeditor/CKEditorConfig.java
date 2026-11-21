@@ -963,21 +963,35 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * Set general HTML support configuration
+     * Set General HTML Support (GHS) to allow everything or nothing.
+     *
+     * <p>{@code true} is {@link HtmlSupport#allowAll()}: every element with all attributes, classes and
+     * styles, except {@code <script>}, {@code <iframe>} and {@code on*} event handler attributes. Use
+     * {@link #setHtmlSupport(HtmlSupport)} for specific rules or to opt in to those. {@code false} sets an
+     * empty {@code htmlSupport} object (no extra HTML).</p>
+     *
+     * <p>The connector loads the {@code GeneralHtmlSupport} plugin when the configuration has rules.</p>
+     *
+     * @param allowAll whether to allow all (safe) HTML
+     * @return this config for chaining
      */
     public CKEditorConfig setHtmlSupport(boolean allowAll) {
-        ObjectNode htmlSupportObj = createObjectNode();
         if (allowAll) {
-            ArrayNode allowArr = createArrayNode();
-            ObjectNode allowAllObj = createObjectNode();
-            allowAllObj.put("name", "/.*/");
-            allowAllObj.put("attributes", true);
-            allowAllObj.put("classes", true);
-            allowAllObj.put("styles", true);
-            allowArr.add(allowAllObj);
-            htmlSupportObj.set("allow", allowArr);
+            return setHtmlSupport(HtmlSupport.allowAll());
         }
-        configs.put("htmlSupport", htmlSupportObj);
+        configs.put("htmlSupport", createObjectNode());
+        return this;
+    }
+
+    /**
+     * Set General HTML Support rules ({@code htmlSupport.allow} / {@code disallow} / {@code allowEmpty} ...).
+     * See {@link HtmlSupport} for the safe defaults and examples.
+     *
+     * @param htmlSupport the configuration
+     * @return this config for chaining
+     */
+    public CKEditorConfig setHtmlSupport(HtmlSupport htmlSupport) {
+        configs.put("htmlSupport", Objects.requireNonNull(htmlSupport, "htmlSupport").toJson());
         return this;
     }
 
@@ -1377,14 +1391,35 @@ public class CKEditorConfig implements java.io.Serializable {
      */
     public boolean isHtmlSupportAllowAll() {
         JsonNode node = configs.get("htmlSupport");
-        if (node != null && node.isObject() && node.has("allow")) {
-            JsonNode allowNode = node.get("allow");
-            if (allowNode.isArray() && !allowNode.isEmpty()) {
-                JsonNode firstAllow = allowNode.get(0);
-                return firstAllow.has("name") && "/.*/".equals(firstAllow.get("name").asString());
+        if (node == null || !node.path("allow").isArray()) {
+            return false;
+        }
+        for (JsonNode rule : node.get("allow")) {
+            if (matchesEveryElement(rule.get("name"))
+                    && rule.path("attributes").isBoolean() && rule.path("attributes").asBoolean()
+                    && rule.path("classes").isBoolean() && rule.path("classes").asBoolean()
+                    && rule.path("styles").isBoolean() && rule.path("styles").asBoolean()) {
+                return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 是否配置了 GHS allow 规则（构建器据此加载 GeneralHtmlSupport 插件）。
+     */
+    boolean hasHtmlSupportRules() {
+        JsonNode allow = configs.get("htmlSupport") == null ? null : configs.get("htmlSupport").get("allow");
+        return allow != null && allow.isArray() && !allow.isEmpty();
+    }
+
+    /** 规则名省略（GHS 视为所有元素）或为匹配一切的正则。 */
+    private static boolean matchesEveryElement(JsonNode name) {
+        if (name == null) {
+            return true;
+        }
+        String source = name.isObject() ? name.path(HtmlSupport.REGEXP_KEY).asString("") : "";
+        return Set.of(".*", ".+", "[\\s\\S]+", "[\\s\\S]*").contains(source);
     }
 
     /**

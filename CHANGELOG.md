@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`HtmlSupport`：类型化的 General HTML Support 规则**，`CKEditorConfig#setHtmlSupport(HtmlSupport)`。对应 CKEditor
+  `htmlSupport` 的 `allow` / `disallow`（`Rule.element` / `elements` / `element(Pattern)` / `anyElement`，
+  `attributes` / `classes` / `styles` 支持 `true`、名称、精确值与 `Pattern`），以及 `allowEmpty`、
+  `preserveEmptyBlocksInEditingView`、`htmlIframeSandbox`、`fullPage.allowRenderStylesFromHead`。默认追加三条 disallow：
+  `<script>`、`<iframe>`、`on*` 属性，需 `allowScripts()` / `allowIframes()` / `allowEventHandlers()` 显式放开。
+  `Pattern` 以 `{"$regexp", "$flags"}` 传到客户端并还原为 `RegExp`。配置含 allow 规则时构建器自动加载 `GeneralHtmlSupport`
+  （`DependencyMode.MANUAL` 除外）。服务端 `HtmlSanitizer` 与 GHS 相互独立，User Guide 给出与规则对应的 safelist 示例。
+
+### Fixed
+- **`CKEditorConfig.setHtmlSupport(true)` 不起作用**：元素名以字符串 `"/.*/"` 发送，CKEditor 按字面比较字符串名，
+  实际不匹配任何元素。现为 `HtmlSupport.allowAll()`：允许所有元素及其属性、类名、样式，但不含脚本、iframe 与 `on*` 属性
+  （行为变化：此前什么也不保留）。`isHtmlSupportAllowAll()` 识别新结构；`setGeneralHtmlSupportEnabled(true)` 不变。
+- **README 中不存在的 `setGhsEnabled`** 改为可用的写法。
+
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
   此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。

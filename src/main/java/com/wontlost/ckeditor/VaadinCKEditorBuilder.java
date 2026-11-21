@@ -633,6 +633,11 @@ public class VaadinCKEditorBuilder {
         initialPlugins.addAll(additionalPlugins);
         initialPlugins.removeAll(removedPlugins);
 
+        // htmlSupport 规则需要 GeneralHtmlSupport 插件（只有 EMAIL 预设自带）；MANUAL 模式尊重用户的插件选择
+        if (config != null && config.hasHtmlSupportRules() && dependencyMode != DependencyMode.MANUAL) {
+            initialPlugins.add(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        }
+
         // Process plugins based on dependency mode
         Set<CKEditorPlugin> finalPlugins = processPluginDependencies(initialPlugins);
 
