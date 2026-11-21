@@ -1045,12 +1045,19 @@ public class CKEditorConfig implements java.io.Serializable {
      *   <li>A parent that exists but is not an object (a string, array, ...) is replaced by an object.</li>
      *   <li>Keys of object values ({@link Map} / {@link ObjectNode}) are paths too:
      *       {@code Map.of("openAI.apiUrl", url)} is stored as {@code {openAI: {apiUrl: url}}}.
+     *       Keys that lead to the same object are merged recursively; when a key assigns a non-object
+     *       where another assigns an object, the later key in iteration order wins (as in CKEditor),
+     *       so use an ordered map ({@link LinkedHashMap}) for such conflicts.
      *       Arrays are not traversed (CKEditor does not traverse them either).</li>
      *   <li><b>Keys cannot contain a literal dot.</b> CKEditor itself splits every key of the
      *       configuration object on {@code .} (at every nesting level) when the editor is created,
      *       so a key such as {@code "a.b"} could never reach a plugin as one key; there is no escape.</li>
      *   <li>Empty segments ({@code "a..b"}, {@code ".a"}, {@code "a."}) are rejected.</li>
      * </ul>
+     *
+     * <p>Each call is atomic with respect to other {@code set} calls and the getters, but a config is
+     * meant to be built by one thread before it is passed to the editor; mixing concurrent calls with
+     * the typed setters is not synchronized as a whole.</p>
      *
      * <p>Strings, numbers, booleans, lists and maps can be passed directly, see
      * {@link #set(String, Object)} and the primitive overloads.</p>
@@ -1201,13 +1208,27 @@ public class CKEditorConfig implements java.io.Serializable {
             JsonNode expanded = expandDottedKeys(entry.getValue());
             JsonNode current = parent.get(leaf);
             if (current instanceof ObjectNode currentObject && expanded instanceof ObjectNode expandedObject) {
-                // 同一对象里 "a.b" 与 "a" 并存时合并而非互相覆盖（CKEditor 对对象值也是合并）
-                currentObject.setAll(expandedObject);
+                // 同一对象里 "a.b.c" 与 "a" 并存时逐层深合并而非覆盖（CKEditor 对对象值也是递归合并）
+                deepMerge(currentObject, expandedObject);
             } else {
                 parent.set(leaf, expanded);
             }
         }
         return result;
+    }
+
+    /**
+     * 递归合并：两侧都是对象时逐层合并，否则后写覆盖（与 CKEditor Config#_setObjectToTarget 一致）。
+     */
+    private static void deepMerge(ObjectNode target, ObjectNode source) {
+        for (Map.Entry<String, JsonNode> entry : source.properties()) {
+            JsonNode existing = target.get(entry.getKey());
+            if (existing instanceof ObjectNode existingObject && entry.getValue() instanceof ObjectNode sourceObject) {
+                deepMerge(existingObject, sourceObject);
+            } else {
+                target.set(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     /**

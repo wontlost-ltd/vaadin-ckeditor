@@ -162,6 +162,37 @@ class CKEditorConfigPathTest {
     }
 
     @Test
+    @DisplayName("overlapping object paths merge recursively in either order")
+    void overlappingPathsMergeRecursively() {
+        Map<String, Object> dottedFirst = new LinkedHashMap<>();
+        dottedFirst.put("a.b.c", 1);
+        dottedFirst.put("a", Map.of("b", Map.of("d", 2)));
+        Map<String, Object> objectFirst = new LinkedHashMap<>();
+        objectFirst.put("a", Map.of("b", Map.of("d", 2)));
+        objectFirst.put("a.b.c", 1);
+
+        assertThat(config.set("x", dottedFirst).getJsonNode("x.a.b").toString()).isEqualTo("{\"c\":1,\"d\":2}");
+        assertThat(config.set("y", objectFirst).getJsonNode("y.a.b").toString()).isEqualTo("{\"d\":2,\"c\":1}");
+        // 无序 Map 结果相同（不论迭代顺序）
+        assertThat(config.set("z", Map.of("a.b.c", 1, "a", Map.of("b", Map.of("d", 2))))
+            .getJsonNode("z.a.b").properties()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("scalar/object conflicts inside one value: the later key wins, as in CKEditor")
+    void scalarObjectConflictLastWins() {
+        Map<String, Object> scalarLast = new LinkedHashMap<>();
+        scalarLast.put("a.b", 1);
+        scalarLast.put("a", 5);
+        assertThat(config.set("x", scalarLast).getJsonNode("x.a").asInt()).isEqualTo(5);
+
+        Map<String, Object> objectLast = new LinkedHashMap<>();
+        objectLast.put("a", 5);
+        objectLast.put("a.b", 1);
+        assertThat(config.set("y", objectLast).getJsonNode("y.a").toString()).isEqualTo("{\"b\":1}");
+    }
+
+    @Test
     @DisplayName("null stores JSON null and keeps the key")
     void nullStoresJsonNull() {
         config.set("a.b", (String) null);
