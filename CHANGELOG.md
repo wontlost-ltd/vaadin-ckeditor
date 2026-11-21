@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **BALLOON / INLINE 编辑器上的全屏按钮让整页变空白**（[#163](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/163)）：
+  CKEditor 5 的全屏只支持 Classic 与 Decoupled（`FullscreenCommand` 只为这两种编辑器创建处理器，其它类型的
+  `defaultOnEnter()` 不移动编辑区），但会照样把页面其它内容设为 `display:none`。`AI_DOCUMENT` 预设、
+  `addPlugin(FULLSCREEN)` + `withToolbar` / `CKEditorConfig.setToolbar` 都会在这两种类型上加载 Fullscreen 插件并显示按钮。
+  连接器现对 BALLOON / INLINE 不加载 Fullscreen 插件（连同 `Ctrl+Shift+F` 快捷键），并从 `toolbar` / `balloonToolbar` /
+  `blockToolbar` 中移除 `fullscreen` 项；与 minimap 等「仅特定类型」功能一致，静默忽略（调试日志）。CLASSIC / DECOUPLED 不变。
+
 ## [6.1.0] - 2026-11-19
 
 ### Added
