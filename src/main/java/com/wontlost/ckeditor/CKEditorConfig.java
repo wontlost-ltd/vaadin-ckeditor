@@ -1055,9 +1055,9 @@ public class CKEditorConfig implements java.io.Serializable {
      *   <li>Empty segments ({@code "a..b"}, {@code ".a"}, {@code "a."}) are rejected.</li>
      * </ul>
      *
-     * <p>Each call is atomic with respect to other {@code set} calls and the getters, but a config is
-     * meant to be built by one thread before it is passed to the editor; mixing concurrent calls with
-     * the typed setters is not synchronized as a whole.</p>
+     * <p>{@code CKEditorConfig} is not thread-safe: build it on one thread before passing it to the
+     * editor. The internal lock only keeps the map itself consistent; it does not make sequences of
+     * calls, the typed setters, or the returned JSON nodes safe for concurrent use.</p>
      *
      * <p>Strings, numbers, booleans, lists and maps can be passed directly, see
      * {@link #set(String, Object)} and the primitive overloads.</p>
