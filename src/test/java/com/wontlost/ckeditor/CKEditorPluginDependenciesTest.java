@@ -583,7 +583,7 @@ class CKEditorPluginDependenciesTest {
     }
 
     @Test
-    @DisplayName("TableLayout ships in the free umbrella (license-gated) and depends on Table + TableColumnResize")
+    @DisplayName("TableLayout (premium feature exported by the open-source ckeditor5 package) depends on Table + TableColumnResize")
     void tableLayoutShouldResolveTableDependencies() {
         Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(Set.of(CKEditorPlugin.TABLE_LAYOUT));
 

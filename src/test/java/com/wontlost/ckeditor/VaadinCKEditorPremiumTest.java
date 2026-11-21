@@ -145,7 +145,7 @@ class VaadinCKEditorPremiumTest {
 
         java.util.Set<String> names = java.util.Arrays.stream(PremiumPlugin.values())
             .map(PremiumPlugin::getPluginName).collect(java.util.stream.Collectors.toSet());
-        // RealTimeCollaboration 不是插件类；TableLayout 由 ckeditor5 免费 umbrella 导出（见 CKEditorPlugin.TABLE_LAYOUT）
+        // RealTimeCollaboration 不是插件类；TableLayout 由开源 ckeditor5 包导出、仍是需要 license 的 premium feature（见 CKEditorPlugin.TABLE_LAYOUT）
         assertThat(names).doesNotContain("RealTimeCollaboration", "TableLayout");
     }
 }
