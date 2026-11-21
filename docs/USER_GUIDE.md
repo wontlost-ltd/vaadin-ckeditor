@@ -1057,7 +1057,9 @@ A loader may resolve to the plugin class, a module with a `default` export, or a
 
 ### Passing configuration from Java
 
-`withConfig(key, json)` hands a value to the plugin as `config[key]` (since 6.2.0):
+`withConfig(key, json)` hands a value to the plugin as `config[key]` (since 6.2.0). The key is a top-level editor
+configuration key: use one that is specific to your plugin (`myPlugin`), never a CKEditor setting such as `toolbar` or
+`plugins`, which it would replace:
 
 ```java
 ObjectNode options = JsonUtil.createObjectNode().put("level", 2);

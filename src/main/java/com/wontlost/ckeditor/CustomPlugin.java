@@ -283,7 +283,8 @@ public class CustomPlugin implements java.io.Serializable {
 
         /**
          * Pass configuration to the plugin: the editor receives {@code config[configKey] = value}
-         * (read in the plugin with {@code editor.config.get(configKey)}). See the class documentation for
+         * (read in the plugin with {@code editor.config.get(configKey)}). Use a key specific to the plugin: a
+         * CKEditor setting such as {@code toolbar} would be replaced. See the class documentation for
          * how changes reach a displayed editor.
          *
          * @param configKey the editor configuration key, a JavaScript identifier
