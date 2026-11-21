@@ -37,6 +37,7 @@ import CommentPermissionEnforcer from './comment-permission-enforcer';
 
 // Import sticky toolbar CSS (extracted for maintainability)
 import './sticky-toolbar.css';
+import { withoutUnsupportedFullscreenItems, withoutUnsupportedFullscreenPlugin } from './fullscreen-support';
 import {
     configureOverlayContainer,
     findTopLayerAncestor,
@@ -704,9 +705,14 @@ export class VaadinCKEditor extends LitElement {
         // 因此 Minimap 插件既不应被「需要特殊配置」规则剔除，也应在缺失时自动补上——
         // 否则 setMinimapEnabled(true) 只会留下一个空容器（issue #137 性能测试中发现）。
         const minimapActive = this.editorType === 'decoupled' && this.minimapEnabled;
-        const plugins = minimapActive && !this.plugins.some((p) => p.name === 'Minimap')
-            ? [...this.plugins, { name: 'Minimap', premium: false }]
-            : this.plugins;
+        // 全屏只支持 classic / decoupled（issue #163，见 fullscreen-support.ts）
+        const typePlugins = withoutUnsupportedFullscreenPlugin(this.plugins, this.editorType);
+        if (typePlugins.length !== this.plugins.length) {
+            logger.debug(`Fullscreen is not supported for ${this.editorType} editors; plugin skipped`);
+        }
+        const plugins = minimapActive && !typePlugins.some((p) => p.name === 'Minimap')
+            ? [...typePlugins, { name: 'Minimap', premium: false }]
+            : typePlugins;
         const resolved = await resolver.resolvePlugins(plugins, {
             strictPluginLoading: this.strictPluginLoading,
             allowConfigRequiredPlugins: this.allowConfigRequiredPlugins,
@@ -937,6 +943,9 @@ export class VaadinCKEditor extends LitElement {
         // Add custom upload adapter for server-side file handling
         // This enables the UploadHandler Java API to receive uploaded files
         // Note: The adapter is set up after editor creation in setupCustomUploadAdapter()
+
+        // 不支持全屏的类型移除所有工具栏里的 fullscreen 项（issue #163，见 fullscreen-support.ts）
+        editorConfig = withoutUnsupportedFullscreenItems(editorConfig as Record<string, unknown>, this.editorType) as EditorConfig;
 
         return editorConfig;
     }

@@ -47,6 +47,17 @@ export default defineConfig({
         testTimeout: 5000,
     },
 
+    // 测试以 ?raw 读取 Java 预设 / 插件枚举源码（fullscreen-support.test.ts 的「预设 × 编辑器类型」用例），
+    // 只放行这一个目录
+    server: {
+        fs: {
+            allow: [
+                new URL('.', import.meta.url).pathname,
+                new URL('../../../../java/com/wontlost/ckeditor/', import.meta.url).pathname,
+            ],
+        },
+    },
+
     // Resolve aliases for testing
     resolve: {
         alias: [
