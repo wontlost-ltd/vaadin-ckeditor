@@ -12,6 +12,8 @@ import java.util.Optional;
  * A comment thread, as stored (CKEditor {@code CommentThreadDataJSON}).
  *
  * @param threadId   the thread id; equals the suggestion id for threads attached to suggestions
+ * @param authorId   who created the thread (set by the server; it does not change when comments are removed).
+ *                   {@code null} defaults to the author of the first comment
  * @param context    CKEditor's {@code CommentThreadContext} ({@code {type, value}}) or {@code null}
  * @param resolvedAt when the thread was resolved, or {@code null}
  * @param resolvedBy who resolved the thread, or {@code null}
@@ -20,7 +22,7 @@ import java.util.Optional;
  * @param comments   the comments, oldest first
  * @since 6.2.0
  */
-public record CommentThreadData(String threadId, JsonNode context, Instant resolvedAt, String resolvedBy,
+public record CommentThreadData(String threadId, String authorId, JsonNode context, Instant resolvedAt, String resolvedBy,
                                 Instant unlinkedAt, JsonNode attributes,
                                 List<CommentData> comments) implements Serializable {
 
@@ -32,15 +34,9 @@ public record CommentThreadData(String threadId, JsonNode context, Instant resol
         context = context == null || context.isNull() ? null : context.deepCopy();
         attributes = Json.objectOrEmpty(attributes);
         comments = comments == null ? List.of() : List.copyOf(comments);
-    }
-
-    /**
-     * The thread author: the author of the first comment.
-     *
-     * @return the author id, or empty for a thread without comments
-     */
-    public Optional<String> authorId() {
-        return comments.isEmpty() ? Optional.empty() : Optional.of(comments.get(0).authorId());
+        if (authorId == null && !comments.isEmpty()) {
+            authorId = comments.get(0).authorId();
+        }
     }
 
     /**

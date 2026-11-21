@@ -172,7 +172,7 @@ public class InMemoryCollaborationStore implements CollaborationStore, Serializa
     public CompletableFuture<Void> updateCommentThread(CollaborationContext context, String threadId, CommentThreadUpdate update) {
         return run(context, c -> {
             CommentThreadData t = thread(c, threadId);
-            c.threads.put(threadId, new CommentThreadData(threadId,
+            c.threads.put(threadId, new CommentThreadData(threadId, t.authorId(),
                 update.context() != null ? update.context() : t.context(),
                 t.resolvedAt(), t.resolvedBy(),
                 update.unlinkedAtChanged() ? update.unlinkedAt() : t.unlinkedAt(),
@@ -186,7 +186,7 @@ public class InMemoryCollaborationStore implements CollaborationStore, Serializa
                                                         Instant resolvedAt, String resolvedBy) {
         return run(context, c -> {
             CommentThreadData t = thread(c, threadId);
-            c.threads.put(threadId, new CommentThreadData(threadId, t.context(), resolvedAt, resolvedBy,
+            c.threads.put(threadId, new CommentThreadData(threadId, t.authorId(), t.context(), resolvedAt, resolvedBy,
                 t.unlinkedAt(), t.attributes(), t.comments()));
         });
     }
@@ -195,7 +195,7 @@ public class InMemoryCollaborationStore implements CollaborationStore, Serializa
     public CompletableFuture<Void> reopenCommentThread(CollaborationContext context, String threadId) {
         return run(context, c -> {
             CommentThreadData t = thread(c, threadId);
-            c.threads.put(threadId, new CommentThreadData(threadId, t.context(), null, null,
+            c.threads.put(threadId, new CommentThreadData(threadId, t.authorId(), t.context(), null, null,
                 t.unlinkedAt(), t.attributes(), t.comments()));
         });
     }
@@ -217,14 +217,14 @@ public class InMemoryCollaborationStore implements CollaborationStore, Serializa
                 if (!c.suggestions.containsKey(threadId)) {
                     throw CollaborationException.notFound("comment thread " + threadId);
                 }
-                t = new CommentThreadData(threadId, null, null, null, null, null, List.of());
+                t = new CommentThreadData(threadId, comment.authorId(), null, null, null, null, null, List.of());
             }
             if (t.comment(comment.commentId()).isPresent()) {
                 throw CollaborationException.invalid("comment " + comment.commentId() + " already exists");
             }
             List<CommentData> comments = new ArrayList<>(t.comments());
             comments.add(comment);
-            c.threads.put(threadId, new CommentThreadData(threadId, t.context(), t.resolvedAt(), t.resolvedBy(),
+            c.threads.put(threadId, new CommentThreadData(threadId, t.authorId(), t.context(), t.resolvedAt(), t.resolvedBy(),
                 t.unlinkedAt(), t.attributes(), comments));
             rememberAuthor(c, context);
         });
@@ -297,7 +297,7 @@ public class InMemoryCollaborationStore implements CollaborationStore, Serializa
                 comments.add(next);
             }
         }
-        c.threads.put(threadId, new CommentThreadData(threadId, t.context(), t.resolvedAt(), t.resolvedBy(),
+        c.threads.put(threadId, new CommentThreadData(threadId, t.authorId(), t.context(), t.resolvedAt(), t.resolvedBy(),
             t.unlinkedAt(), t.attributes(), comments));
     }
 

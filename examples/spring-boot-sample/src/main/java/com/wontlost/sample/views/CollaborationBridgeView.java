@@ -53,7 +53,7 @@ public class CollaborationBridgeView extends VerticalLayout implements BeforeEnt
     private static synchronized void seed() {
         STORE.clear(DOC);
         STORE.putUser(DOC, ALICE);
-        STORE.putCommentThread(DOC, new CommentThreadData("t1", null, null, null, null, null, List.of(
+        STORE.putCommentThread(DOC, new CommentThreadData("t1", "alice", null, null, null, null, null, List.of(
             new CommentData("c1", "alice", Instant.parse("2026-11-01T10:00:00Z"), "<p>Alice's comment</p>", null))));
         STORE.putSuggestion(DOC, new SuggestionData("s1", "insertion", "alice", Instant.parse("2026-11-01T11:00:00Z"),
             false, null, null, null, "open"));

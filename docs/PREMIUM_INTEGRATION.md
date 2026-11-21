@@ -293,8 +293,8 @@ completes asynchronously needs `@Push`, or polling, for the answer to reach the 
 **Security rules** enforced on the server for every call; the browser is untrusted:
 
 - **Identity:** the user, document id and permissions are fixed when the bridge is built. Author ids, `createdAt`, `resolvedAt` and `resolvedBy` sent by the browser are ignored and set on the server.
-- **Comments:** `addCommentThread`, `addComment` and `updateCommentThread` need `comment:write`. `comment:admin` and `comment:modify_all` imply it.
-- **Own content:** `updateComment` and `removeComment` work only on the user's own comments, or any comment with `comment:modify_all`. `removeCommentThread` works only on the user's own thread, or any thread with `comment:admin`.
+- **Comments:** `addCommentThread`, `addComment` and `updateCommentThread` need `comment:write`. `comment:admin` implies it; `comment:modify_all` does not.
+- **Own content:** editing or removing one's own comment needs `comment:write`; another user's comment needs `comment:modify_all`. `removeCommentThread` works on the user's own thread (`comment:write`) or any thread with `comment:admin`. A thread's author is fixed when it is created and does not change when comments are removed.
 - **Resolving:** resolving or reopening a thread needs `comment:write` or `document:write`.
 - **Suggestions:** `addSuggestion` and changing a suggestion's state (accept or discard) need `document:write`. `hasComments` and attribute updates need `comment:write` or `document:write`.
 - **Split suggestions:** a suggestion split from another user's (`originalSuggestionId`) gets the original author, as the `TrackChangesAdapter` documentation requires.

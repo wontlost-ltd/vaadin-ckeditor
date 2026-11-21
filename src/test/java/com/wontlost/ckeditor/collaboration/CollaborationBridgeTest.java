@@ -39,7 +39,7 @@ class CollaborationBridgeTest {
     void setUp() {
         store = new InMemoryCollaborationStore().putUser(DOC, ALICE);
         // alice 的线程 t1（评论 c1）与建议 s1
-        store.putCommentThread(DOC, new CommentThreadData("t1", null, null, null, null, null, List.of(
+        store.putCommentThread(DOC, new CommentThreadData("t1", "alice", null, null, null, null, null, List.of(
             new CommentData("c1", "alice", Instant.parse("2026-11-01T00:00:00Z"), "<p>Alice</p>", null))));
         store.putSuggestion(DOC, new SuggestionData("s1", "insertion", "alice", Instant.parse("2026-11-01T00:00:00Z"),
             false, null, null, null, null));
@@ -193,6 +193,46 @@ class CollaborationBridgeTest {
         }
 
         @Test
+        @DisplayName("只有 comment:modify_all 的用户可改删他人评论，但不能写评论、建线程或改自己的评论")
+        void modifyAllOnly() {
+            CollaborationBridge moderator = bridge(BOB, CollaborationPermission.COMMENT_MODIFY_ALL);
+            assertThat(rejection(moderator, "addComment", "{'threadId':'t1','commentId':'c5','content':'x'}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+            assertThat(rejection(moderator, "addCommentThread", "{'threadId':'t5','comments':[]}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+            assertThat(rejection(moderator, "resolveCommentThread", "{'threadId':'t1'}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+            call(moderator, "updateComment", "{'threadId':'t1','commentId':'c1','content':'moderated'}");
+            assertThat(thread("t1").comment("c1").orElseThrow().content()).isEqualTo("moderated");
+
+            call(bridge(BOB, CollaborationPermission.COMMENT_WRITE), "addComment", "{'threadId':'t1','commentId':'c6','content':'mine'}");
+            assertThat(rejection(moderator, "updateComment", "{'threadId':'t1','commentId':'c6','content':'x'}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+        }
+
+        @Test
+        @DisplayName("线程作者在创建时确定：删除首条评论不会把线程转给下一个评论者；作者未知的线程只能由 admin 删除")
+        void threadOwnershipIsStable() {
+            CollaborationBridge bob = bridge(BOB, CollaborationPermission.COMMENT_WRITE);
+            call(bob, "addComment", "{'threadId':'t1','commentId':'c2','content':'reply'}");
+            call(bridge(ALICE, CollaborationPermission.COMMENT_WRITE), "removeComment", "{'threadId':'t1','commentId':'c1'}");
+            assertThat(thread("t1").authorId()).isEqualTo("alice");
+            assertThat(rejection(bob, "removeCommentThread", "{'threadId':'t1'}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+
+            store.putCommentThread(DOC, new CommentThreadData("orphan", null, null, null, null, null, null, List.of()));
+            assertThat(rejection(bob, "removeCommentThread", "{'threadId':'orphan'}").getReason())
+                .isEqualTo(CollaborationException.Reason.PERMISSION_DENIED);
+            call(bridge(BOB, CollaborationPermission.COMMENT_ADMIN), "removeCommentThread", "{'threadId':'orphan'}");
+
+            // 新线程的作者是创建者；修订建议讨论线程的作者是首条评论的作者
+            call(bob, "addCommentThread", "{'threadId':'t7','comments':[]}");
+            assertThat(thread("t7").authorId()).isEqualTo("bob");
+            call(bridge(ALICE), "addComment", "{'threadId':'s1','commentId':'c8','content':'why?'}");
+            assertThat(thread("s1").authorId()).isEqualTo("alice");
+        }
+
+        @Test
         @DisplayName("删除他人的线程需要 comment:admin")
         void removeThread() {
             assertThat(rejection(bridge(BOB, CollaborationPermission.COMMENT_WRITE), "removeCommentThread", "{'threadId':'t1'}")
@@ -237,10 +277,10 @@ class CollaborationBridgeTest {
         }
 
         @Test
-        @DisplayName("comment:admin / comment:modify_all 隐含 comment:write")
+        @DisplayName("comment:admin 隐含 comment:write；comment:modify_all 不隐含（CKEditor Permissions 语义）")
         void implications() {
             assertThat(CollaborationPermission.COMMENT_WRITE.isGrantedBy(java.util.Set.of(CollaborationPermission.COMMENT_ADMIN))).isTrue();
-            assertThat(CollaborationPermission.COMMENT_WRITE.isGrantedBy(java.util.Set.of(CollaborationPermission.COMMENT_MODIFY_ALL))).isTrue();
+            assertThat(CollaborationPermission.COMMENT_WRITE.isGrantedBy(java.util.Set.of(CollaborationPermission.COMMENT_MODIFY_ALL))).isFalse();
             assertThat(CollaborationPermission.COMMENT_ADMIN.isGrantedBy(java.util.Set.of(CollaborationPermission.COMMENT_WRITE))).isFalse();
             assertThat(CollaborationPermission.DOCUMENT_WRITE.isGrantedBy(java.util.Set.of(CollaborationPermission.COMMENT_ADMIN))).isFalse();
         }

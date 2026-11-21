@@ -22,7 +22,7 @@ public enum CollaborationPermission {
     /** Resolve and remove threads created by other users; implies {@link #COMMENT_WRITE}. */
     COMMENT_ADMIN("comment:admin"),
 
-    /** Edit and remove comments created by other users; implies {@link #COMMENT_WRITE}. */
+    /** Edit and remove comments created by other users (does not by itself allow writing comments). */
     COMMENT_MODIFY_ALL("comment:modify_all");
 
     /** CKEditor's default for a user without explicit permissions: document:write, comment:write, comment:admin. */
@@ -44,7 +44,7 @@ public enum CollaborationPermission {
 
     /**
      * Whether a permission set grants this permission, taking the CKEditor implications into account
-     * ({@code comment:admin} and {@code comment:modify_all} include {@code comment:write}).
+     * ({@code comment:admin} includes {@code comment:write}; {@code comment:modify_all} does not).
      *
      * @param granted the granted permissions
      * @return true if granted
@@ -53,6 +53,6 @@ public enum CollaborationPermission {
         if (granted.contains(this)) {
             return true;
         }
-        return this == COMMENT_WRITE && (granted.contains(COMMENT_ADMIN) || granted.contains(COMMENT_MODIFY_ALL));
+        return this == COMMENT_WRITE && granted.contains(COMMENT_ADMIN);
     }
 }

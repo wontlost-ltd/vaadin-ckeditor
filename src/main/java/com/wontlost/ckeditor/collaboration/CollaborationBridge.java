@@ -199,7 +199,7 @@ public final class CollaborationBridge implements Serializable {
                 requiredText(comment, "content"), comment.get("attributes")));
         }
         // 新线程不接受客户端的 resolvedAt / resolvedBy（安全起见由 resolveCommentThread 设置）
-        CommentThreadData thread = new CommentThreadData(threadId, data.get("context"), null, null,
+        CommentThreadData thread = new CommentThreadData(threadId, context.user().id(), data.get("context"), null, null,
             optionalInstant(data, "unlinkedAt"), data.get("attributes"), comments);
         return store.addCommentThread(context, thread).thenApply(ignored -> {
             ObjectNode result = JsonUtil.createObjectNode();
@@ -249,7 +249,8 @@ public final class CollaborationBridge implements Serializable {
         require(CollaborationPermission.COMMENT_WRITE, "remove comment threads");
         String threadId = requiredText(data, "threadId");
         return existingThread(threadId).thenCompose(thread -> {
-            boolean own = thread.authorId().map(context.user().id()::equals).orElse(true);
+            // 线程作者在创建时确定，不随评论删除而改变；作者未知的线程只能由 comment:admin 删除
+            boolean own = context.user().id().equals(thread.authorId());
             if (!own && !has(CollaborationPermission.COMMENT_ADMIN)) {
                 throw CollaborationException.denied("only the author or a comment admin can remove this thread");
             }
@@ -271,7 +272,6 @@ public final class CollaborationBridge implements Serializable {
     }
 
     private CompletableFuture<JsonNode> updateComment(JsonNode data) {
-        require(CollaborationPermission.COMMENT_WRITE, "edit comments");
         String threadId = requiredText(data, "threadId");
         String commentId = requiredText(data, "commentId");
         return ownedComment(threadId, commentId, "edit").thenCompose(comment -> {
@@ -287,7 +287,6 @@ public final class CollaborationBridge implements Serializable {
     }
 
     private CompletableFuture<JsonNode> removeComment(JsonNode data) {
-        require(CollaborationPermission.COMMENT_WRITE, "remove comments");
         String threadId = requiredText(data, "threadId");
         String commentId = requiredText(data, "commentId");
         return ownedComment(threadId, commentId, "remove")
@@ -368,12 +367,17 @@ public final class CollaborationBridge implements Serializable {
             thread.orElseThrow(() -> CollaborationException.notFound("comment thread " + threadId)));
     }
 
-    /** The comment, if the current user wrote it or may modify all comments. */
+    /**
+     * The comment, if the current user may change it: own comments need {@code comment:write}, other users'
+     * comments need {@code comment:modify_all}.
+     */
     private CompletableFuture<CommentData> ownedComment(String threadId, String commentId, String action) {
         return existingThread(threadId).thenApply(thread -> {
             CommentData comment = thread.comment(commentId)
                 .orElseThrow(() -> CollaborationException.notFound("comment " + commentId));
-            if (!comment.authorId().equals(context.user().id()) && !has(CollaborationPermission.COMMENT_MODIFY_ALL)) {
+            if (comment.authorId().equals(context.user().id())) {
+                require(CollaborationPermission.COMMENT_WRITE, action + " comments");
+            } else if (!has(CollaborationPermission.COMMENT_MODIFY_ALL)) {
                 throw CollaborationException.denied("only the author can " + action + " this comment");
             }
             return comment;
