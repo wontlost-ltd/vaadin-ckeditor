@@ -594,6 +594,66 @@ html {
 }
 ```
 
+### Code block syntax highlighting
+
+CKEditor's code blocks are not colored while editing ([ckeditor/ckeditor5#5769](https://github.com/ckeditor/ckeditor5/issues/5769)).
+The add-on can highlight them with [highlight.js](https://highlightjs.org/) — opt-in, off by default. It is a
+[custom plugin](#custom-plugins) shipped with the add-on (`VaadinCodeBlockHighlighting`): editors that never enable
+highlighting do not load it, nor highlight.js.
+
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.FULL)                                 // FULL / AI_DOCUMENT / NOTION include CODE_BLOCK
+    .withCodeBlockHighlighting(CodeHighlightTheme.AUTO)              // or withCodeBlockHighlighting(true)
+    .build();
+
+editor.setCodeBlockHighlightTheme(CodeHighlightTheme.ATOM_ONE_DARK); // takes effect immediately
+editor.setCodeBlockHighlighting(false);                              // so does switching it off
+```
+
+Enabling highlighting for the first time on an editor that is already displayed adds the plugin, which recreates the
+editor once with its current content (the undo history starts anew). After that, switching it on and off and changing the
+theme apply immediately.
+
+| `CodeHighlightTheme` | Colors |
+|----------------------|--------|
+| `AUTO` (default) | highlight.js `github` on a light editor, `github-dark` on a dark one (Lumo dark, OS dark mode or `CKEditorTheme.DARK`); keeps the editor's code block background |
+| `GITHUB` / `ATOM_ONE_LIGHT` | Light palette with a light code block background |
+| `GITHUB_DARK` / `ATOM_ONE_DARK` | Dark palette with a dark code block background, in light and dark editors |
+| `NONE` | No built-in colors: code carries highlight.js `hljs-*` classes, style them with any highlight.js theme CSS |
+
+**What is highlighted.** Each code block uses its language from `codeBlock.languages` (the toolbar's language list).
+CKEditor's default languages are all supported (`cs` → C#, `html` → XML/HTML); custom languages work when
+highlight.js knows the name or alias (`kotlin`, `sql`, `go`, `rust`, `yaml`, `bash`, …: the highlight.js "common" bundle
+of about 36 languages). Plain text and unknown languages stay uncolored.
+
+**The saved HTML stays clean.** Highlighting changes the editing view only, never the document model: `getValue()`
+returns the same `<pre><code class="language-…">` HTML as without highlighting, undo/redo history is not touched,
+and value-change events do not fire because of it. There is no option to store the highlight markup; highlight the
+saved HTML where it is displayed (highlight.js and Prism both understand the `language-*` classes).
+
+**Colors** are CSS variables on the editing root (`--ck-code-hl-keyword`, `-string`, `-comment`, `-number`, `-title`,
+`-builtin`, …); override any of them in your theme:
+
+```css
+.ck-code-hl { --ck-code-hl-keyword: #b00; }
+```
+
+**Performance.** highlight.js (the common bundle: about 150 KB minified, 37 KB brotli) is loaded the first time an editor enables
+highlighting. After typing, only the changed code block is re-tokenized (debounced by 30 ms) and only lines whose
+coloring changed are re-rendered. Measured in Chromium on an Apple Silicon laptop (`e2e/tests/code-block-highlighting.spec.ts`):
+
+| Code block | First highlight | Keystroke without highlighting | Keystroke with highlighting | Re-highlight after the keystroke |
+|------------|-----------------|--------------------------------|-----------------------------|----------------------------------|
+| 100 lines (5 KB) | 25 ms | 10 ms | 10 ms | 4 ms |
+| 500 lines (27 KB) | 61 ms | 20 ms | 33 ms | 15 ms |
+| 1500 lines (82 KB) | 179 ms | 58 ms | 85 ms | 43 ms |
+
+Code blocks longer than 100,000 characters are not highlighted. While an input method (IME) composition is in progress
+highlighting waits until it ends. Lines that also carry a comment or suggestion highlight keep their previous coloring
+until that highlight goes away.
+
 ### Custom CSS
 
 ```java
@@ -976,6 +1036,57 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
+### Bundling and lazy loading
+
+A path passed to `withImportPath(...)` is imported at runtime, outside Vaadin's Vite build, so in a production build it
+only works for modules the browser can load by that URL. To ship a plugin inside the application bundle, register it
+from a `@JsModule` script with the connector's registry (`vaadin-ckeditor/plugin-resolver`). Registered plugins take
+precedence over the import path:
+
+```ts
+// frontend/my-plugins.ts, loaded with @JsModule("./my-plugins.ts") on any Vaadin component
+import { registerCKEditorPlugin, registerCKEditorPluginLoader } from 'Frontend/generated/jar-resources/vaadin-ckeditor/plugin-resolver';
+import MyPlugin from './my-plugin';
+
+registerCKEditorPlugin('MyPlugin', MyPlugin);                                  // bundled with the page
+registerCKEditorPluginLoader('MyHeavyPlugin', () => import('./my-heavy-plugin')); // separate chunk, downloaded
+                                                                                  // only by editors that use it
+```
+
+A loader may resolve to the plugin class, a module with a `default` export, or a module exporting the plugin under its name.
+
+### Passing configuration from Java
+
+`withConfig(key, json)` hands a value to the plugin as `config[key]` (since 6.2.0):
+
+```java
+ObjectNode options = JsonUtil.createObjectNode().put("level", 2);
+CustomPlugin plugin = CustomPlugin.builder("MyPlugin")
+    .withImportPath("my-plugin")
+    .withConfig("myPlugin", options)
+    .build();
+```
+
+```ts
+class MyPlugin extends Plugin {
+    init() {
+        const options = this.editor.config.get('myPlugin');         // { level: 2 }
+        this.listenTo(this.editor, 'vaadin:pluginConfig', (evt, key, value) => {
+            if (key === 'myPlugin') { /* apply the new value */ }
+        });
+    }
+}
+```
+
+Plugins are applied when the editor is created. If the plugin list of a displayed editor changes (the server sends a new
+`plugins` list, as `setCodeBlockHighlighting(true)` does), the connector compares it with the current one: when only
+configuration values changed it updates `editor.config` and fires `vaadin:pluginConfig` (key, value) on the editor;
+when plugins were added or removed it recreates the editor with its current content (undo history starts anew).
+
+The add-on's own optional features use this mechanism: [code block syntax highlighting](#code-block-syntax-highlighting)
+is the custom plugin `VaadinCodeBlockHighlighting`, registered with a lazy loader and configured with
+`codeBlockHighlighting: { enabled, theme }`.
+
 ---
 
 ## Premium Features
@@ -1053,6 +1164,8 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | `setWidth(String)` | Set width (CSS value) |
 | `setHeight(String)` | Set height (CSS value) |
 | `setMinimapEnabled(boolean)` | Enable minimap (DECOUPLED only) |
+| `setCodeBlockHighlighting(boolean)` | Syntax highlighting in code blocks while editing (see [Code block syntax highlighting](#code-block-syntax-highlighting)) |
+| `setCodeBlockHighlightTheme(CodeHighlightTheme)` | Highlighting colors (`AUTO`, `GITHUB`, `GITHUB_DARK`, `ATOM_ONE_LIGHT`, `ATOM_ONE_DARK`, `NONE`) |
 
 #### Configuration
 

@@ -13,9 +13,14 @@ import { FallbackRenderer, type FallbackMode } from './fallback-renderer';
 import { bindEditorErrors } from './error-reporter';
 import {
     PluginResolver,
+    PLUGIN_CONFIG_EVENT,
+    pluginConfigEntries,
+    pluginSetChanged,
     registerCKEditorPlugin,
     type PluginConfig,
 } from './plugin-resolver';
+// add-on 自带的可选插件（经自定义插件机制按需加载，见 addon-plugins.ts）
+import './addon-plugins';
 import {
     buildCreateConfig,
     normalizeAIConfig48,
@@ -561,9 +566,52 @@ export class VaadinCKEditor extends LitElement {
             this.updateFullscreenPage();
         }
 
+        if (changedProperties.has('plugins') && this.editor) {
+            this.applyPluginsChange(changedProperties.get('plugins') as PluginConfig[] | undefined);
+        }
+
         // Handle theme changes from Java backend
         if (changedProperties.has('themeType')) {
             this.handleThemeTypeChange();
+        }
+    }
+
+    /**
+     * 编辑器运行中插件列表变化（Java 端在显示后增删自定义插件或改其配置）：
+     * 插件集合不变时只把配置通知给插件（{@link PLUGIN_CONFIG_EVENT}），否则保留当前内容重建编辑器
+     * （CKEditor 不能在创建后增删插件；撤销历史随之清空）。
+     */
+    private applyPluginsChange(previous: PluginConfig[] | undefined): void {
+        const editor = this.editor;
+        if (!editor) {
+            return;
+        }
+        if (pluginSetChanged(previous, this.plugins)) {
+            void this.rebuildEditor();
+            return;
+        }
+        const before = pluginConfigEntries(previous);
+        for (const [key, config] of Object.entries(pluginConfigEntries(this.plugins))) {
+            if (JSON.stringify(before[key]) !== JSON.stringify(config)) {
+                editor.config.set(key, config as never);
+                editor.fire(PLUGIN_CONFIG_EVENT, key, config);
+            }
+        }
+    }
+
+    /** 以当前内容销毁并重建编辑器（插件集合变化时）。 */
+    private async rebuildEditor(): Promise<void> {
+        const editor = this.editor;
+        if (!editor || this.isCreating) {
+            return;
+        }
+        const data = editor.getData();
+        logger.debug(' plugin set changed, rebuilding editor');
+        await this.destroyEditor();
+        // 编辑器已销毁，写 editorData 不会触发 updateData；新编辑器在 setupEditorUI 中载入它
+        this.editorData = data;
+        if (!this.isDisconnected) {
+            await this.createEditor();
         }
     }
 
@@ -781,6 +829,8 @@ export class VaadinCKEditor extends LitElement {
             plugins: resolvedPlugins as EditorConfig['plugins'],
             ...(translations ? { translations: [translations] } : {}),
             ...remainingConfig,
+            // 自定义插件的配置（Java CustomPlugin.Builder#withConfig），见 PluginConfig.configKey
+            ...pluginConfigEntries(this.plugins),
             // 放在 remainingConfig 之后，写回归一化后的 ui（对象形式保留 content / textPartLanguage）
             language: withUiLanguage(remainingConfig.language, uiLanguage) as EditorConfig['language'],
         };

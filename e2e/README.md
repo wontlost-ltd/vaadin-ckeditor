@@ -22,6 +22,7 @@ in a real browser to catch issues that unit tests miss.
 | `sticky-toolbar.spec.ts` | AppLayout + 铺满 TabSheet（滚动容器在 shadow DOM 中）的 `/sticky-toolbar` 夹具：聚焦后滚动，工具栏贴住滚动容器顶部，滚动事件当帧与稳定后都没有 CKEditor 粘性占位块、工具栏不被设为 `fixed`（#157） |
 | `heading-options.spec.ts` | `/heading` 夹具：同级别两个标题选项（独立 model + view 类名）时编辑器正常初始化，`<h1 class>` / `<h4 class>` 往返不丢类名，从下拉应用变体时内容带上类名（#158 / #159） |
 | `fullscreen-overflow.spec.ts` | `/fullscreen-doc` 夹具（1366×768）：`custom(1200px)` 与 `html` 覆盖 1200px（A4_FIT / FULL_WIDTH）× {无侧栏、minimap、大纲、两者}——页面与侧栏按边界框互不重叠，放不下时全屏区域横向滚动、两侧侧栏滚到可见，minimap 在可横向滚动时仍同步并驱动滚动；放得下的 `custom(60%)` / A4_FIT / FULL_WIDTH 不出现横向滚动（#156） |
+| `code-block-highlighting.spec.ts` | `/code-highlight` 夹具：代码块着色、纯文本块不着色，输入后新代码着色且服务端 `getValue()` 不含高亮 span，撤销 / 重做，切换代码块语言重新着色，运行期开关与换配色，暗色编辑器下 `AUTO` 用 github-dark；Chromium 上测量 100 / 500 / 1500 行代码块的首次着色、按键与重新着色耗时（与未启用对比） |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 
 Each spec runs against Chromium and Firefox.
