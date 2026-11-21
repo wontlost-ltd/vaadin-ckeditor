@@ -149,13 +149,36 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * Set heading options
+     * Set heading options (CKEditor {@code heading.options}).
+     *
+     * <p>Every option must use a distinct model name: CKEditor registers one model element per
+     * option and fails to initialize with {@code schema-cannot-register-item-twice} otherwise.
+     * To offer several variants of the same level (e.g. a plain {@code <h1>} and
+     * {@code <h1 class="style1">}), give the variant its own model:</p>
+     * <pre>{@code
+     * config.setHeading(
+     *     HeadingOption.paragraph("Paragraph", "ck-heading_paragraph"),
+     *     HeadingOption.heading(1, "Heading 1", "ck-heading_heading1"),
+     *     HeadingOption.heading(1, "Article title", "")
+     *         .withModel("heading1Article")
+     *         .withViewClasses("style1"));
+     * }</pre>
+     *
+     * @throws IllegalArgumentException if two options share a model name
      */
     public CKEditorConfig setHeading(HeadingOption... options) {
         if (hasElements(options)) {
             ObjectNode headingObj = createObjectNode();
             ArrayNode optionsArr = createArrayNode();
+            Set<String> models = new HashSet<>();
             for (HeadingOption option : options) {
+                if (!models.add(option.model)) {
+                    throw new IllegalArgumentException("Duplicate heading model '" + option.model
+                        + "': CKEditor requires a unique model per heading option and would fail with "
+                        + "schema-cannot-register-item-twice. To add another variant of the same level, give it "
+                        + "its own model, e.g. HeadingOption.heading(1, \"" + option.title + "\", \"\")"
+                        + ".withModel(\"heading1Variant\").withViewClasses(\"my-class\")");
+                }
                 optionsArr.add(option.toJson());
             }
             headingObj.set("options", optionsArr);
@@ -1515,33 +1538,118 @@ public class CKEditorConfig implements java.io.Serializable {
     }
 
     /**
-     * Heading option definition
+     * Heading option definition (one entry of CKEditor {@code heading.options}).
+     *
+     * <p><b>{@code className} is the CSS class of the item in the heading dropdown</b>, as in
+     * CKEditor's own {@code class} property (e.g. {@code ck-heading_heading1}); it is not written
+     * to the heading element in the content. Use {@link #withViewClasses(String...)} to output
+     * {@code <h2 class="...">}.</p>
      */
     public static class HeadingOption {
+        /** CKEditor 约定标题的 model 名以 heading 开头（HeadingElementOption.model 类型为 heading${string}） */
+        private static final Pattern HEADING_MODEL = Pattern.compile("heading[A-Za-z0-9_-]+");
+        /** 单个 CSS 类名（标识符形式，可直接用于选择器）：字母 / 下划线 / 连字符开头，后接字母、数字、_ 或 - */
+        private static final Pattern CSS_CLASS = Pattern.compile("-?[A-Za-z_][A-Za-z0-9_-]*");
+
         private final String model;
         private final String view;
         private final String title;
         private final String className;
+        private final String[] viewClasses;
 
         public HeadingOption(String model, String view, String title, String className) {
+            this(model, view, title, className, new String[0]);
+        }
+
+        private HeadingOption(String model, String view, String title, String className, String[] viewClasses) {
             this.model = model;
             this.view = view;
             this.title = title;
             this.className = className;
+            this.viewClasses = viewClasses;
         }
 
+        /**
+         * The paragraph entry of the dropdown.
+         *
+         * @param title     label shown in the dropdown
+         * @param className CSS class of the dropdown item (e.g. {@code ck-heading_paragraph})
+         */
         public static HeadingOption paragraph(String title, String className) {
             return new HeadingOption("paragraph", null, title, className);
         }
 
+        /**
+         * A heading level, rendered as {@code <h{level}>} with model {@code heading{level}}.
+         *
+         * @param level     heading level, used for both the model name and the {@code h1}–{@code h6} element
+         * @param title     label shown in the dropdown
+         * @param className CSS class of the dropdown item (e.g. {@code ck-heading_heading1}),
+         *                  not of the heading element; see {@link #withViewClasses(String...)}
+         */
         public static HeadingOption heading(int level, String title, String className) {
             return new HeadingOption("heading" + level, "h" + level, title, className);
+        }
+
+        /**
+         * Returns a copy with another model name, so that several options can share one heading level.
+         * CKEditor requires every option to have a unique model.
+         *
+         * @param model model name starting with {@code heading}, e.g. {@code heading1Article}
+         * @throws IllegalArgumentException if the name does not start with {@code heading}, or this is the paragraph option
+         */
+        public HeadingOption withModel(String model) {
+            requireHeading("withModel");
+            if (model == null || !HEADING_MODEL.matcher(model).matches()) {
+                throw new IllegalArgumentException("Heading model must start with 'heading' followed by letters, "
+                    + "digits, '_' or '-' (e.g. 'heading1Article'), got: " + model);
+            }
+            return new HeadingOption(model, view, title, className, viewClasses);
+        }
+
+        /**
+         * Returns a copy whose heading element carries the given CSS classes, e.g. {@code <h1 class="style1">}.
+         * Only elements with all these classes are loaded as this option, so a variant can sit next to
+         * the plain level; it is converted with {@code converterPriority: 'high'} as the CKEditor
+         * headings guide requires for such variants.
+         *
+         * @param classes one or more CSS class names
+         * @throws IllegalArgumentException if no class is given, a class is not a plain CSS class name
+         *                                  (letters, digits, {@code _} or {@code -}, not starting with a digit),
+         *                                  or this is the paragraph option
+         */
+        public HeadingOption withViewClasses(String... classes) {
+            requireHeading("withViewClasses");
+            if (classes == null || classes.length == 0) {
+                throw new IllegalArgumentException("At least one view class is required");
+            }
+            for (String cls : classes) {
+                if (cls == null || !CSS_CLASS.matcher(cls).matches()) {
+                    throw new IllegalArgumentException("View class must be a single CSS class name such as 'style1' "
+                        + "(letters, digits, '_' or '-', not starting with a digit), got: '"
+                        + cls + "'");
+                }
+            }
+            return new HeadingOption(model, view, title, className, classes.clone());
+        }
+
+        private void requireHeading(String method) {
+            if (view == null) {
+                throw new IllegalArgumentException(method + " is not supported for the paragraph option; "
+                    + "use a block style (setStyle) for classes on paragraphs");
+            }
         }
 
         public ObjectNode toJson() {
             ObjectNode obj = createObjectNode();
             obj.put("model", model);
-            if (view != null) {
+            if (viewClasses.length > 0) {
+                ObjectNode viewObj = createObjectNode();
+                viewObj.put("name", view);
+                viewObj.set("classes", toArrayNode(viewClasses));
+                obj.set("view", viewObj);
+                obj.put("converterPriority", "high");
+            } else if (view != null) {
                 obj.put("view", view);
             }
             obj.put("title", title);

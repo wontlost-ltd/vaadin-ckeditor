@@ -67,8 +67,6 @@ const logger = {
 // Timing constants
 /** Delay (ms) for toolbar repaint mouse-leave event */
 const TOOLBAR_REPAINT_DELAY_MS = 10;
-/** Delay (ms) for sticky panel setup after CKEditor initialization */
-const STICKY_PANEL_SETUP_DELAY_MS = 100;
 /** Timeout (ms) for requestIdleCallback during editor destruction */
 const DESTROY_IDLE_TIMEOUT_MS = 100;
 /**
@@ -2460,8 +2458,6 @@ export class VaadinCKEditor extends LitElement {
         VaadinCKEditor.acquirePaginationErrorHandler();
         this.paginationHandlerAcquired = true;
 
-        // Setup scroll handler for sticky panel (must be called on each connection)
-        this.setupStickyPanelObserver();
 
         // 重挂载时重建编辑器与主题系统。
         //
@@ -2663,125 +2659,6 @@ export class VaadinCKEditor extends LitElement {
         }
     }
 
-    // Sticky panel scroll handler state
-    private stickyPanelScrollHandler: (() => void) | null = null;
-    private stickyPanelScrollContainer: Element | null = null;
-    private stickyPanelSetupTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    private stickyPanelScrollTicking = false;
-
-    /**
-     * Set up scroll handler to override CKEditor's sticky panel inline styles.
-     * CKEditor's sticky panel sets inline styles (width, top, margin-left) on scroll
-     * that cannot be overridden by CSS !important, so we must remove them via JavaScript.
-     *
-     * Uses requestAnimationFrame throttling to avoid performance issues during scrolling.
-     */
-    private setupStickyPanelObserver(): void {
-        if (this.stickyPanelScrollHandler) {
-            return; // Already set up
-        }
-
-        /**
-         * Clean sticky panel inline styles.
-         * This removes CKEditor's inline positioning that conflicts with our CSS sticky implementation.
-         */
-        const cleanStickyPanelStylesImpl = () => {
-            // Clean sticky panel content inline styles
-            const stickyContent = this.querySelector('.ck-sticky-panel__content');
-            if (stickyContent instanceof HTMLElement) {
-                // Use cssText to forcefully override all inline styles
-                stickyContent.style.cssText = 'width: auto !important; position: static !important;';
-            }
-
-            // Hide placeholder
-            const placeholder = this.querySelector('.ck-sticky-panel__placeholder');
-            if (placeholder instanceof HTMLElement) {
-                placeholder.style.cssText = 'display: none !important; height: 0 !important;';
-            }
-        };
-
-        /**
-         * Throttled scroll handler using requestAnimationFrame.
-         * Ensures we only run style cleanup once per animation frame.
-         */
-        const throttledScrollHandler = () => {
-            if (!this.stickyPanelScrollTicking) {
-                this.stickyPanelScrollTicking = true;
-                requestAnimationFrame(() => {
-                    if (!this.isDisconnected) {
-                        cleanStickyPanelStylesImpl();
-                    }
-                    this.stickyPanelScrollTicking = false;
-                });
-            }
-        };
-
-        this.stickyPanelScrollHandler = throttledScrollHandler;
-
-        /**
-         * Find the scroll container (parent with overflow: auto/scroll).
-         * Only checks vertical overflow since sticky positioning is vertical.
-         */
-        const findScrollContainer = (): Element | null => {
-            let el: Element | null = this.parentElement;
-            while (el) {
-                const style = window.getComputedStyle(el);
-                // Check for vertical scrolling (overflow or overflow-y)
-                if (style.overflow === 'auto' || style.overflow === 'scroll' ||
-                    style.overflowY === 'auto' || style.overflowY === 'scroll') {
-                    return el;
-                }
-                el = el.parentElement;
-            }
-            return null;
-        };
-
-        // Set up after a short delay to let CKEditor initialize
-        this.stickyPanelSetupTimeoutId = setTimeout(() => {
-            // Guard against disconnected state (if component was unmounted during delay)
-            if (this.isDisconnected) {
-                return;
-            }
-
-            // Initial cleanup
-            cleanStickyPanelStylesImpl();
-
-            // Find scroll container and add scroll listener
-            this.stickyPanelScrollContainer = findScrollContainer();
-            if (this.stickyPanelScrollContainer && this.stickyPanelScrollHandler) {
-                this.stickyPanelScrollContainer.addEventListener('scroll', this.stickyPanelScrollHandler);
-                logger.debug('Sticky panel scroll handler attached to:', this.stickyPanelScrollContainer.className);
-            }
-
-            // Also listen on window scroll as fallback
-            if (this.stickyPanelScrollHandler) {
-                window.addEventListener('scroll', this.stickyPanelScrollHandler);
-            }
-        }, STICKY_PANEL_SETUP_DELAY_MS);
-    }
-
-    /**
-     * Clean up the sticky panel scroll handler and timeout.
-     */
-    private cleanupStickyPanelObserver(): void {
-        // Clear pending timeout if component disconnected before setup completed
-        if (this.stickyPanelSetupTimeoutId) {
-            clearTimeout(this.stickyPanelSetupTimeoutId);
-            this.stickyPanelSetupTimeoutId = null;
-        }
-
-        if (this.stickyPanelScrollHandler) {
-            if (this.stickyPanelScrollContainer) {
-                this.stickyPanelScrollContainer.removeEventListener('scroll', this.stickyPanelScrollHandler);
-                this.stickyPanelScrollContainer = null;
-            }
-            window.removeEventListener('scroll', this.stickyPanelScrollHandler);
-            this.stickyPanelScrollHandler = null;
-        }
-
-        this.stickyPanelScrollTicking = false;
-    }
-
     /**
      * Cleanup on disconnect.
      * Uses deferred cleanup to avoid blocking Vaadin's DOM operations.
@@ -2799,9 +2676,6 @@ export class VaadinCKEditor extends LitElement {
             VaadinCKEditor.releasePaginationErrorHandler();
             this.paginationHandlerAcquired = false;
         }
-
-        // Clean up sticky panel observer
-        this.cleanupStickyPanelObserver();
 
         // Clean up AI sidebar collapse observer
         if (this.aiSidebarCollapseObserver) {
