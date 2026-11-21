@@ -529,12 +529,28 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 editor.setFullscreenPage(FullscreenPage.A4);   // back to CKEditor's fixed page, also while fullscreen is open
 ```
 
-**How `A4_FIT` fits.** The *editing column* is the fullscreen area minus sidebars that have content (document outline,
-comments, AI panel); empty sidebars are hidden. The page is as wide as the column minus a gutter equal to the fullscreen
+**How `A4_FIT` fits.** The *editing column* is the fullscreen area minus every visible sidebar and its margins:
+the document outline on the left (CKEditor moves it into fullscreen), the minimap on the right (the add-on moves it into
+fullscreen, see below) and CKEditor's comment / AI panels. Sidebars keep their width and are never overlapped; when a
+sidebar is absent its space goes to the page. The page is as wide as the column minus a gutter equal to the fullscreen
 top margin (`--ck-fullscreen-editor-top-margin`, 28px) on each side. Its padding (20mm × 12mm on a 210mm page) and
 minimum height (297mm) scale with that width, so an empty page looks like an A4 sheet. The page grows downwards with the
 content, as in CKEditor, so the window height does not limit the width. Resizing the window or zooming the browser
 (Ctrl/Cmd + / −) changes the page size: at 200 % zoom the page still fills the window, with text twice as large.
+`FULL_WIDTH` uses the same column without gutters. `A4` keeps CKEditor's own layout.
+
+**Document editor sidebars in fullscreen** (`CKEditorType.DECOUPLED`):
+
+| Sidebar | In fullscreen |
+|---------|---------------|
+| Document outline (`setDocumentOutlineEnabled`) | Moved by CKEditor into the fullscreen left sidebar; still navigates |
+| Minimap (`setMinimapEnabled`) | Moved by the add-on to the right of the page and re-bound to the fullscreen scroll area (CKEditor leaves it behind, hidden and tracking the old scroll area) |
+
+Both return to the normal layout when fullscreen closes. The page also ignores `setWidth` / `setHeight` while in
+fullscreen (they used to squeeze the page), and uses them again afterwards.
+
+CKEditor's fullscreen mode supports the `CLASSIC` and `DECOUPLED` editor types only. For `BALLOON` and `INLINE`
+editors `setFullscreenPage` has no effect.
 
 > **Behaviour change in 6.2.0:** fullscreen used CKEditor's fixed 795.701px page before. Use `FullscreenPage.A4` to keep
 > that look.

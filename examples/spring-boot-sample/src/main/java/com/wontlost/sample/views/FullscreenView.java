@@ -67,7 +67,7 @@ public class FullscreenView extends VerticalLayout implements BeforeEnterObserve
         return editor;
     }
 
-    private static FullscreenPage parse(String page) {
+    static FullscreenPage parse(String page) {
         return switch (page) {
             case "a4" -> FullscreenPage.A4;
             case "a4-fit" -> FullscreenPage.A4_FIT;

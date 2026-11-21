@@ -45,6 +45,7 @@ import {
     raiseHostLayers,
     releaseOverlayHost,
 } from './overlay-host';
+import { moveMinimapIntoFullscreen, rebindMinimap, type FullscreenHandlerLike } from './fullscreen-minimap';
 import {
     DEFAULT_FULLSCREEN_PAGE,
     applyFullscreenPage,
@@ -1343,7 +1344,66 @@ export class VaadinCKEditor extends LitElement {
         // Handle decoupled editor toolbar
         if (this.editorType === 'decoupled') {
             this.setupDecoupledToolbar();
+            this.setupFullscreenMinimap();
         }
+    }
+
+    /**
+     * 全屏模式下的 minimap（issue #156，细节见 fullscreen-minimap.ts）：进入全屏后把 minimap 挪到编辑列右侧
+     * 并重新绑定滚动容器，退出（CKEditor 已把编辑区与 minimap 放回原处）后再绑定回原滚动容器。
+     * 全屏期间页宽随窗口 / 浏览器缩放 / setFullscreenPage 变化时，按新页宽重建，保持缩放比例与预览宽度一致。
+     */
+    private setupFullscreenMinimap(): void {
+        const editor = this.editor;
+        type Command = { fullscreenHandler: FullscreenHandlerLike;
+            on(event: string, cb: (...args: unknown[]) => void): void; off(event: string, cb: (...args: unknown[]) => void): void };
+        const command = editor?.commands.get('toggleFullscreen') as unknown as Command | undefined;
+        if (!editor || !this.minimapEnabled || !command || !editor.plugins.has('Minimap')) return;
+        const minimap = editor.plugins.get('Minimap');
+        let pageObserver: ResizeObserver | null = null;
+        let observedWidth = 0;
+
+        const rebind = (root: ParentNode, pageWidth: string): void => {
+            if (!rebindMinimap(minimap)) {
+                logger.warn('Minimap could not be re-bound to the fullscreen scroll container; '
+                    + 'it may not follow scrolling (unexpected CKEditor Minimap internals)');
+                return;
+            }
+            this.injectMinimapStyles(root, pageWidth);
+        };
+        const stopObserving = (): void => {
+            pageObserver?.disconnect();
+            pageObserver = null;
+        };
+
+        const onToggle = (_evt: unknown, _name: unknown, isFullscreen: unknown): void => {
+            stopObserving();
+            if (!isFullscreen) {
+                rebind(this, A4_WIDTH_PX);
+                return;
+            }
+            const handler = command.fullscreenHandler;
+            const width = getComputedStyle(this).getPropertyValue('--ck-minimap-width').trim();
+            moveMinimapIntoFullscreen(handler, this.querySelector<HTMLElement>('.minimap-container'), width);
+            const root = handler.getWrapper();
+            const editable = root.querySelector<HTMLElement>('.ck-editor__editable');
+            observedWidth = editable?.getBoundingClientRect().width ?? 0;
+            rebind(root, `${observedWidth}px`);
+            if (editable && typeof ResizeObserver !== 'undefined') {
+                pageObserver = new ResizeObserver(() => {
+                    const current = editable.getBoundingClientRect().width;
+                    if (Math.abs(current - observedWidth) < 1) return;
+                    observedWidth = current;
+                    rebind(root, `${current}px`);
+                });
+                pageObserver.observe(editable);
+            }
+        };
+        command.on('change:value', onToggle);
+        this.listenerCleanups.push(() => {
+            stopObserving();
+            command.off('change:value', onToggle);
+        });
     }
 
     /**
@@ -1385,15 +1445,20 @@ export class VaadinCKEditor extends LitElement {
      * doesn't capture all our custom CSS rules.
      * The minimap will inherit the editor's background and foreground colors.
      */
-    private injectMinimapStyles(): void {
+    private injectMinimapStyles(root: ParentNode = this, pageWidth: string = A4_WIDTH_PX): void {
         // Poll for the minimap iframe instead of using a fixed delay.
         // The iframe is created asynchronously by CKEditor's minimap plugin.
+        // root / pageWidth：全屏时 minimap 与编辑区都在全屏容器里，页宽随 FullscreenPage 变化（issue #156）
         const maxAttempts = MINIMAP_INJECT_MAX_ATTEMPTS;
         let attempt = 0;
+        if (this.minimapInjectRafId !== null) {
+            cancelAnimationFrame(this.minimapInjectRafId);
+            this.minimapInjectRafId = null;
+        }
 
         const tryInject = (): void => {
             this.minimapInjectRafId = null;
-            const minimapIframe = this.querySelector('.ck-minimap__iframe') as HTMLIFrameElement;
+            const minimapIframe = root.querySelector('.ck-minimap__iframe') as HTMLIFrameElement;
             if (!minimapIframe || !minimapIframe.contentDocument) {
                 if (++attempt < maxAttempts) {
                     this.minimapInjectRafId = requestAnimationFrame(tryInject);
@@ -1411,7 +1476,7 @@ export class VaadinCKEditor extends LitElement {
             }
 
             // Get the main editor's computed styles for background and foreground colors
-            const editorContent = this.querySelector('.ck-content');
+            const editorContent = root.querySelector('.ck-content');
             let backgroundColor = 'white';
             let textColor = 'inherit';
 
@@ -1430,9 +1495,9 @@ export class VaadinCKEditor extends LitElement {
                 body.style.setProperty('color', textColor, 'important');
                 body.style.setProperty('height', 'auto', 'important');
                 body.style.setProperty('min-height', A4_MIN_HEIGHT_PX, 'important');
-                body.style.setProperty('width', A4_WIDTH_PX, 'important');
-                body.style.setProperty('min-width', A4_WIDTH_PX, 'important');
-                body.style.setProperty('max-width', A4_WIDTH_PX, 'important');
+                body.style.setProperty('width', pageWidth, 'important');
+                body.style.setProperty('min-width', pageWidth, 'important');
+                body.style.setProperty('max-width', pageWidth, 'important');
                 body.style.setProperty('margin', '0', 'important');
                 body.style.setProperty('padding', '20mm 12mm', 'important');
                 body.style.setProperty('box-sizing', 'border-box', 'important');

@@ -539,6 +539,8 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      * Set the page width used in fullscreen mode (the {@code FULLSCREEN} plugin). Defaults to
      * {@link FullscreenPage#A4_FIT}; use {@link FullscreenPage#A4} for CKEditor's fixed 795.701px page.
      * Applies to this editor only and takes effect immediately, also while fullscreen is open.
+     * CKEditor's fullscreen supports {@code CLASSIC} and {@code DECOUPLED} editors only, so for
+     * {@code BALLOON} and {@code INLINE} editors the value is stored but has no effect.
      *
      * @param page the page width, not null
      */

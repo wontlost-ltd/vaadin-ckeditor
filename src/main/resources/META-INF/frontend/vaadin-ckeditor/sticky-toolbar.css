@@ -135,6 +135,11 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
     --vaadin-ckeditor-fullscreen-page-width: 100cqw;
 }
 
+/* 有内容的侧栏（大纲、批注、AI 面板、minimap）保持自身宽度，页面只用剩下的编辑列，不挤压侧栏 */
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable-wrapper > :not(.ck-fullscreen__editable) {
+    flex-shrink: 0;
+}
+
 /* 空侧栏（无大纲 / 批注 / AI 面板时）在 CKEditor 布局里仍各占 270px + 10px，用于把 A4 页居中；
    铺宽类模式下隐藏它们，编辑列才是真正可用的宽度。有内容的侧栏不受影响。 */
 .ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__sidebar:empty,
@@ -152,12 +157,15 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
 .ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
     --vaadin-ckeditor-fullscreen-resolved-width: var(--ck-fullscreen-editable-width,
         var(--vaadin-ckeditor-fullscreen-page-width, 795.701px));
-    width: var(--vaadin-ckeditor-fullscreen-resolved-width);
-    max-width: var(--vaadin-ckeditor-fullscreen-resolved-width);
+    /* !important：连接器把 setWidth / setHeight 写成编辑根的内联 width / height（如 setWidthFull 的 100%），
+       全屏时它们会把页面压窄（实测 545px、有大纲时 92px），必须由全屏布局接管；退出全屏后内联样式照常生效 */
+    width: var(--vaadin-ckeditor-fullscreen-resolved-width) !important;
+    max-width: var(--vaadin-ckeditor-fullscreen-resolved-width) !important;
+    height: fit-content !important;
 }
 
 .ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck-source-editing-area {
-    width: var(--ck-fullscreen-editable-width, var(--vaadin-ckeditor-fullscreen-page-width, 795.701px));
+    width: var(--ck-fullscreen-editable-width, var(--vaadin-ckeditor-fullscreen-page-width, 795.701px)) !important;
 }
 
 .ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable),
@@ -170,6 +178,32 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
     min-height: calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 297 / 210);
     padding: calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 20 / 210)
         calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 12 / 210);
+}
+
+/*
+ * 全屏模式下的 minimap（issue #156，见 fullscreen-minimap.ts）：连接器把 add-on 的 .minimap-container
+ * 挪进编辑列右侧的槽。全屏容器挂在 body 下，document-editor.css 中以 vaadin-ckeditor 限定的 minimap 样式
+ * 不再适用，这里按同样的尺寸（--ck-minimap-width，连接器从宿主复制到槽上）重新给出。
+ */
+.ck.ck-fullscreen__main-wrapper .ck-fullscreen__minimap {
+    flex: 0 0 var(--ck-minimap-width, 180px);
+    width: var(--ck-minimap-width, 180px);
+    min-width: 80px;
+    margin: var(--ck-fullscreen-editor-top-margin, 28px) 10px 0;
+    position: sticky;
+    top: var(--ck-fullscreen-editor-top-margin, 28px);
+    align-self: flex-start;
+    height: calc(100% - 2 * var(--ck-fullscreen-editor-top-margin, 28px));
+}
+
+.ck.ck-fullscreen__main-wrapper .ck-fullscreen__minimap > .minimap-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: var(--ck-color-base-foreground, #fafafa);
+    border-radius: 4px;
+    border: 1px solid var(--ck-color-base-border, #e0e0e0);
 }
 
 /* ==================== Dark Theme Support ==================== */

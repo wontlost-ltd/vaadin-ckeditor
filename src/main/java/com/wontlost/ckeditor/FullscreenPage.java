@@ -12,9 +12,11 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>{@link #A4_FIT} (default): an A4-proportioned page whose width follows the available width.
- *       Width = the editing column (fullscreen area minus sidebars that have content, such as the document
- *       outline or comments) minus a gutter on each side
- *       equal to the fullscreen top margin ({@code --ck-fullscreen-editor-top-margin}, 28px);
+ *       Width = the editing column minus a gutter on each side. The editing column is the fullscreen area minus
+ *       every visible sidebar with its margins: the document outline on the left (moved there by CKEditor), the
+ *       minimap on the right (moved there by the add-on), and CKEditor's comment / AI panels. Sidebars keep their
+ *       own width and are never overlapped; an absent sidebar leaves its space to the page.
+ *       The gutter on each side is equal to the fullscreen top margin ({@code --ck-fullscreen-editor-top-margin}, 28px);
  *       the page padding (20mm × 12mm of 210mm) and its minimum height (297mm of 210mm) scale with that
  *       width. Window resizing and browser zoom therefore change the page size. The page grows downwards
  *       with the content, as in CKEditor's own layout; its height never limits the width.</li>
@@ -23,6 +25,9 @@ import java.util.regex.Pattern;
  *   <li>{@link #custom(String)}: any CSS width, such as {@code 1200px}, {@code 80%} or
  *       {@code min(1400px, 90%)}; percentages refer to the editing column.</li>
  * </ul>
+ *
+ * <p>CKEditor's fullscreen mode supports the {@code CLASSIC} and {@code DECOUPLED} editor types only;
+ * for {@code BALLOON} and {@code INLINE} editors this setting has no effect.</p>
  *
  * <p>Applies to the editing view and the source-editing view. An application-wide
  * {@code --ck-fullscreen-editable-width} set on {@code html} overrides this setting for every editor.</p>
