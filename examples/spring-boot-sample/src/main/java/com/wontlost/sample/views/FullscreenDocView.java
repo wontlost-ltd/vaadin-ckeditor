@@ -25,6 +25,7 @@ import java.util.Map;
  *   <li>{@code ?outline=1}：开启文档大纲（仅 decoupled；DocumentOutline 是 CKEditor 付费插件，
  *       sample 未安装 ckeditor5-premium-features 时插件加载失败；许可证取自环境变量 CKEDITOR_LICENSE_KEY）</li>
  *   <li>{@code ?page=a4|a4-fit|full-width|custom:<css 宽度>}：FullscreenPage，缺省为默认值</li>
+ *   <li>{@code ?width=<长度>}：在 {@code <html>} 上设置应用级覆盖 {@code --ck-fullscreen-editable-width}</li>
  * </ul>
  * 内容含 12 个带标题的小节，足够滚动，供大纲跳转与 minimap 同步验证。
  */
@@ -75,6 +76,15 @@ public class FullscreenDocView extends VerticalLayout implements BeforeEnterObse
 
         add(new H2("Fullscreen document editor"), editor);
         setSizeFull();
+
+        // ?width=<长度>：在 <html> 上设置应用级覆盖 --ck-fullscreen-editable-width（只接受「数字 + px / vw」）
+        String width = first(params, "width", null);
+        if (width != null && !width.matches("\\d+(\\.\\d+)?(px|vw)")) {
+            throw new IllegalArgumentException("Unsupported width for the fixture: " + width);
+        }
+        event.getUI().getPage().executeJs(width == null
+                ? "document.documentElement.style.removeProperty('--ck-fullscreen-editable-width');"
+                : "document.documentElement.style.setProperty('--ck-fullscreen-editable-width', $0);", width);
     }
 
     private static String first(Map<String, List<String>> params, String name, String fallback) {
