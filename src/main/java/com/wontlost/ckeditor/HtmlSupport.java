@@ -194,9 +194,16 @@ public final class HtmlSupport implements Serializable {
     }
 
     /**
-     * {@code htmlSupport.fullPage.allowRenderStylesFromHead}, for the {@code FullPage} plugin (add it with
-     * {@code CustomPlugin}). <b>Security risk:</b> CKEditor recommends a {@code sanitizeCss} callback, which
-     * cannot be passed from Java; the styles from {@code <head>} are rendered unsanitized.
+     * {@code htmlSupport.fullPage.allowRenderStylesFromHead}, read by CKEditor's
+     * <a href="https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html">{@code FullPage}</a>
+     * plugin (a plan-gated feature; the {@code GPL} key works).
+     *
+     * <p><b>Not supported yet:</b> the add-on cannot load {@code FullPage} today. It is not a
+     * {@link CKEditorPlugin} and is missing from the connector's plugin registry, and
+     * {@code CustomPlugin.fromCKEditor5("FullPage")} only resolves names that are already in that registry,
+     * so this option has no effect until a follow-up adds the plugin. It is kept so configurations are ready
+     * for that. <b>Security risk:</b> CKEditor recommends a {@code sanitizeCss} callback, which cannot be
+     * passed from Java; styles from {@code <head>} would be rendered unsanitized.</p>
      *
      * @param allow whether styles from {@code <head>} are rendered in the editor
      * @return this

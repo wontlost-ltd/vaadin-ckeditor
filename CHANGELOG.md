@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`HtmlSupport`：类型化的 General HTML Support 规则**，`CKEditorConfig#setHtmlSupport(HtmlSupport)`。对应 CKEditor
   `htmlSupport` 的 `allow` / `disallow`（`Rule.element` / `elements` / `element(Pattern)` / `anyElement`，
   `attributes` / `classes` / `styles` 支持 `true`、名称、精确值与 `Pattern`），以及 `allowEmpty`、
-  `preserveEmptyBlocksInEditingView`、`htmlIframeSandbox`、`fullPage.allowRenderStylesFromHead`。默认追加三条 disallow：
+  `preserveEmptyBlocksInEditingView`、`htmlIframeSandbox`、`fullPage.allowRenderStylesFromHead`（`FullPage` 插件目前无法从 add-on 加载，
+  该项暂不生效，待后续补充）。默认追加三条 disallow：
   `<script>`、`<iframe>`、`on*` 属性，需 `allowScripts()` / `allowIframes()` / `allowEventHandlers()` 显式放开。
   `Pattern` 以 `{"$regexp", "$flags"}` 传到客户端并还原为 `RegExp`。配置了 htmlSupport 选项时构建器自动加载 `GeneralHtmlSupport`
   （`DependencyMode.MANUAL` 除外）。服务端 `HtmlSanitizer` 与 GHS 相互独立，User Guide 给出与规则对应的 safelist 示例。

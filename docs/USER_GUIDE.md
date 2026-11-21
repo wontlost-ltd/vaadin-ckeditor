@@ -420,8 +420,13 @@ config.setHtmlSupport(HtmlSupport.create()
 - Patterns are Java `Pattern`s in the syntax Java and JavaScript share; they run in the browser.
   Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported.
 - The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
-  `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`). `fullPageAllowRenderStylesFromHead` also needs the `FullPage` plugin; the
-  `sanitizeCss` callback CKEditor recommends cannot be passed from Java.
+  `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`).
+- **`fullPageAllowRenderStylesFromHead` has no effect yet.** It is read by CKEditor's
+  [Full page HTML](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) plugin
+  `FullPage` (plan-gated, `GPL` works), which the add-on cannot load today: it is not a
+  `CKEditorPlugin`, and `CustomPlugin.fromCKEditor5("FullPage")` only resolves names already in the
+  connector's plugin registry. A follow-up will add it. The `sanitizeCss` callback CKEditor recommends
+  for that option cannot be passed from Java either.
 - `setHtmlSupport(true)` is `HtmlSupport.allowAll()`: every element with all attributes, classes and
   styles, except scripts, iframes and `on*` attributes. Before 6.2.0 it sent the name as the string
   `"/.*/"`, which CKEditor compares literally, so it had no effect.
