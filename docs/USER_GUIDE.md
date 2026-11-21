@@ -184,7 +184,13 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Tables:**
 - `TABLE`, `TABLE_TOOLBAR`, `TABLE_PROPERTIES`, `TABLE_CELL_PROPERTIES`
-- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`；premium feature，需商业 plan 与 license key，由开源 `ckeditor5` 包导出）
+- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`）
+
+Some of these plugins are premium features according to CKEditor's docs (for example `IMAGE_RESIZE`, `TABLE_PROPERTIES`,
+`TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`, `PASTE_FROM_OFFICE`, `FIND_AND_REPLACE` and `WORD_COUNT`). `CKEditorPlugin#isPremiumFeature()`
+identifies them, and the [Premium Integration Guide](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package)
+lists them all. They run under the default `'GPL'` key, because CKEditor's core skips plugin licence checks for it.
+Commercial use needs the plan CKEditor states.
 
 **Media & Code:**
 - `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
@@ -1004,7 +1010,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `ExportPdf` - Export to PDF
 - `ExportWord` - Export to Word
 - `ImportWord` - Import from Word
-- `Pagination` - Page breaks and pagination
+- `Pagination` - Page boundaries for PDF / Word export (Custom plan; toolbar `previousPage`, `nextPage`, `pageNavigation`)
 - `FormatPainter` - Copy formatting
 - `SlashCommand` - Slash command menu
 - `Template` - Content templates
@@ -1023,10 +1029,11 @@ VaadinCKEditor editor = VaadinCKEditor.create()
   `ExportInlineStyles`, `SourceEditingEnhanced`, `TrackChangesData`, `TrackChangesPreview`, `PresenceList`, …
 
 The [Premium Plugin Catalogue](PREMIUM_INTEGRATION.md#premium-plugin-catalogue) lists every plugin with its toolbar item,
-the CKEditor plan it needs and its feature documentation. `CKBox` and `TableLayout` are premium features as well (commercial
-plan and licence key; CKBox also needs the CKBox add-on), but they are exported by the open-source `ckeditor5` package
-rather than `ckeditor5-premium-features`: load them with `CKEditorPlugin.CKBOX` / `CKEditorPlugin.TABLE_LAYOUT`
-(`requiresLicense()` is true).
+the plans that include it and its feature documentation. This add-on is a self-hosted (npm) build, so commercial use
+needs a **Custom-plan** key: see [Licensing for self-hosted (npm) builds](PREMIUM_INTEGRATION.md#licensing-for-self-hosted-npm-builds).
+`CKBox`, `TableLayout` and 18 other `CKEditorPlugin` entries are premium features exported by the open-source `ckeditor5`
+package rather than `ckeditor5-premium-features` (`isPremiumFeature()` is true); see
+[that list](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package).
 
 ### Persisting Comments and Suggestions (no CKEditor Cloud)
 

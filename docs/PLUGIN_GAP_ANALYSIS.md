@@ -97,7 +97,7 @@ Workflow confirmedGaps 列出 60 个"umbrella 有、本库 registry 无"的导�
 | Essentials 成员 | `Enter`、`ShiftEnter`、`Delete`、`Input`、`Typing` | `Essentials`（registry 已有）自动加载二者 |
 | ContextPlugin / 工具类 | `PendingActions`、`ClipboardPipeline`、`ClipboardMarkersUtils`、`*Utils` | 多被其他插件依赖自动加载，单独登记价值低 |
 | Legacy 废弃类 | `LegacyList`、`LegacyListProperties`、`LegacyTodoList` | 废弃，不应暴露 |
-| 功能性 premium | `CKBox`、`CKBoxImageEdit` 系列 | 类在 umbrella，但属 premium feature（商业 plan + CKBox 附加服务 + license key，另装 `ckbox` 包）；6.2.0 起以 `CKEditorPlugin.CKBOX` 登记（`requiresLicense()`） |
+| 功能性 premium | `CKBox`、`CKBoxImageEdit` 系列 | 类在 umbrella，但属 premium feature（商业 plan + CKBox 附加服务 + license key，另装 `ckbox` 包）；6.2.0 起以 `CKEditorPlugin.CKBOX` 登记（`isPremiumFeature()`） |
 
 > 设计原则：免费 registry 只登记**用户需显式选择的 glue plugin**，不登记会被自动加载的子组件
 > （"消灭特殊情况"，避免 registry 膨胀）。
@@ -131,7 +131,7 @@ Workflow confirmedGaps 列出 60 个"umbrella 有、本库 registry 无"的导�
 
 `CKBox` / `CKBoxImageEdit` 是"类在 umbrella `ckeditor5`、但功能 premium 且运行时另需 `ckbox` 服务包"的特性。
 它们**不**从 `ckeditor5-premium-features` 导出，所以 `fromPremium` 对其**无效**。正确用法：
-6.2.0 起：`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`（`requiresLicense()` 为 true）+ 商业 plan 与 CKBox 附加服务的
+6.2.0 起：`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`（`isPremiumFeature()` 为 true）+ 商业 plan 与 CKBox 附加服务的
 license key + `ckbox.tokenUrl`；npm 自托管还需 `npm i ckbox`。
 
 ---

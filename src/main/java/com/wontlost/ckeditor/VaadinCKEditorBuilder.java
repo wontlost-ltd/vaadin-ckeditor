@@ -682,12 +682,7 @@ public class VaadinCKEditorBuilder {
             editor.setAllowConfigRequiredPlugins(true);
         }
 
-        Set<CKEditorPlugin> unlicensed = licenseRequiredWithoutKey(finalPlugins, editor.getLicenseKeyInternal());
-        if (!unlicensed.isEmpty()) {
-            LOGGER.warning(() -> "Plugins " + unlicensed + " are CKEditor premium features: they need a commercial plan "
-                + "and withLicenseKey(...); with the GPL key CKEditor reports a licence error. See "
-                + "https://ckeditor.com/pricing");
-        }
+        logPremiumFeaturesOnce(premiumFeaturesUnderGpl(finalPlugins, editor.getLicenseKeyInternal()));
 
         // Initialize
         editor.initialize();
@@ -700,20 +695,34 @@ public class VaadinCKEditorBuilder {
         return editor;
     }
 
+    /** 已记录过的插件集合（每种组合只记录一次，避免每次建编辑器都输出）。 */
+    private static final Set<Set<CKEditorPlugin>> LOGGED_PREMIUM_FEATURE_SETS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /**
-     * 需要商业 license（{@link CKEditorPlugin#requiresLicense()}）但未配置 license key（为空或默认的 GPL）的插件。
+     * 在 GPL（或空）license key 下使用的 premium feature 插件（{@link CKEditorPlugin#isPremiumFeature()}）。
      */
-    static Set<CKEditorPlugin> licenseRequiredWithoutKey(Set<CKEditorPlugin> plugins, String licenseKey) {
-        boolean noKey = licenseKey == null || licenseKey.isBlank() || "GPL".equalsIgnoreCase(licenseKey.trim());
+    static Set<CKEditorPlugin> premiumFeaturesUnderGpl(Set<CKEditorPlugin> plugins, String licenseKey) {
+        boolean gpl = licenseKey == null || licenseKey.isBlank() || "GPL".equalsIgnoreCase(licenseKey.trim());
         Set<CKEditorPlugin> result = EnumSet.noneOf(CKEditorPlugin.class);
-        if (noKey) {
+        if (gpl) {
             for (CKEditorPlugin plugin : plugins) {
-                if (plugin.requiresLicense()) {
+                if (plugin.isPremiumFeature()) {
                     result.add(plugin);
                 }
             }
         }
         return result;
+    }
+
+    /** 信息日志（非警告）：陈述两点事实并给出文档链接，不下法律结论。 */
+    static void logPremiumFeaturesOnce(Set<CKEditorPlugin> plugins) {
+        if (plugins.isEmpty() || !LOGGED_PREMIUM_FEATURE_SETS.add(Set.copyOf(plugins))) {
+            return;
+        }
+        LOGGER.info(() -> "Plugins " + plugins + " run under the 'GPL' licence key (CKEditor's core skips plugin licence "
+            + "checks for it); CKEditor's documentation marks them as premium features, and commercial use needs the plan "
+            + "CKEditor states. See https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html "
+            + "and docs/PREMIUM_INTEGRATION.md of vaadin-ckeditor.");
     }
 
     /**

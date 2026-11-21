@@ -1,8 +1,8 @@
 /**
  * premium 插件清单与实际 npm 包一致性：Java 端列为经 ckeditor5-premium-features 加载的名称不能是
  * 开源 ckeditor5 包导出的插件——否则 CustomPlugin.fromPremium(...) 在 premium 包里找不到它（CKBox 曾被错列）。
- * 由 ckeditor5 包导出、但需要商业 license 的插件（CKEditorPlugin#requiresLicense：CKBox、CKBoxImageEdit、
- * TableLayout）必须在 PLUGIN_REGISTRY 里，并在 Java 枚举中标为 requiresLicense。
+ * CKEditorPlugin#isPremiumFeature 必须与真实 ckeditor5 包一致：带 licenseFeatureCode 的插件（自身或其 requires 链上），
+ * 加上付费服务 CKBox / CKBoxImageEdit / CKFinder（这三个没有 licenseFeatureCode）。
  */
 import { describe, it, expect } from 'vitest';
 import * as umbrella from 'ckeditor5';
@@ -27,13 +27,30 @@ describe('premium 插件清单', () => {
         expect(exported?.pluginName, `${name} is a plugin exported by the free ckeditor5 package`).toBeUndefined();
     });
 
-    it('需要 license 的 ckeditor5 包插件在 PLUGIN_REGISTRY 中，Java 枚举标为 requiresLicense', () => {
-        const licensed = pluginSource.match(/EnumSet\.of\(([^)]*)\)/)![1].split(',').map((s) => s.trim());
-        expect(licensed.sort()).toEqual(['CKBOX', 'CKBOX_IMAGE_EDIT', 'TABLE_LAYOUT']);
-        for (const name of ['CKBox', 'CKBoxImageEdit', 'TableLayout']) {
-            expect(PLUGIN_REGISTRY[name], name).toBe((umbrella as unknown as Record<string, unknown>)[name]);
-            expect(premiumDependencyNames).not.toContain(name);
-            expect(enumNames).not.toContain(name);
+    it('isPremiumFeature 与 ckeditor5 49.1.0 的 licenseFeatureCode 一致（另加 CKBox、CKBoxImageEdit、CKFinder）', () => {
+        const constants = new Map([...pluginSource.matchAll(/^\s{4}([A-Z0-9_]+)\("([A-Za-z0-9]+)"/gm)].map((m) => [m[1], m[2]]));
+        const block = pluginSource.match(/PREMIUM_FEATURES = Collections\.unmodifiableSet\(EnumSet\.of\(([^;]*)\)\);/)![1];
+        const flagged = new Set(block.split(',').map((s) => s.trim()).filter(Boolean));
+        type Ctor = { licenseFeatureCode?: string; requires?: unknown[] };
+        const hasCode = (ctor: Ctor | undefined, seen = new Set<unknown>()): boolean => {
+            if (!ctor || seen.has(ctor)) return false;
+            seen.add(ctor);
+            if (ctor.licenseFeatureCode) return true;
+            return (ctor.requires ?? []).some((r) => typeof r === 'function' && hasCode(r as Ctor, seen));
+        };
+        const expected = new Set(['CKBOX', 'CKBOX_IMAGE_EDIT', 'CKFINDER']);
+        for (const [constant, jsName] of constants) {
+            const ctor = (umbrella as unknown as Record<string, Ctor | undefined>)[jsName];
+            if (hasCode(ctor)) expected.add(constant);
+        }
+        expect([...flagged].sort()).toEqual([...expected].sort());
+        // 17 个带 licenseFeatureCode 的枚举插件 + CKBox、CKBoxImageEdit、CKFinder
+        expect(flagged.size).toBe(20);
+        for (const constant of flagged) {
+            const jsName = constants.get(constant)!;
+            expect(PLUGIN_REGISTRY[jsName], jsName).toBe((umbrella as unknown as Record<string, unknown>)[jsName]);
+            expect(premiumDependencyNames).not.toContain(jsName);
+            expect(enumNames).not.toContain(jsName);
         }
     });
 

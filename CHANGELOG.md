@@ -17,21 +17,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （经 `registerCKEditorPlugin` 登记，与 `CustomPlugin.fromPremium("Comments")` 组合）；`comment-permission-enforcer`
   读取服务端授予的权限。**未使用 CKEditor license**：以文档形状的 mock 插件测试，真实 premium 行为仍需用 license 验证，
   见 Premium Integration Guide「Comments and Track Changes Without CKEditor Cloud」。
-- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 是 **premium feature**，需要商业 CKEditor plan 加 CKBox
-  附加服务与 license key（可先 14 天试用，见 [CKBox 文档](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html)），另需 `ckbox.tokenUrl`。插件类由开源的
-  `ckeditor5` 包导出（与免费功能同一个包），不属于 `ckeditor5-premium-features`，因此以 `CKEditorPlugin` 常量加载；
-  自动带上 CloudServices 与 ImageUpload。
-- **`CKEditorPlugin#requiresLicense()` / `getLicenseRequiredPlugins()`**：标出由 `ckeditor5` 包导出、但需要商业 license
-  的插件（`CKBOX`、`CKBOX_IMAGE_EDIT`、`TABLE_LAYOUT`）；builder 在这些插件与默认 `GPL` key 同用时记录警告。
-- **`PremiumPlugin.FOOTNOTES` / `UPLOADCARE`** 及其依赖登记。
+- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 是 **premium feature**（付费 CKBox 附加服务，可先 14 天试用，
+  见 [CKBox 文档](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html)）。插件类由开源的
+  `ckeditor5` 包导出（不属于 `ckeditor5-premium-features`），因此以 `CKEditorPlugin` 常量加载；运行还需要
+  `ckbox.tokenUrl` 与 CKBox JS 库（`https://cdn.ckbox.io/ckbox/<版本>/ckbox.js` 或 npm 包 `ckbox`，插件检查
+  `window.CKBox`）。自动带上 CloudServices 与 ImageUpload。
+- **`CKEditorPlugin#isPremiumFeature()` / `getPremiumFeaturePlugins()`**：CKEditor 文档标为 premium feature、
+  由开源 `ckeditor5` 包导出的 20 个插件（ckeditor5 49.1.0 中带 `licenseFeatureCode` 的 17 个枚举插件，另加 CKBox、
+  CKBoxImageEdit、CKFinder；测试对照真实包校验）。`isPremium()` 含义不变：是否经 `ckeditor5-premium-features` 加载。
+  GPL key 下使用这些插件时 builder 记录一次 INFO 日志（不是警告），陈述两点事实：CKEditor 内核对 `'GPL'` key 跳过插件
+  license 检查，因此它们可运行；CKEditor 文档与定价把它们标为 premium，商业使用需要 CKEditor 标明的 plan。
+- **`PremiumPlugin.FOOTNOTES` / `FOOTNOTES_PROPERTIES` / `UPLOADCARE` / `UPLOADCARE_IMAGE_EDIT` / `DOCUMENT_COMPARE`**
+  及其依赖登记（Uploadcare：Image、ImageUpload、ImageInsert；PictureEditing 由 Uploadcare 自身加载；配置键 `uploadcare.pubkey`）。
+
+### Changed
+- **`PremiumPlugin.PAGINATION` 的工具栏项**改为 `previousPage`、`nextPage`、`pageNavigation`（此前的 `pagination` 并不存在）；
+  Pagination 仅 Custom plan 提供。
 
 ### Fixed
-- **CKBox 被错列为 premium 插件**：`CKEditorPluginDependencies` 的 premium 表含 `CKBox` / `CKBoxImageEdit`，但它们不由
-  `ckeditor5-premium-features` 导出，`CustomPlugin.fromPremium("CKBox")` 从未能加载。现从 premium 表移除，改用
-  `CKEditorPlugin.CKBOX`（仍是需要商业 plan 与 CKBox 附加服务的 premium feature）；新增测试保证 premium 包清单中的名称
-  都不是 `ckeditor5` 包导出的插件。
+- **CKBox 的加载通道错误**：`CKEditorPluginDependencies` 把 `CKBox` / `CKBoxImageEdit` 登记为从 `ckeditor5-premium-features`
+  加载，但该包不导出它们，`CustomPlugin.fromPremium("CKBox")` 从未能加载。CKBox 是由开源 `ckeditor5` 包导出的
+  premium feature，现改用 `CKEditorPlugin.CKBOX`；新增测试保证经 premium 包加载的名称都不是 `ckeditor5` 包导出的插件。
+- **MediaEmbedResize 注释**：它由 49.1.0 的 `ckeditor5` 导出；此前"GPL 下加载会报 license 错误"的说法不对（内核对 GPL 跳过插件检查）。
 
 ### Documentation
+- Premium Integration Guide 新增「Licensing for self-hosted (npm) builds」：本 add-on 属自托管（npm）分发，CKEditor 的
+  license 指南写明自托管"requires contact with our sales team and a custom plan"，Free / Essential / Professional 的商业 key
+  仅限云端、在自托管构建中会被拒绝，商业使用需要 Custom plan（或试用 key）；README 与 `VaadinCKEditorPremium` Javadoc
+  同步说明（"Enterprise" 改为 "Custom"）。由 `ckeditor5` 包导出的 premium feature 列出完整清单（含 licence feature code
+  与文档链接），并说明 CKBox 需要 CKBox JS 库。
 - Premium Integration Guide 重写套餐表（ckeditor.com/pricing，2026-11-22），新增全部 premium 插件目录（工具栏项、所需套餐、
   功能文档链接），补上 README 缺少的 Footnotes、Uploadcare、MultiLevelList、PasteFromOfficeEnhanced、
   EmailConfigurationHelper、ExportInlineStyles、SourceEditingEnhanced，并说明 premium 插件与自定义插件的组合方式。

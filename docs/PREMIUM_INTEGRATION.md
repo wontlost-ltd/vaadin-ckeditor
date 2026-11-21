@@ -9,17 +9,54 @@ CKEditor 5 premium features require:
 2. The `ckeditor5-premium-features` npm package
 3. Configuration in your Vaadin application
 
+## Licensing for self-hosted (npm) builds
+
+This add-on installs CKEditor from npm and bundles it into your Vaadin application. CKEditor calls this the
+**self-hosted** distribution channel. Its [License key and activation](https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html) guide says:
+
+- Self-hosted: "This type requires contact with our sales team and a custom plan."
+- "The 'GPL' key works only with the self-hosted distribution (npm or ZIP download)."
+
+What this means for the add-on:
+
+- **Default: the `GPL` key.** `VaadinCKEditor` uses `licenseKey = "GPL"` unless you call `withLicenseKey(...)`.
+- **Commercial keys need a Custom plan.** The Free, Essential and Professional plans are cloud-hosted on the
+  [pricing page](https://ckeditor.com/pricing). In `@ckeditor/ckeditor5-core` 49.1.0 an npm build reports the
+  distribution channel `sh` (self-hosted), and the editor is blocked when a key's `distributionChannel` does not
+  include it. So for commercial use with this add-on you need a **Custom plan** that includes the features you use,
+  or a 14-day trial key to evaluate them.
+- **Plan columns below.** They say which CKEditor plan *includes* a feature, per the pricing page (2026-11-22). With
+  this add-on, that plan must be a Custom plan. "Essential" or "Professional" in a column does not mean those plans'
+  keys work here.
+
+**Premium features exported by the `ckeditor5` package.** Some features CKEditor marks as premium are exported by the
+open-source `ckeditor5` package (see [the table below](#premium-features-exported-by-the-ckeditor5-package)). Two facts
+apply, and this guide draws no legal conclusion from them:
+
+1. CKEditor's core skips plugin licence checks for the `'GPL'` key. In `@ckeditor/ckeditor5-core` 49.1.0 this is
+   `checkPluginsAllowedByLicenseKey`, which returns at once for `licenseKey === "GPL"`. So these plugins run under the
+   add-on's default key. With a commercial key, a plugin whose licence feature code the plan does not include is
+   blocked.
+2. CKEditor's feature docs badge them "Premium feature" ("Unlock this feature with selected CKEditor Plans"), and the
+   pricing page lists them outside the Free plan. Commercial use needs the plan CKEditor states.
+
+Read CKEditor's [licensing options](https://ckeditor.com/legal/ckeditor-licensing-options) and
+[License key and activation](https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html) to decide which licence applies to you.
+
+Plugins from `ckeditor5-premium-features` (the catalogue below) are a different case: they need a commercial key.
+
 ## Plans
 
 Plans as listed on [ckeditor.com/pricing](https://ckeditor.com/pricing) on 2026-11-22 (prices change; the pricing page
-is authoritative). Every plan has a 14-day trial.
+is authoritative). Every plan has a 14-day trial. **For this add-on (self-hosted) only the Custom plan applies**, see
+above; the other plans are listed because the pricing page describes features in their terms.
 
 | Plan | Price | Premium features |
 |------|-------|------------------|
 | **Free** | $0 | No premium plugins; Export to PDF / Word 5 conversions a month |
 | **Essential** | $160/month ($144 billed annually) | Productivity, document and email features below; Export to PDF / Word 200 a month; CKEditor AI, CKBox or Image Optimizer (Uploadcare) as paid add-ons |
 | **Professional** | $319/month ($289 billed annually) | Everything in Essential; Import from Word and Export to PDF / Word 1,000 a month; **Collaboration add-on** ($299/month: comments, track changes, revision history, real-time co-authoring) |
-| **Custom** | Quote | All add-ons included, Pagination, LTS edition, self-hosted options |
+| **Custom** | Quote | All add-ons included, Pagination, Editing Toolkit, LTS edition, **self-hosted (npm) distribution, which this add-on uses** |
 
 ## Quick Setup
 
@@ -105,14 +142,16 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 ## Premium Plugin Catalogue
 
 Every plugin below is loaded with `CustomPlugin.fromPremium("<Plugin>")` (or the type-safe
-`VaadinCKEditorPremium.PremiumPlugin` enum) from `ckeditor5-premium-features` 49.1.0, and needs a licence key whose
-plan includes it. The plan column is from [ckeditor.com/pricing](https://ckeditor.com/pricing) on 2026-11-22.
+`VaadinCKEditorPremium.PremiumPlugin` enum) from `ckeditor5-premium-features` 49.1.0, and needs a commercial licence
+key whose plan includes it. The **Included in** column names the plans that include the feature on
+[ckeditor.com/pricing](https://ckeditor.com/pricing) (2026-11-22). With this self-hosted add-on, the key must be a
+**Custom-plan** (or trial) key; see [Licensing for self-hosted (npm) builds](#licensing-for-self-hosted-npm-builds).
 Dependencies the add-on adds automatically (for example CloudServices for the conversion and AI plugins) come from
 `CKEditorPluginDependencies`.
 
 ### Document conversion
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `ExportPdf` | `exportPdf` | All plans (conversion quota per plan; unlimited on Custom) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/converters/export-pdf.html) |
 | `ExportWord` | `exportWord` | All plans (conversion quota per plan; unlimited on Custom) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/converters/export-word.html) |
@@ -121,7 +160,7 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 
 ### Productivity
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `FormatPainter` | `formatPainter` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/format-painter.html) |
 | `CaseChange` | `caseChange` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/case-change.html) |
@@ -131,18 +170,19 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 
 ### Document structure and formatting
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `TableOfContents` | `tableOfContents` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/table-of-contents.html) |
 | `DocumentOutline` | - | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/document-outline.html) |
 | `Footnotes` | `insertFootnote` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/footnotes.html) |
+| `FootnotesProperties` | `footnotesStyle` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/footnotes.html) |
 | `MultiLevelList` | `multiLevelList` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/lists/multi-level-lists.html) |
 | `LineHeight` | `lineHeight` | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/line-height.html) |
-| `Pagination` | - | Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/pagination/pagination.html) |
+| `Pagination` | `previousPage`, `nextPage`, `pageNavigation` | Custom only ("Unlock this feature with the Custom Plan") | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/pagination/pagination.html) |
 
 ### Email and HTML
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `EmailConfigurationHelper` | - | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/email-editing/email-configuration-helper.html) |
 | `ExportInlineStyles` | - | Essential, Professional, Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/export-with-inline-styles.html) |
@@ -150,13 +190,14 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 
 ### Images and files
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
-| `Uploadcare` | `uploadcare` | Image Optimizer add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/uploadcare.html) |
+| `Uploadcare` | `uploadcare` (config `uploadcare.pubkey`; the add-on adds Image, ImageUpload and ImageInsert, and Uploadcare loads PictureEditing itself) | Image Optimizer add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/uploadcare.html) |
+| `UploadcareImageEdit` | `uploadcareImageEdit` (in `image.toolbar`) | Image Optimizer add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/uploadcare.html) |
 
 ### AI
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `AIChat` | `toggleAi` | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-chat.html) |
 | `AIQuickActions` | `aiQuickActions` | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-actions.html) |
@@ -166,11 +207,12 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 | `AIChatBalloon` | - | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-chat.html) |
 | `AIEditorConfig` | - | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
 | `AIAssistant (deprecated)` | `aiAssistant` | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
-| `ProposedChanges` | - | Not listed on the pricing page (Editing Toolkit); ask CKEditor sales | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
+| `ProposedChanges` | - | Editing Toolkit, a Custom-plan add-on ("Unlock this feature with the Custom Plan"). Load `DocumentCompare` too: the docs' setup is `plugins: [ DocumentCompare, ProposedChanges ]` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-proposing-changes.html) |
+| `DocumentCompare` | - | Editing Toolkit, Custom-plan add-on | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-comparing-documents.html) |
 
 ### Collaboration
 
-| Plugin | Toolbar item | Plan | Feature docs |
+| Plugin | Toolbar item | Included in | Feature docs |
 |--------|--------------|------|--------------|
 | `Comments` | `comment` | Collaboration add-on (Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/collaboration/comments/comments.html) |
 | `TrackChanges` | `trackChanges` | Collaboration add-on (Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/collaboration/track-changes/track-changes.html) |
@@ -186,20 +228,64 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 
 ### Premium features exported by the `ckeditor5` package
 
-These are **premium features** that need a commercial plan (and, for CKBox, the CKBox add-on) plus a licence key; each
-has a 14-day trial. Unlike the plugins above they are exported by the open-source `ckeditor5` package (the same package
-as the free features), not by `ckeditor5-premium-features`, so `fromPremium(...)` cannot load them. Add them with their
-`CKEditorPlugin` constant (`requiresLicense()` returns true; the builder warns when they are used with the default
-`GPL` key) and configure `withLicenseKey(...)`:
+CKEditor's feature docs badge these as premium ("Unlock this feature with selected CKEditor Plans"), and the pricing
+page lists them outside the Free plan. Each has a 14-day trial. They are exported by the open-source `ckeditor5` package
+(the same package as the free features), not by `ckeditor5-premium-features`, so `fromPremium(...)` cannot load them;
+the add-on loads them through `CKEditorPlugin` constants, where `isPremiumFeature()` returns true. Several are in the
+add-on's presets: `STANDARD`, `FULL` and `DOCUMENT` include, among others, `IMAGE_RESIZE`, `PASTE_FROM_OFFICE`,
+`FIND_AND_REPLACE`, `TABLE_PROPERTIES` and `BASE64_UPLOAD_ADAPTER`.
 
-| Plugin | Java | Plan | Feature docs |
-|--------|------|------|--------------|
-| `CKBox`, `CKBoxImageEdit` | `CKEditorPlugin.CKBOX`, `CKEditorPlugin.CKBOX_IMAGE_EDIT` (toolbar `ckbox`, `ckboxImageEdit`; needs `ckbox.tokenUrl` or `cloudServices.tokenUrl`; npm: `ckeditor5 ckbox`) | Premium: commercial plan + CKBox add-on (Essential, Professional), included in Custom. "Using the self-hosted distribution channel (npm) requires having an appropriate commercial plan" | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html) |
-| `TableLayout` | `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) | Premium: Essential, Professional, Custom ("Layout Tables" on the pricing page) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html) |
+As explained in [Licensing for self-hosted (npm) builds](#licensing-for-self-hosted-npm-builds), these plugins run
+under the `'GPL'` key, because CKEditor's core skips plugin licence checks for it. Commercial use needs the plan CKEditor
+states. When they are used with the `GPL` key, the builder logs this once at INFO level, with a link to CKEditor's
+licence guide.
 
-> Before 6.2.0 the add-on listed CKBox among the `ckeditor5-premium-features` plugins; `CustomPlugin.fromPremium("CKBox")`
-> never worked, because that package does not export it. CKBox is still a premium feature: use `CKEditorPlugin.CKBOX`
-> with a licence key that includes the CKBox add-on.
+**Plugins with a licence feature code** (`licenseFeatureCode` in `ckeditor5` 49.1.0; `premium-catalogue.test.ts`
+checks this list against the installed package). The pricing page includes them in the Essential, Professional and
+Custom plans; with this add-on, that means a Custom plan:
+
+| Plugin | `CKEditorPlugin` | Licence feature code | Feature docs |
+|--------|------------------|----------------------|--------------|
+| `Bookmark` | `BOOKMARK` | `BKM` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/bookmarks.html) |
+| `FindAndReplace` | `FIND_AND_REPLACE` | `FAR` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/find-and-replace.html) |
+| `HtmlEmbed` | `HTML_EMBED` | `HE` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/html/html-embed.html) |
+| `FullPage` | — (not yet a constant) | `FPH` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) |
+| `ImageResize` | `IMAGE_RESIZE` | `IR` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/images/images-resizing.html) |
+| `MediaEmbedResize` | — (`CKEditorConfig#setMediaEmbedResizable(true)`) | `MER` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/media-embed/media-embed-resize.html) |
+| `ListProperties` | `LIST_PROPERTIES` | `LP` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/lists/lists-properties.html) |
+| `PageBreak` | `PAGE_BREAK` | `PB` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/page-break.html) |
+| `PasteFromOffice` | `PASTE_FROM_OFFICE` | `PFO` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/pasting/paste-from-office.html) |
+| `RemoveFormat` | `REMOVE_FORMAT` | `RF` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/remove-format.html) |
+| `RestrictedEditingMode` | `RESTRICTED_EDITING_MODE` | `RED` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/restricted-editing.html) |
+| `SpecialCharacters` | `SPECIAL_CHARACTERS` | `SCH` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/special-characters.html) |
+| `TableProperties`, `TableCellProperties` | `TABLE_PROPERTIES`, `TABLE_CELL_PROPERTIES` | `TCP` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/tables-styling.html) |
+| `TableColumnResize` | `TABLE_COLUMN_RESIZE` | `TCR` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/tables-resize.html) |
+| `TableLayout` | `TABLE_LAYOUT` | `TL` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html) |
+| `Base64UploadAdapter` | `BASE64_UPLOAD_ADAPTER` | `B64A` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/images/image-upload/base64-upload-adapter.html) |
+| `SimpleUploadAdapter` | `SIMPLE_UPLOAD_ADAPTER` | `SUA` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/images/image-upload/simple-upload-adapter.html) |
+| `WordCount` | `WORD_COUNT` | `WC` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html) |
+
+**Paid services** (no licence feature code in the plugin; the service itself is paid):
+
+| Plugin | `CKEditorPlugin` | What it needs | Feature docs |
+|--------|------------------|---------------|--------------|
+| `CKBox`, `CKBoxImageEdit` | `CKBOX`, `CKBOX_IMAGE_EDIT` (toolbar `ckbox`, `ckboxImageEdit`) | The paid CKBox add-on ("This is a premium feature"); "Using the self-hosted distribution channel (npm) requires having an appropriate commercial plan". Also `ckbox.tokenUrl` (or `cloudServices.tokenUrl`), and **the CKBox JS library**, see below. | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html) |
+| `CKFinder` | `CKFINDER` (toolbar `ckfinder`) | The commercial CKFinder server; `ckfinder.uploadUrl` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckfinder.html) |
+
+**CKBox needs the CKBox library.** The editor plugins only connect CKEditor to CKBox. The file manager itself is the
+CKBox JS library. The plugin checks `window.CKBox` (`@ckeditor/ckeditor5-ckbox` 49.1.0) and does not register the `ckbox`
+command and button when the library is missing. The [CKBox docs](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html) give two ways to load it:
+
+- **CDN.** Add `<script src="https://cdn.ckbox.io/ckbox/2.13.1/ckbox.js"></script>` before the editor loads. Pin a
+  version; the docs advise strongly against `latest`. In Vaadin you can do this with `@JavaScript("https://cdn.ckbox.io/ckbox/2.13.1/ckbox.js")`
+  on your `AppShellConfigurator` or a view, or with `UI.getCurrent().getPage().addJavaScript(...)`.
+- **npm.** Run `npm install ckeditor5 ckbox`, then import `ckbox` and `ckbox/dist/styles/ckbox.css`. In Vaadin, add
+  `@NpmPackage(value = "ckbox", version = "…")` and a `@JsModule` that imports them, and make sure `window.CKBox` is set
+  before the editor is created.
+
+> Before 6.2.0 the add-on listed CKBox among the `ckeditor5-premium-features` plugins, so it tried to load CKBox from a
+> package that does not export it, and `CustomPlugin.fromPremium("CKBox")` never worked. CKBox is a premium feature
+> exported by the open-source `ckeditor5` package: use `CKEditorPlugin.CKBOX`.
 
 ### Combining premium and custom plugins
 
@@ -214,7 +300,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .withLicenseKey(System.getenv("CKEDITOR_LICENSE_KEY"))
     .addCustomPlugin(CustomPlugin.fromPremium("Comments"))        // premium: ckeditor5-premium-features
     .addCustomPlugin(CustomPlugin.fromPremium("TrackChanges"))
-    .addCustomPlugin(CustomPlugin.of("MyPlugin", "my-plugin"))   // yours
+    .addCustomPlugin(CustomPlugin.of("MyPlugin", "./my-plugin"))  // yours, registered with registerCKEditorPlugin
     .withCollaborationBridge(bridge)                              // the add-on's custom plugin "VaadinCollaborationBridge"
     .build();
 ```

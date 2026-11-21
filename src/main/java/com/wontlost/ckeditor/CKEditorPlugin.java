@@ -167,19 +167,20 @@ public enum CKEditorPlugin {
     CKFINDER("CKFinder", Category.UPLOAD),
 
     /**
-     * <b>Premium feature</b>：CKBox 文件管理与图片上传（toolbar {@code ckbox}）。需要商业 CKEditor plan 加
-     * CKBox 附加服务（npm 自托管分发也要求商业 plan）以及有效的 license key；可先用 CKEditor Premium Features
-     * 14 天试用。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>。
+     * <b>Premium feature</b>（CKEditor 文档标为 premium，付费 CKBox 附加服务）：CKBox 文件管理与图片上传（toolbar
+     * {@code ckbox}）。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>（含 14 天试用）。
      * <p>插件类由开源的 {@code ckeditor5} 包导出（与免费功能同一个包），不属于 {@code ckeditor5-premium-features}，
-     * 所以要用本常量而不是 {@code CustomPlugin.fromPremium("CKBox")}。另需配置 {@code ckbox.tokenUrl}
-     * （或 {@code cloudServices.tokenUrl}），缺配置会报错，故与 CKFinder 一样归入"需配置插件"；会自动带上
-     * CloudServices。{@link #requiresLicense()} 为 true。</p>
+     * 所以用本常量而不是 {@code CustomPlugin.fromPremium("CKBox")}。运行还需要：CKBox 服务的
+     * {@code ckbox.tokenUrl}（或 {@code cloudServices.tokenUrl}）；以及 CKBox JS 库——页面上的
+     * {@code https://cdn.ckbox.io/ckbox/<版本>/ckbox.js} 或 npm 包 {@code ckbox}。插件以 {@code window.CKBox} 判断库是否已加载，
+     * 未加载时不注册 {@code ckbox} 命令与按钮。缺配置会报错，故与 CKFinder 一样归入"需配置插件"；会自动带上
+     * CloudServices。{@link #isPremiumFeature()} 为 true。</p>
      */
     CKBOX("CKBox", Category.UPLOAD, "ckbox"),
 
     /**
-     * <b>Premium feature</b>：CKBox 图片编辑（toolbar {@code ckboxImageEdit}），依赖 {@link #CKBOX}；需要商业 plan、
-     * CKBox 附加服务与 license key（同 {@link #CKBOX}，见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>）。
+     * <b>Premium feature</b>（CKBox 附加服务）：CKBox 图片编辑（toolbar {@code ckboxImageEdit}），依赖 {@link #CKBOX}；
+     * 要求同 {@link #CKBOX}（见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html">CKBox 文档</a>）。
      * 由开源的 {@code ckeditor5} 包导出，不属于 {@code ckeditor5-premium-features}。
      */
     CKBOX_IMAGE_EDIT("CKBoxImageEdit", Category.UPLOAD, "ckboxImageEdit"),
@@ -205,11 +206,11 @@ public enum CKEditorPlugin {
     TABLE_COLUMN_RESIZE("TableColumnResize", Category.TABLE),
 
     /**
-     * <b>Premium feature</b>：预设表格布局（Layout tables，toolbar {@code insertTableLayout}）。需要包含该功能的
-     * 商业 CKEditor plan（ckeditor.com/pricing 2026-11-22：Essential、Professional、Custom）与有效 license key；
-     * 可先 14 天试用。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html">Layout tables 文档</a>。
-     * <p>由开源的 {@code ckeditor5} 包导出（与免费功能同一个包），不属于 {@code ckeditor5-premium-features}；
-     * 未配置有效 license key 时 CKEditor 会报 license 错误。{@link #requiresLicense()} 为 true。</p>
+     * <b>Premium feature</b>（CKEditor 文档与定价标为 premium，"Layout Tables"）：预设表格布局（toolbar
+     * {@code insertTableLayout}）。见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/tables/layout-tables.html">Layout tables 文档</a>。
+     * <p>由开源的 {@code ckeditor5} 包导出（与免费功能同一个包），不属于 {@code ckeditor5-premium-features}。
+     * CKEditor 内核对 {@code 'GPL'} key 跳过插件 license 检查，所以它在 GPL 下可以运行；商业使用需要 CKEditor
+     * 标明的 plan（见 {@link #isPremiumFeature()}）。{@link #isPremiumFeature()} 为 true。</p>
      */
     TABLE_LAYOUT("TableLayout", Category.TABLE, "insertTableLayout"),
 
@@ -482,39 +483,54 @@ public enum CKEditorPlugin {
     }
 
     /**
-     * 是否经 {@code ckeditor5-premium-features} 包加载。
-     * <p>本枚举全部由开源的 {@code ckeditor5} 包导出，因此恒为 false；它描述的是<b>加载通道</b>，
-     * 不是 license 判断——是否需要商业 license 见 {@link #requiresLicense()}。premium 包里的插件请用
-     * {@link CustomPlugin#fromPremium(String)}。
+     * 是否经 {@code ckeditor5-premium-features} 包加载（<b>加载通道</b>）。
+     * <p>本枚举全部由开源的 {@code ckeditor5} 包导出，因此恒为 false；它不表示功能是否免费——CKEditor 把其中一部分
+     * 标为 premium feature，见 {@link #isPremiumFeature()}。{@code ckeditor5-premium-features} 里的插件请用
+     * {@link CustomPlugin#fromPremium(String)}。命名保留以兼容既有调用方。
      * @return 内置插件恒为 false
      */
     public boolean isPremium() {
         return false;
     }
 
-    /** 由开源 {@code ckeditor5} 包导出、但属 premium feature 的插件（需商业 plan 与 license key）。 */
-    private static final Set<CKEditorPlugin> LICENSE_REQUIRED = Collections.unmodifiableSet(
-        EnumSet.of(CKBOX, CKBOX_IMAGE_EDIT, TABLE_LAYOUT));
+    /**
+     * CKEditor 文档标为 premium feature 的插件（全部由开源 ckeditor5 包导出）：带 {@code licenseFeatureCode} 的插件
+     * （与 ckeditor5 49.1.0 一致，由 premium-catalogue.test.ts 对照真实包校验），以及付费服务 CKBox 与 CKFinder。
+     */
+    private static final Set<CKEditorPlugin> PREMIUM_FEATURES = Collections.unmodifiableSet(EnumSet.of(
+        BOOKMARK, FIND_AND_REPLACE, HTML_EMBED, IMAGE_RESIZE, LIST_PROPERTIES, PAGE_BREAK, PASTE_FROM_OFFICE,
+        REMOVE_FORMAT, RESTRICTED_EDITING_MODE, SPECIAL_CHARACTERS, TABLE_PROPERTIES, TABLE_CELL_PROPERTIES,
+        TABLE_COLUMN_RESIZE, TABLE_LAYOUT, BASE64_UPLOAD_ADAPTER, SIMPLE_UPLOAD_ADAPTER, WORD_COUNT,
+        CKBOX, CKBOX_IMAGE_EDIT, CKFINDER));
 
     /**
-     * Whether this plugin is a CKEditor premium feature that needs a commercial plan and a licence key
-     * ({@code withLicenseKey(...)}), even though the open-source {@code ckeditor5} package exports it:
-     * {@link #CKBOX}, {@link #CKBOX_IMAGE_EDIT} (also the CKBox add-on) and {@link #TABLE_LAYOUT}.
-     * With the default {@code GPL} key the builder logs a warning for these plugins.
+     * Whether CKEditor's documentation and pricing mark this plugin as a <b>premium feature</b>, although the
+     * open-source {@code ckeditor5} package exports it. Two facts apply, and this method states no legal conclusion:
+     * <ul>
+     *   <li>CKEditor's core skips plugin licence checks for the {@code 'GPL'} licence key (the add-on's default), so
+     *       these plugins run under GPL. Plugins with a licence feature code are blocked only for commercial keys
+     *       whose plan does not include them.</li>
+     *   <li>CKEditor's docs badge them "Premium feature" and its pricing lists them outside the Free plan; commercial
+     *       use needs the plan CKEditor states. CKBox ({@link #CKBOX}, {@link #CKBOX_IMAGE_EDIT}) is a paid
+     *       add-on service, and CKFinder ({@link #CKFINDER}) needs the commercial CKFinder server.</li>
+     * </ul>
+     * See {@code docs/PREMIUM_INTEGRATION.md} ("Licensing for self-hosted (npm) builds") and
+     * <a href="https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html">License key and activation</a>.
+     * {@link #isPremium()} is the loading channel (always false here), not this.
      *
-     * @return true if a commercial licence key is required
+     * @return true for a premium feature per CKEditor's documentation
      * @since 6.2.0
      */
-    public boolean requiresLicense() {
-        return LICENSE_REQUIRED.contains(this);
+    public boolean isPremiumFeature() {
+        return PREMIUM_FEATURES.contains(this);
     }
 
     /**
-     * @return the plugins for which {@link #requiresLicense()} is true
+     * @return the plugins for which {@link #isPremiumFeature()} is true
      * @since 6.2.0
      */
-    public static Set<CKEditorPlugin> getLicenseRequiredPlugins() {
-        return LICENSE_REQUIRED;
+    public static Set<CKEditorPlugin> getPremiumFeaturePlugins() {
+        return PREMIUM_FEATURES;
     }
 
     /**

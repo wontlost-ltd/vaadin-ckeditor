@@ -35,6 +35,9 @@ declare module 'ckeditor5-premium-features' {
     export const RealTimeContentFetcher: unknown;
     export const Footnotes: unknown;
     export const Uploadcare: unknown;
+    export const UploadcareImageEdit: unknown;
+    export const FootnotesProperties: unknown;
+    export const DocumentCompare: unknown;
     export const LineHeight: unknown;
     export const PasteFromOfficeEnhanced: unknown;
     export const Users: unknown;
