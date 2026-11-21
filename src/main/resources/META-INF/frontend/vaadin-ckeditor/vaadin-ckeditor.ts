@@ -41,6 +41,7 @@ import './sticky-toolbar.css';
 import './word-count.css';
 import { WORD_COUNT_CONTAINER_CLASS } from './word-count-reporter';
 import VaadinWordCount, { VAADIN_WORD_COUNT_PLUGIN } from './word-count-plugin';
+import { withHtmlSupportPatterns } from './html-support';
 import { withoutUnsupportedFullscreenItems, withoutUnsupportedFullscreenPlugin } from './fullscreen-support';
 import {
     configureOverlayContainer,
@@ -1004,6 +1005,9 @@ export class VaadinCKEditor extends LitElement {
         // Add custom upload adapter for server-side file handling
         // This enables the UploadHandler Java API to receive uploaded files
         // Note: The adapter is set up after editor creation in setupCustomUploadAdapter()
+
+        // htmlSupport 中 Java Pattern 的 JSON 标记还原为 RegExp（见 html-support.ts）
+        editorConfig = withHtmlSupportPatterns(editorConfig as Record<string, unknown>) as EditorConfig;
 
         // 不支持全屏的类型移除所有工具栏里的 fullscreen 项（issue #163，见 fullscreen-support.ts）
         editorConfig = withoutUnsupportedFullscreenItems(editorConfig as Record<string, unknown>, this.editorType) as EditorConfig;
