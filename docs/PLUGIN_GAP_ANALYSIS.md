@@ -70,7 +70,8 @@
 
 - `ckeditor5@48.2.0/dist/index.d.ts` 与 `dist/ckeditor5.js` 通过 `export * from '@ckeditor/ckeditor5-media-embed'`
   把整个子包（含 `MediaEmbedResize`/`MediaEmbedStyle`）透传到 umbrella，`import { MediaEmbedResize } from 'ckeditor5'` 可解析。
-- 但它是功能性 premium（`MediaEmbedResizeEditing.isPremiumPlugin === true`），不是免费 GPL。
+- CKEditor 文档把它标为 premium feature（licence feature code `MER`）；内核对 `'GPL'` key 跳过插件检查，GPL 下可运行
+  （此处原写"不是免费 GPL"，已按文首说明更正）。
 
 **结论**：保留"按需隔离加载 + 失败静默"的设计（正确，避免无 license 用户崩溃），但
 （a）订正注释，（b）import 源由子包改为 umbrella `ckeditor5`，消除"静态 umbrella + 动态子包"双入口可能解析到

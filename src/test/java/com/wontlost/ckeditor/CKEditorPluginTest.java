@@ -52,8 +52,8 @@ class CKEditorPluginTest {
     @Test
     @DisplayName("All built-in plugins should not be marked as premium")
     void allBuiltInPluginsShouldNotBePremium() {
-        // All built-in plugins are free - premium features require
-        // the ckeditor5-premium-features package and CustomPlugin
+        // isPremium() is the loading channel: every built-in plugin comes from the open-source ckeditor5 package,
+        // never from ckeditor5-premium-features. Whether CKEditor marks a feature as premium is isPremiumFeature().
         for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
             assertThat(plugin.isPremium())
                 .as("Plugin %s should not be premium", plugin.name())
