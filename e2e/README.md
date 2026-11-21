@@ -22,6 +22,7 @@ in a real browser to catch issues that unit tests miss.
 | `sticky-toolbar.spec.ts` | AppLayout + 铺满 TabSheet（滚动容器在 shadow DOM 中）的 `/sticky-toolbar` 夹具：聚焦后滚动，工具栏贴住滚动容器顶部，滚动事件当帧与稳定后都没有 CKEditor 粘性占位块、工具栏不被设为 `fixed`（#157） |
 | `heading-options.spec.ts` | `/heading` 夹具：同级别两个标题选项（独立 model + view 类名）时编辑器正常初始化，`<h1 class>` / `<h4 class>` 往返不丢类名，从下拉应用变体时内容带上类名（#158 / #159） |
 | `fullscreen-overflow.spec.ts` | `/fullscreen-doc` 夹具（1366×768）：`custom(1200px)` 与 `html` 覆盖 1200px（A4_FIT / FULL_WIDTH）× {无侧栏、minimap、大纲、两者}——页面与侧栏按边界框互不重叠，放不下时全屏区域横向滚动、两侧侧栏滚到可见，minimap 在可横向滚动时仍同步并驱动滚动；放得下的 `custom(60%)` / A4_FIT / FULL_WIDTH 不出现横向滚动（#156） |
+| `html-support.spec.ts` | `/html-support` 夹具：`HtmlSupport` 规则下 `<section class>`、段落类名与样式、`<details open>` / `<summary>`、仅 YouTube `src` 的 iframe 往返保留，其它 iframe 的 `src`、`on*` 属性与 `<script>` 被默认 disallow 去掉（脚本不执行），STANDARD 预设自动加载 GeneralHtmlSupport；编辑后 `<details>` 随服务端值往返；`setHtmlSupport(true)` 保留类名与 `data-*`，去掉脚本、iframe、事件属性 |
 | `config-path.spec.ts` | `/config-path` 夹具：`CKEditorConfig.set("toolbar.items", List)`、`set("toolbar.shouldNotGroupWhenFull", true)`、`set("heading.options", List<Map>)`、`set("ui.viewportOffset.top", 12)` 等点号路径在浏览器中以嵌套对象到达 CKEditor（父对象合并），工具栏与标题下拉按配置渲染 |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 

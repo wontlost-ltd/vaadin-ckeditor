@@ -320,11 +320,16 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ### General HTML Support (GHS)
 
-Enable to preserve all HTML attributes:
+Keep HTML that no editor feature handles, with typed rules (scripts, iframes and `on*` attributes stay
+blocked unless you opt in):
 
 ```java
-editor.setGhsEnabled(true);
+CKEditorConfig config = new CKEditorConfig().setHtmlSupport(HtmlSupport.create()
+    .allow(HtmlSupport.Rule.elements("div", "section", "article").classes(true))
+    .allow(HtmlSupport.Rule.elements("details", "summary").attributes("open")));
 ```
+
+See the User Guide, "General HTML Support", for iframes, styles, patterns and server-side sanitizing.
 
 ### Minimap (Decoupled Editor)
 

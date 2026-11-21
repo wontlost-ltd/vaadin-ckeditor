@@ -381,6 +381,71 @@ config.setStyle(
 );
 ```
 
+### General HTML Support
+
+[General HTML Support](https://ckeditor.com/docs/ckeditor5/latest/features/html/general-html-support.html)
+(GHS) keeps HTML that no editor feature handles. `HtmlSupport` builds CKEditor's `htmlSupport` option
+(`allow` / `disallow` rules with `name`, `attributes`, `classes`, `styles`, plus `allowEmpty`,
+`preserveEmptyBlocksInEditingView`, `htmlIframeSandbox` and `fullPage.allowRenderStylesFromHead`):
+
+```java
+config.setHtmlSupport(HtmlSupport.create()
+    // <div>, <section>, <article> with any class
+    .allow(Rule.elements("div", "section", "article").classes(true))
+    // collapsible blocks
+    .allow(Rule.elements("details", "summary").attributes("open"))
+    // YouTube embeds only: iframes need an explicit opt-in
+    .allowIframes()
+    .allow(Rule.element("iframe")
+        .attribute("src", Pattern.compile("^https://www\\.youtube(-nocookie)?\\.com/embed/"))
+        .attributes("width", "height", "allowfullscreen", "title"))
+    // classes and styles on paragraphs
+    .allow(Rule.element("p").classes("lead", "note").styles("color", "text-align"))
+    .allow(Rule.element("span").classes(Pattern.compile("^text-")).style("color", Pattern.compile("^#[0-9a-f]{6}$"))));
+```
+
+| Rule method | GHS |
+|-------------|-----|
+| `Rule.element("div")`, `Rule.elements("div", "section")`, `Rule.element(Pattern)`, `Rule.anyElement()` | `name: 'div'`, `name: /^(div\|section)$/`, `name: /.../`, no name (every element) |
+| `attributes(true)`, `attributes("id", "title")`, `attribute(Pattern)`, `attribute("rel", "noopener")`, `attribute("src", Pattern)` | `attributes: true` or `[ 'id', /^data-/, { key: 'src', value: /.../ } ]` |
+| `classes(true)`, `classes("a", "b")`, `classes(Pattern)` | `classes: true` or `[ 'a', /^text-/ ]` |
+| `styles(true)`, `styles("color")`, `style("color", "red")`, `style("color", Pattern)` | `styles: true` or `[ 'color', { key: 'color', value: /.../ } ]` |
+
+- **Safe by default.** Unless you call `allowScripts()`, `allowIframes()` or `allowEventHandlers()`,
+  three `disallow` rules are added: `<script>`, `<iframe>` and `on*` attributes on every element
+  (GHS applies `disallow` after `allow`). Opt in only for content you trust.
+- **CKEditor is not an XSS filter.** Whatever GHS allows is returned by `getValue()`. Allowed `href` /
+  `src` values are not checked for `javascript:` URLs, and `htmlIframeSandbox` only affects the editing
+  view, not the data. Sanitize on the server before storing or displaying the HTML (see below).
+- Patterns are Java `Pattern`s in the syntax Java and JavaScript share; they run in the browser.
+  Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported.
+- The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
+  `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`).
+- **`fullPageAllowRenderStylesFromHead` has no effect yet.** It is read by CKEditor's
+  [Full page HTML](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) plugin
+  `FullPage` (plan-gated, `GPL` works), which the add-on cannot load today: it is not a
+  `CKEditorPlugin`, and `CustomPlugin.fromCKEditor5("FullPage")` only resolves names already in the
+  connector's plugin registry. A follow-up will add it. The `sanitizeCss` callback CKEditor recommends
+  for that option cannot be passed from Java either.
+- `setHtmlSupport(true)` is `HtmlSupport.allowAll()`: every element with all attributes, classes and
+  styles, except scripts, iframes and `on*` attributes. Before 6.2.0 it sent the name as the string
+  `"/.*/"`, which CKEditor compares literally, so it had no effect.
+  `setGeneralHtmlSupportEnabled(true)` is unchanged and allows everything, scripts included.
+
+**Server-side sanitizer.** `HtmlSanitizer` (jsoup) runs on the server and is independent of GHS: it
+does not know your GHS rules. With `getSanitizedValue()` or `setSanitizeOnInput(true)`, elements GHS
+keeps are still removed unless the safelist allows them, e.g. for the example above:
+
+```java
+editor.setHtmlSanitizer(HtmlSanitizer.withSafelist(Safelist.relaxed()
+    .addTags("section", "article", "details", "summary", "iframe")
+    .addAttributes(":all", "class")
+    .addAttributes("p", "style")
+    .addAttributes("details", "open")
+    .addAttributes("iframe", "src", "width", "height", "allowfullscreen", "title")
+    .addProtocols("iframe", "src", "https")));
+```
+
 ### Any CKEditor option: `set(path, value)`
 
 Options without a dedicated setter (premium features, AI, cloud services, ...) are set with
@@ -1096,7 +1161,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 | Method | Description |
 |--------|-------------|
 | `setOverrideCssUrl(String)` | Set custom CSS URL |
-| `setGeneralHtmlSupportEnabled(boolean)` | Enable GHS |
+| `setGeneralHtmlSupportEnabled(boolean)` | Allow all HTML via GHS, scripts included (prefer `CKEditorConfig.setHtmlSupport(HtmlSupport)`) |
 | `setSynchronized(boolean)` | Enable sync mode |
 
 #### Handlers
