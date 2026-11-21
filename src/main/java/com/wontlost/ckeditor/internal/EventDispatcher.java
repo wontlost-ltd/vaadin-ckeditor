@@ -34,6 +34,7 @@ public class EventDispatcher implements java.io.Serializable {
     private final List<ComponentEventListener<AutosaveEvent>> autosaveListeners = new CopyOnWriteArrayList<>();
     private final List<ComponentEventListener<ContentChangeEvent>> contentChangeListeners = new CopyOnWriteArrayList<>();
     private final List<ComponentEventListener<FallbackEvent>> fallbackListeners = new CopyOnWriteArrayList<>();
+    private final List<ComponentEventListener<WordCountChangeEvent>> wordCountListeners = new CopyOnWriteArrayList<>();
 
     /**
      * Create an event dispatcher.
@@ -128,6 +129,26 @@ public class EventDispatcher implements java.io.Serializable {
         return () -> fallbackListeners.remove(listener);
     }
 
+    /**
+     * Add a word count change listener.
+     *
+     * @param listener the listener
+     * @return a registration handle
+     */
+    public Registration addWordCountChangeListener(ComponentEventListener<WordCountChangeEvent> listener) {
+        wordCountListeners.add(listener);
+        return () -> wordCountListeners.remove(listener);
+    }
+
+    /**
+     * 是否存在 WordCountChange 监听器（没有时客户端不上报计数）。
+     *
+     * @return 至少注册了一个监听器时为 true
+     */
+    public boolean hasWordCountChangeListeners() {
+        return !wordCountListeners.isEmpty();
+    }
+
     // ==================== Event Firing ====================
 
     /**
@@ -200,6 +221,17 @@ public class EventDispatcher implements java.io.Serializable {
         dispatchEvent(fallbackListeners, event, "Fallback");
     }
 
+    /**
+     * Fire a word count change event.
+     *
+     * @param words      number of words
+     * @param characters number of characters
+     */
+    public void fireWordCountChange(int words, int characters) {
+        WordCountChangeEvent event = new WordCountChangeEvent(source, true, words, characters);
+        dispatchEvent(wordCountListeners, event, "WordCountChange");
+    }
+
     // ==================== Internal Methods ====================
 
     private <E extends ComponentEvent<?>> void dispatchEvent(List<ComponentEventListener<E>> listeners, E event, String eventName) {
@@ -221,6 +253,7 @@ public class EventDispatcher implements java.io.Serializable {
         autosaveListeners.clear();
         contentChangeListeners.clear();
         fallbackListeners.clear();
+        wordCountListeners.clear();
     }
 
     /**
@@ -234,7 +267,8 @@ public class EventDispatcher implements java.io.Serializable {
             errorListeners.size(),
             autosaveListeners.size(),
             contentChangeListeners.size(),
-            fallbackListeners.size()
+            fallbackListeners.size(),
+            wordCountListeners.size()
         );
     }
 
@@ -247,17 +281,19 @@ public class EventDispatcher implements java.io.Serializable {
         public final int autosave;
         public final int contentChange;
         public final int fallback;
+        public final int wordCount;
 
-        ListenerStats(int ready, int error, int autosave, int contentChange, int fallback) {
+        ListenerStats(int ready, int error, int autosave, int contentChange, int fallback, int wordCount) {
             this.ready = ready;
             this.error = error;
             this.autosave = autosave;
             this.contentChange = contentChange;
             this.fallback = fallback;
+            this.wordCount = wordCount;
         }
 
         public int total() {
-            return ready + error + autosave + contentChange + fallback;
+            return ready + error + autosave + contentChange + fallback + wordCount;
         }
     }
 }

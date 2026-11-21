@@ -137,6 +137,26 @@ public class CustomPlugin implements java.io.Serializable {
     }
 
     /**
+     * Reference a plugin registered in the browser with {@code registerCKEditorPlugin(name, PluginClass)}
+     * (exported by the connector module {@code vaadin-ckeditor/plugin-resolver}), without an import path.
+     * Names of built-in CKEditor plugins take precedence over registered ones.
+     *
+     * <pre>
+     * // frontend/my-plugins.ts, imported by the application
+     * registerCKEditorPlugin('Highlighter', Highlighter);
+     *
+     * // Java
+     * builder.addCustomPlugin(CustomPlugin.fromRegistry("Highlighter"));
+     * </pre>
+     *
+     * @param jsName the registered plugin name
+     * @return the plugin definition
+     */
+    public static CustomPlugin fromRegistry(String jsName) {
+        return builder(jsName).build();
+    }
+
+    /**
      * Quick create plugin from ckeditor5-premium-features
      */
     public static CustomPlugin fromPremium(String jsName) {

@@ -500,6 +500,42 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Limit the number of words; the field becomes invalid above it.
+     *
+     * @param maxWords the limit, {@code 0} for no limit
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setMaxWords(int)
+     */
+    public VaadinCKEditorBuilder withMaxWords(int maxWords) {
+        editor.setMaxWords(maxWords);
+        return this;
+    }
+
+    /**
+     * Limit the number of characters; the field becomes invalid above it.
+     *
+     * @param maxCharacters the limit, {@code 0} for no limit
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setMaxCharacters(int)
+     */
+    public VaadinCKEditorBuilder withMaxCharacters(int maxCharacters) {
+        editor.setMaxCharacters(maxCharacters);
+        return this;
+    }
+
+    /**
+     * Show CKEditor's word and character counter below the editor.
+     *
+     * @param visible true to show the counter
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setWordCountVisible(boolean)
+     */
+    public VaadinCKEditorBuilder withWordCountVisible(boolean visible) {
+        editor.setWordCountVisible(visible);
+        return this;
+    }
+
+    /**
      * Enable autosave with callback and waiting time.
      *
      * @param callback the callback to invoke when autosave triggers

@@ -1,0 +1,37 @@
+/**
+ * CKEditor WordCount 计数显示（VaadinCKEditor#setWordCountVisible，#70）与字段校验状态。
+ * 容器在编辑器下方；超过 setMaxWords / setMaxCharacters 上限时变为错误色。
+ */
+vaadin-ckeditor .word-count-container[hidden] {
+    display: none;
+}
+
+vaadin-ckeditor .word-count-container .ck-word-count {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--lumo-space-m, 1rem);
+    padding: var(--lumo-space-xs, 0.25rem) 0;
+    font-size: var(--lumo-font-size-s, 0.875rem);
+    color: var(--lumo-secondary-text-color, #666);
+}
+
+vaadin-ckeditor .word-count-container--over-limit .ck-word-count {
+    color: var(--lumo-error-text-color, #c00);
+    font-weight: 600;
+}
+
+/* CustomField 校验状态（setInvalid / setErrorMessage，如字数超限）：编辑区红框 + 下方错误消息 */
+vaadin-ckeditor[invalid] .ck.ck-editor__editable {
+    border-color: var(--lumo-error-color, #e00) !important;
+}
+
+vaadin-ckeditor .vaadin-ckeditor-error-message {
+    color: var(--lumo-error-text-color, #c00);
+    font-size: var(--lumo-font-size-xs, 0.8125rem);
+    line-height: var(--lumo-line-height-xs, 1.25);
+    padding-top: var(--lumo-space-xs, 0.25rem);
+}
+
+vaadin-ckeditor .vaadin-ckeditor-error-message[hidden] {
+    display: none;
+}

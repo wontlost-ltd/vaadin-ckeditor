@@ -11,6 +11,7 @@ import {
     PluginResolver,
     PLUGIN_REGISTRY,
     registerCKEditorPlugin,
+    registerDefaultCKEditorPlugin,
     unregisterCKEditorPlugin,
     getGlobalPluginRegistry,
     type FilterOptions,
@@ -280,6 +281,36 @@ describe('Global Plugin Registry', () => {
 
     it('unregisterCKEditorPlugin returns false when the plugin was not registered', () => {
         expect(unregisterCKEditorPlugin('NeverRegistered')).toBe(false);
+    });
+
+    it('registerDefaultCKEditorPlugin registers only when the name is free (application plugin wins)', () => {
+        const appPlugin = class AppWordCount {};
+        const builtIn = class VaadinWordCount {};
+        expect(registerDefaultCKEditorPlugin('Defaulted', builtIn)).toBe(true);
+        expect(getGlobalPluginRegistry()['Defaulted']).toBe(builtIn);
+
+        registerCKEditorPlugin('Replaced', appPlugin);
+        expect(registerDefaultCKEditorPlugin('Replaced', builtIn)).toBe(false);
+        expect(getGlobalPluginRegistry()['Replaced']).toBe(appPlugin);
+    });
+
+    it('a registered plugin is resolved by name without an import path (CustomPlugin.fromRegistry)', async () => {
+        const logger = createMockLogger();
+        const registered = class Registered {};
+        registerCKEditorPlugin('RegisteredOnly', registered);
+        const resolver = new PluginResolver(logger);
+
+        const plugins = await resolver.resolvePlugins([{ name: 'RegisteredOnly', premium: false }]);
+
+        expect(plugins).toEqual([registered]);
+        expect(resolver.loadErrors).toEqual([]);
+    });
+
+    it('built-in CKEditor plugins keep precedence over registered ones with the same name', async () => {
+        registerCKEditorPlugin('Bold', class FakeBold {});
+        const resolver = new PluginResolver(createMockLogger());
+        const plugins = await resolver.resolvePlugins([{ name: 'Bold', premium: false }]);
+        expect(plugins).toEqual([PLUGIN_REGISTRY['Bold']]);
     });
 
     it('unregister only removes the named plugin, leaving others intact', () => {

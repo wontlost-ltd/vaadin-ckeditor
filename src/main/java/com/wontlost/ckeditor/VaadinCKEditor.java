@@ -9,6 +9,11 @@ import com.vaadin.flow.component.Tag;
 import com.vaadin.flow.component.customfield.CustomField;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.dependency.NpmPackage;
+import com.vaadin.flow.data.binder.HasValidator;
+import com.vaadin.flow.data.binder.ValidationResult;
+import com.vaadin.flow.data.binder.ValidationStatusChangeEvent;
+import com.vaadin.flow.data.binder.ValidationStatusChangeListener;
+import com.vaadin.flow.data.binder.Validator;
 import com.vaadin.flow.shared.Registration;
 import com.wontlost.ckeditor.event.*;
 import com.wontlost.ckeditor.event.EditorErrorEvent.EditorError;
@@ -21,6 +26,7 @@ import com.wontlost.ckeditor.handler.UploadHandler;
 import org.jsoup.safety.Safelist;
 
 import com.wontlost.ckeditor.internal.ContentManager;
+import com.wontlost.ckeditor.internal.EditorTextStats;
 import com.wontlost.ckeditor.internal.EnumParser;
 import com.wontlost.ckeditor.internal.EventDispatcher;
 import com.wontlost.ckeditor.internal.UploadManager;
@@ -92,7 +98,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
 @JsModule("./vaadin-ckeditor/vaadin-ckeditor.ts")
 @NpmPackage(value = "ckeditor5", version = "49.1.0")
 @NpmPackage(value = "lit", version = "^3.3.3")
-public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel {
+public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel, HasValidator<String> {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
     /** Keep in sync with version field in vaadin-ckeditor.ts */
@@ -147,6 +153,35 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
     private FullscreenPage fullscreenPage = FullscreenPage.A4_FIT;
 
+    /**
+     * The add-on's word count bridge plugin ({@code word-count-plugin.ts}), registered in the browser's
+     * plugin registry. It is added automatically by {@link #addWordCountChangeListener} and
+     * {@link #setWordCountVisible(boolean) setWordCountVisible(true)}; it requires CKEditor's
+     * {@code WordCount}. Register a subclass under the same name with {@code registerCKEditorPlugin}
+     * to extend or replace it.
+     */
+    public static final CustomPlugin WORD_COUNT_PLUGIN = CustomPlugin.fromRegistry("VaadinWordCount");
+
+    /** Default error message when the word limit is exceeded ({0} = limit, {1} = count). */
+    public static final String DEFAULT_MAX_WORDS_ERROR = "Maximum {0} words allowed ({1} entered)";
+    /** Default error message when the character limit is exceeded ({0} = limit, {1} = count). */
+    public static final String DEFAULT_MAX_CHARACTERS_ERROR = "Maximum {0} characters allowed ({1} entered)";
+
+    /** 字数上限，0 表示不限。 */
+    private int maxWords;
+    /** 字符数上限，0 表示不限。 */
+    private int maxCharacters;
+    private String maxWordsErrorMessage = DEFAULT_MAX_WORDS_ERROR;
+    private String maxCharactersErrorMessage = DEFAULT_MAX_CHARACTERS_ERROR;
+    private boolean wordCountVisible;
+    /** true 时不在值变化时自行校验（与 Vaadin 字段的 setManualValidation 语义一致）。 */
+    private boolean manualValidation;
+    /** 当前 invalid 状态是否由字数 / 字符数上限设置——只撤销自己设置的状态，不覆盖应用自己的 setInvalid。 */
+    private boolean limitInvalid;
+    /** 上限校验最近一次设置的错误消息。 */
+    private String limitErrorMessage;
+    private final List<ValidationStatusChangeListener<String>> validationStatusListeners = new ArrayList<>();
+
     // Internal managers
     /**
      * 上传管理器持有进行中的任务与 Future，属于瞬态：不参与会话序列化，
@@ -165,6 +200,8 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         this.eventDispatcher = new EventDispatcher(this);
         // Initialize contentManager to ensure it's never null (null object pattern)
         this.contentManager = new ContentManager(null);
+        // 先于 Binder 注册：Binder 的值变化监听器随后运行，其完整校验结果（含 asRequired 等）最终生效
+        addValueChangeListener(e -> validateLimits());
     }
 
     /**
@@ -215,6 +252,9 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         if (config != null) {
             getElement().setPropertyJson("config", config.toJson());
         }
+
+        // builder 的 withValue 不触发值变化事件：按初始值校验一次上限
+        validateLimits();
     }
 
     /**
@@ -749,6 +789,10 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     /**
      * Get word count of content.
      *
+     * <p>This is the historical server-side estimate (whitespace-separated words, each CJK character
+     * counted as a word). It can differ from CKEditor's WordCount plugin, which
+     * {@link #addWordCountChangeListener(ComponentEventListener)} and {@link #setMaxWords(int)} use.</p>
+     *
      * @return word count
      */
     public int getWordCount() {
@@ -762,6 +806,219 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public boolean isContentEmpty() {
         return contentManager.isContentEmpty(editorData);
+    }
+
+    // ==================== Word Count & Limits ====================
+
+    /**
+     * Listen to the live word and character count while the user types.
+     *
+     * <p>The counts come from CKEditor's
+     * <a href="https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html">WordCount</a> plugin through
+     * the add-on's {@link #WORD_COUNT_PLUGIN} custom plugin, added automatically by this method and by
+     * {@link #setWordCountVisible(boolean)}.
+     * Events arrive at most once per 500 ms, only when a count changed, plus once with the initial counts.
+     * Register the listener (or turn the counter on) before the editor is attached so the plugin is loaded,
+     * or add {@link #WORD_COUNT_PLUGIN} with {@code addCustomPlugin} up front.</p>
+     *
+     * @param listener the listener
+     * @return registration for removing the listener
+     */
+    public Registration addWordCountChangeListener(ComponentEventListener<WordCountChangeEvent> listener) {
+        requireWordCountPlugin();
+        Registration registration = eventDispatcher.addWordCountChangeListener(listener);
+        syncWordCountEventsProperty();
+        return () -> {
+            registration.remove();
+            syncWordCountEventsProperty();
+        };
+    }
+
+    /**
+     * 以自定义插件机制加载字数桥接插件；插件列表在 initialize() 后变化时重新下发（编辑器创建前生效）。
+     */
+    private void requireWordCountPlugin() {
+        if (customPlugins.add(WORD_COUNT_PLUGIN) && getElement().hasProperty("plugins")) {
+            getElement().setPropertyJson("plugins", buildPluginsJson());
+        }
+    }
+
+    private void syncWordCountEventsProperty() {
+        getElement().setProperty("wordCountEvents", eventDispatcher.hasWordCountChangeListeners());
+    }
+
+    /**
+     * Show CKEditor's word and character counter below the editor. Off by default. The counter turns
+     * red when a limit set with {@link #setMaxWords(int)} / {@link #setMaxCharacters(int)} is exceeded.
+     * Use {@code config.set("wordCount", ...)} with {@code displayWords} / {@code displayCharacters}
+     * to show only one of the counts.
+     *
+     * @param visible true to show the counter
+     */
+    public void setWordCountVisible(boolean visible) {
+        this.wordCountVisible = visible;
+        if (visible) {
+            requireWordCountPlugin();
+        }
+        getElement().setProperty("wordCountVisible", visible);
+    }
+
+    /**
+     * @return whether the word count display is visible
+     */
+    public boolean isWordCountVisible() {
+        return wordCountVisible;
+    }
+
+    /**
+     * Limit the number of words. Exceeding the limit does not block typing; the field becomes invalid
+     * (Vaadin's red error state with {@link #setMaxWordsErrorMessage(String) the error message}) and a
+     * bound {@code Binder} reports a validation error, since the limit is part of
+     * {@link #getDefaultValidator()}.
+     *
+     * <p>Words are counted on the server from the value with the rules of CKEditor's WordCount plugin,
+     * so the limit cannot be bypassed by the client and agrees with the counter the user sees. The
+     * invalid state follows the value: it updates whenever the value reaches the server, on every
+     * change by default and on blur after {@link #setSynchronized(boolean) setSynchronized(false)}.</p>
+     *
+     * @param maxWords the limit, {@code 0} for no limit
+     * @throws IllegalArgumentException if negative
+     */
+    public void setMaxWords(int maxWords) {
+        this.maxWords = requireLimit(maxWords, "maxWords");
+        getElement().setProperty("maxWords", maxWords);
+        limitsChanged();
+    }
+
+    /**
+     * @return the word limit, {@code 0} when unlimited
+     */
+    public int getMaxWords() {
+        return maxWords;
+    }
+
+    /**
+     * Limit the number of characters (spaces included, as CKEditor's WordCount counts them).
+     * Behaves like {@link #setMaxWords(int)}.
+     *
+     * @param maxCharacters the limit, {@code 0} for no limit
+     * @throws IllegalArgumentException if negative
+     */
+    public void setMaxCharacters(int maxCharacters) {
+        this.maxCharacters = requireLimit(maxCharacters, "maxCharacters");
+        getElement().setProperty("maxCharacters", maxCharacters);
+        limitsChanged();
+    }
+
+    /**
+     * @return the character limit, {@code 0} when unlimited
+     */
+    public int getMaxCharacters() {
+        return maxCharacters;
+    }
+
+    /**
+     * Set the error message shown when the word limit is exceeded. {@code {0}} is replaced with the
+     * limit and {@code {1}} with the current count. Default: {@value #DEFAULT_MAX_WORDS_ERROR}.
+     *
+     * @param template the message template, not null
+     */
+    public void setMaxWordsErrorMessage(String template) {
+        this.maxWordsErrorMessage = Objects.requireNonNull(template, "template");
+        limitsChanged();
+    }
+
+    /**
+     * Set the error message shown when the character limit is exceeded. {@code {0}} is replaced with
+     * the limit and {@code {1}} with the current count. Default: {@value #DEFAULT_MAX_CHARACTERS_ERROR}.
+     *
+     * @param template the message template, not null
+     */
+    public void setMaxCharactersErrorMessage(String template) {
+        this.maxCharactersErrorMessage = Objects.requireNonNull(template, "template");
+        limitsChanged();
+    }
+
+    /**
+     * Validator for the word / character limits. {@code Binder.forField(editor)} adds it automatically
+     * (unless default validators are disabled), so {@code binder.validate()} and {@code writeBean} fail
+     * over the limit. Always passes when no limit is set.
+     */
+    @Override
+    public Validator<String> getDefaultValidator() {
+        return (value, context) -> checkLimits(value);
+    }
+
+    @Override
+    public Registration addValidationStatusChangeListener(ValidationStatusChangeListener<String> listener) {
+        validationStatusListeners.add(listener);
+        return () -> validationStatusListeners.remove(listener);
+    }
+
+    /**
+     * When {@code true}, the editor does not mark itself invalid on value changes; validation is left to
+     * the application (e.g. {@code binder.validate()}). Default {@code false}.
+     */
+    @Override
+    public void setManualValidation(boolean enabled) {
+        this.manualValidation = enabled;
+    }
+
+    private static int requireLimit(int limit, String name) {
+        if (limit < 0) {
+            throw new IllegalArgumentException(name + " must be 0 (no limit) or positive, got: " + limit);
+        }
+        return limit;
+    }
+
+    /** 上限或消息变化：重新自校验，并通知 Binder 重新校验（值未变时 Binder 不会自行触发）。 */
+    private void limitsChanged() {
+        validateLimits();
+        boolean valid = !checkLimits(getValue()).isError();
+        for (ValidationStatusChangeListener<String> listener : List.copyOf(validationStatusListeners)) {
+            listener.validationStatusChanged(new ValidationStatusChangeEvent<>(this, valid));
+        }
+    }
+
+    ValidationResult checkLimits(String value) {
+        if (maxWords == 0 && maxCharacters == 0) {
+            return ValidationResult.ok();
+        }
+        EditorTextStats.Stats stats = EditorTextStats.of(value);
+        if (maxWords > 0 && stats.words() > maxWords) {
+            return ValidationResult.error(limitMessage(maxWordsErrorMessage, maxWords, stats.words()));
+        }
+        if (maxCharacters > 0 && stats.characters() > maxCharacters) {
+            return ValidationResult.error(limitMessage(maxCharactersErrorMessage, maxCharacters, stats.characters()));
+        }
+        return ValidationResult.ok();
+    }
+
+    private static String limitMessage(String template, int limit, int count) {
+        // 不用 MessageFormat：模板里的撇号（如 "can't"）在 MessageFormat 中是转义符
+        return template.replace("{0}", Integer.toString(limit)).replace("{1}", Integer.toString(count));
+    }
+
+    /**
+     * 自校验字数 / 字符数上限。只撤销自己设置的 invalid，应用或 Binder 设置的其它错误不受影响。
+     */
+    private void validateLimits() {
+        if (manualValidation) {
+            return;
+        }
+        ValidationResult result = checkLimits(getValue());
+        if (result.isError()) {
+            limitErrorMessage = result.getErrorMessage();
+            setErrorMessage(limitErrorMessage);
+            setInvalid(true);
+            limitInvalid = true;
+        } else if (limitInvalid) {
+            // 只撤销仍由上限设置的状态：错误消息已被 Binder / 应用换成别的，说明状态已不属于这里
+            if (isInvalid() && Objects.equals(getErrorMessage(), limitErrorMessage)) {
+                setInvalid(false);
+            }
+            limitInvalid = false;
+        }
     }
 
     // ==================== Static Info ====================
@@ -994,6 +1251,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     public void cleanupListeners() {
         eventDispatcher.cleanup();
         syncContentChangeEventsProperty();
+        syncWordCountEventsProperty();
         if (uploadManager != null) {
             uploadManager.cleanup();
         }
@@ -1053,6 +1311,18 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         if (syncToServer) {
             setModelValue(content, true);
         }
+    }
+
+    /**
+     * 客户端 WordCount 插件上报的计数（已节流、去重，见 word-count-reporter.ts）。
+     */
+    @ClientCallable
+    private void fireWordCountChange(int words, int characters) {
+        if (words < 0 || characters < 0) {
+            logger.fine("Ignoring invalid word count from client");
+            return;
+        }
+        eventDispatcher.fireWordCountChange(words, characters);
     }
 
     @ClientCallable
