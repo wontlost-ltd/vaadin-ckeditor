@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ Behaviour change (6.2.0): fullscreen page width
+- **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
+  此前沿用 CKEditor 固定 `795.701px`（A4 纸宽）的页面，宽屏上两侧大片留空，浏览器缩放与窗口大小都不改变页宽。
+  现在页宽 = 编辑列宽（全屏区域减去有内容的侧栏）− 两侧各 28px 留白（`--ck-fullscreen-editor-top-margin`），
+  页边距（20mm × 12mm）与最小高度（297mm）按 A4 比例随页宽缩放，窗口缩放与浏览器缩放都会改变页面大小；
+  页面高度随内容增长，不限制宽度。全屏模式下空的侧栏不再占位（A4 模式除外）。
+  **恢复旧观感**：`editor.setFullscreenPage(FullscreenPage.A4)` 或 `builder.withFullscreenPage(FullscreenPage.A4)`。
+
 ### Added
-- **`--ck-fullscreen-editable-width`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）：CKEditor
-  全屏模式把编辑区与源码视图固定为 A4 纸宽 `795.701px`，没有配置项。现可在 `html` 上设置该变量（任意 CSS 宽度值，
-  如 `1200px`、`90vw`、`min(1400px, 90vw)`）加宽全屏编辑区；未设置时保持 CKEditor 默认宽度。见 User Guide「Fullscreen editable width」。
+- **`FullscreenPage` 与 `VaadinCKEditor#setFullscreenPage` / `getFullscreenPage`、`VaadinCKEditorBuilder#withFullscreenPage`**
+  （#156）：`A4_FIT`（默认）、`A4`（CKEditor 的 795.701px）、`FULL_WIDTH`（铺满编辑列）、`custom(String)`（任意 CSS 宽度，
+  如 `1200px`、`80%`、`min(1400px, 90%)`；只接受「数字 + 单位 / %」及 `calc` / `min` / `max` / `clamp`，拒绝关键字、
+  `var()` / `url()`、引号、分号等，无法注入 CSS）。按编辑器实例生效，可在全屏打开时切换；源码视图同宽。
+- **`--ck-fullscreen-editable-width`**（#156）：设在 `html` 上的应用级覆盖，优先于所有编辑器的 `FullscreenPage`。
 
 ## [6.1.0] - 2026-11-19
 

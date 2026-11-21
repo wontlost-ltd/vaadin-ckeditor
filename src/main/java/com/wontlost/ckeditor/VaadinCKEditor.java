@@ -145,6 +145,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
     private UploadHandler uploadHandler;
     private UploadHandler.UploadConfig uploadConfig;
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
+    private FullscreenPage fullscreenPage = FullscreenPage.A4_FIT;
 
     // Internal managers
     /**
@@ -200,6 +201,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
         getElement().setProperty("autosaveWaitingTime", autosaveWaitingTime);
         getElement().setProperty("licenseKey", licenseKey);
         getElement().setProperty("fallbackMode", fallbackMode.getJsName());
+        syncFullscreenPage();
 
         // Set plugin list
         getElement().setPropertyJson("plugins", buildPluginsJson());
@@ -531,6 +533,31 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel 
      */
     public void setHideToolbar(boolean hide) {
         getElement().setProperty("hideToolbar", hide);
+    }
+
+    /**
+     * Set the page width used in fullscreen mode (the {@code FULLSCREEN} plugin). Defaults to
+     * {@link FullscreenPage#A4_FIT}; use {@link FullscreenPage#A4} for CKEditor's fixed 795.701px page.
+     * Applies to this editor only and takes effect immediately, also while fullscreen is open.
+     *
+     * @param page the page width, not null
+     */
+    public void setFullscreenPage(FullscreenPage page) {
+        this.fullscreenPage = Objects.requireNonNull(page, "page");
+        syncFullscreenPage();
+    }
+
+    /**
+     * @return the page width used in fullscreen mode, {@link FullscreenPage#A4_FIT} unless changed
+     */
+    public FullscreenPage getFullscreenPage() {
+        return fullscreenPage;
+    }
+
+    private void syncFullscreenPage() {
+        getElement().setProperty("fullscreenPage", fullscreenPage.getMode());
+        getElement().setProperty("fullscreenPageWidth",
+                fullscreenPage.getCssWidth() != null ? fullscreenPage.getCssWidth() : "");
     }
 
     /**

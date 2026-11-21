@@ -45,6 +45,13 @@ import {
     raiseHostLayers,
     releaseOverlayHost,
 } from './overlay-host';
+import {
+    DEFAULT_FULLSCREEN_PAGE,
+    applyFullscreenPage,
+    resolveFullscreenPage,
+    wrapFullscreenPageCallbacks,
+    type FullscreenPage,
+} from './fullscreen-page';
 
 // Import document editor CSS for Decoupled/Document editor styling
 // These styles are applied globally since VaadinCKEditor uses Light DOM
@@ -246,6 +253,8 @@ export class VaadinCKEditor extends LitElement {
         strictPluginLoading: { type: Boolean },
         allowConfigRequiredPlugins: { type: Boolean },
         contentChangeEvents: { type: Boolean },
+        fullscreenPage: { type: String },
+        fullscreenPageWidth: { type: String },
         // 内部状态（原 @state）
         editor: { state: true },
         cursorPosition: { state: true },
@@ -346,6 +355,10 @@ export class VaadinCKEditor extends LitElement {
      * @default false
      */
     declare contentChangeEvents: boolean;
+    /** 全屏页面宽度模式（issue #156），见 fullscreen-page.ts */
+    declare fullscreenPage: string;
+    /** fullscreenPage 为 custom 时的 CSS 宽度 */
+    declare fullscreenPageWidth: string;
 
     // Internal state
     private declare editor: Editor | null;
@@ -458,6 +471,8 @@ export class VaadinCKEditor extends LitElement {
         this.fallbackMode = 'textarea';
         this.strictPluginLoading = false;
         this.allowConfigRequiredPlugins = false;
+        this.fullscreenPage = DEFAULT_FULLSCREEN_PAGE.mode;
+        this.fullscreenPageWidth = '';
         this.contentChangeEvents = false;
         this.editor = null;
         this.cursorPosition = null;
@@ -540,6 +555,10 @@ export class VaadinCKEditor extends LitElement {
 
         if (changedProperties.has('hideToolbar') && this.editor) {
             this.updateToolbarVisibility();
+        }
+
+        if (changedProperties.has('fullscreenPage') || changedProperties.has('fullscreenPageWidth')) {
+            this.updateFullscreenPage();
         }
 
         // Handle theme changes from Java backend
@@ -764,6 +783,10 @@ export class VaadinCKEditor extends LitElement {
         // 顶层宿主（Vaadin Dialog 等 popover）内的浮层与全屏（issue #143 / #144）：
         // 把 ui.overlayContainer 指向宿主并包装全屏回调，细节与边界见 overlay-host.ts。
         configureOverlayContainer(this, editorConfig as Record<string, unknown>);
+        // 全屏页面宽度（issue #156）：进入全屏时把本实例的设置写到全屏容器上
+        wrapFullscreenPageCallbacks(editorConfig as Record<string, unknown>,
+            () => this.currentFullscreenPage(),
+            (wrapper) => { this.fullscreenWrapper = wrapper; });
 
         // Add toolbar if specified (but don't override config.toolbar if it has shouldNotGroupWhenFull)
         // config.toolbar takes precedence when it's an object with additional options
@@ -2651,6 +2674,23 @@ export class VaadinCKEditor extends LitElement {
         if (VaadinCKEditor.paginationRefcount.justRemoved && VaadinCKEditor.paginationListener) {
             window.removeEventListener('unhandledrejection', VaadinCKEditor.paginationListener);
             VaadinCKEditor.paginationListener = null;
+        }
+    }
+
+    /** 当前打开的全屏容器（未处于全屏时为 null），运行期改设置时同步更新 */
+    private fullscreenWrapper: HTMLElement | null = null;
+
+    private currentFullscreenPage(): FullscreenPage {
+        return resolveFullscreenPage(this.fullscreenPage, this.fullscreenPageWidth, undefined,
+            (message) => logger.warn(message));
+    }
+
+    /** 把全屏页面设置写到宿主与（若已打开的）全屏容器上 */
+    private updateFullscreenPage(): void {
+        const page = this.currentFullscreenPage();
+        applyFullscreenPage(this, page);
+        if (this.fullscreenWrapper) {
+            applyFullscreenPage(this.fullscreenWrapper, page);
         }
     }
 

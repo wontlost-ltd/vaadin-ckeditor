@@ -98,22 +98,78 @@ vaadin-ckeditor[data-ck-overlay-host] > .ck.ck-fullscreen__main-wrapper:popover-
     overflow: visible;
 }
 
-/* ==================== Fullscreen editable width (issue #156) ==================== */
+/* ==================== Fullscreen page width (issue #156) ==================== */
 /*
  * CKEditor 全屏模式把编辑区（及源码视图）固定为 A4 纸宽 795.701px，没有配置项
  * （ckeditor5-fullscreen theme/fullscreen.css；官方文档建议用 CSS 覆盖）。
- * 这里开放 --ck-fullscreen-editable-width，未设置时回退到 CKEditor 的默认值，行为不变。
- * 全屏容器在 light DOM 宿主下挂在 document.body，在 Dialog 内挂在宿主里，
- * 因此不以 vaadin-ckeditor 限定，变量应设在 html（:root）上才能在两种位置都继承到。
- * 选择器比 CKEditor 的多一个 .ck，以特异性胜出，无需 !important。
+ * 连接器把 Java 端 FullscreenPage 写成全屏容器（及宿主）上的 data-ck-fullscreen-page，
+ * 自定义宽度写成 --vaadin-ckeditor-fullscreen-page-width（见 fullscreen-page.ts）。
+ *
+ * 宽度取值优先级：html 上的 --ck-fullscreen-editable-width（应用级覆盖，对所有编辑器生效）
+ *   > 本实例的页面设置 > CKEditor 默认 795.701px。
+ *
+ * 除 a4 外，编辑列（.ck-fullscreen__editable）铺满侧栏之外的宽度并作为尺寸查询容器，
+ * 页面宽度可用百分比 / cqw 相对编辑列计算，页面在编辑列中水平居中。
+ * a4 不改动 CKEditor 的布局，与 6.1 及以前的观感一致。
+ * 选择器比 CKEditor 的多一个 .ck 与属性选择器，以特异性胜出，无需 !important。
  */
+.ck.ck-fullscreen__main-wrapper {
+    /* A4_FIT 的左右留白与 CKEditor 全屏的上边距相同 */
+    --vaadin-ckeditor-fullscreen-gutter: var(--ck-fullscreen-editor-top-margin, 28px);
+}
+
+/*
+ * 各模式的页宽定义在编辑列（.ck-fullscreen__editable，尺寸查询容器）之内的元素上，
+ * cqw 因而总是相对编辑列解析；custom 的宽度由连接器写在全屏容器上，经继承到达这里。
+ */
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page="a4"] .ck-fullscreen__editable > * {
+    --vaadin-ckeditor-fullscreen-page-width: 795.701px;
+}
+
+/* A4_FIT：页宽 = 编辑列宽 − 两侧留白；页边距与最小高度按 A4（210 × 297mm，页边距 20mm × 12mm）等比缩放 */
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page="a4-fit"] .ck-fullscreen__editable > * {
+    --vaadin-ckeditor-fullscreen-page-width: calc(100cqw - 2 * var(--vaadin-ckeditor-fullscreen-gutter));
+}
+
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page="full-width"] .ck-fullscreen__editable > * {
+    --vaadin-ckeditor-fullscreen-page-width: 100cqw;
+}
+
+/* 空侧栏（无大纲 / 批注 / AI 面板时）在 CKEditor 布局里仍各占 270px + 10px，用于把 A4 页居中；
+   铺宽类模式下隐藏它们，编辑列才是真正可用的宽度。有内容的侧栏不受影响。 */
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__sidebar:empty,
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__right-edge:empty {
+    display: none;
+}
+
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-left: 0;
+    container-type: inline-size;
+}
+
 .ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
-    width: var(--ck-fullscreen-editable-width, 795.701px);
-    max-width: var(--ck-fullscreen-editable-width, 795.701px);
+    --vaadin-ckeditor-fullscreen-resolved-width: var(--ck-fullscreen-editable-width,
+        var(--vaadin-ckeditor-fullscreen-page-width, 795.701px));
+    width: var(--vaadin-ckeditor-fullscreen-resolved-width);
+    max-width: var(--vaadin-ckeditor-fullscreen-resolved-width);
 }
 
 .ck.ck-fullscreen__main-wrapper .ck-fullscreen__editable .ck-source-editing-area {
-    width: var(--ck-fullscreen-editable-width, 795.701px);
+    width: var(--ck-fullscreen-editable-width, var(--vaadin-ckeditor-fullscreen-page-width, 795.701px));
+}
+
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable),
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page]:not([data-ck-fullscreen-page="a4"]) .ck-fullscreen__editable .ck-source-editing-area {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ck.ck-fullscreen__main-wrapper[data-ck-fullscreen-page="a4-fit"] .ck-fullscreen__editable .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
+    min-height: calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 297 / 210);
+    padding: calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 20 / 210)
+        calc(var(--vaadin-ckeditor-fullscreen-resolved-width) * 12 / 210);
 }
 
 /* ==================== Dark Theme Support ==================== */

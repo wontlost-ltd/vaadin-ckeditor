@@ -22,7 +22,7 @@ import SOURCE from './vaadin-ckeditor.ts?raw';
  */
 const NO_TSCONFIG_PATH = '/__vaadin_ckeditor_no_tsconfig__/vaadin-ckeditor.ts';
 
-/** 由服务端同步的公开属性（原 `@property`，以及 issue #137 新增的 contentChangeEvents）。 */
+/** 由服务端同步的公开属性（原 `@property`，以及 issue #137 的 contentChangeEvents、#156 的全屏页面宽度）。 */
 const PUBLIC_PROPERTIES = [
     'editorId', 'editorType', 'themeType', 'editorData', 'editorWidth', 'editorHeight',
     'language', 'overrideCssUrl', 'isReadOnly', 'isEnabled', 'autosave', 'autosaveWaitingTime',
@@ -30,6 +30,7 @@ const PUBLIC_PROPERTIES = [
     'commentPermissionEnforcerEnabled', 'aiSidebarEnabled', 'ghsEnabled', 'hideToolbar', 'sync',
     'plugins', 'toolbar', 'config', 'licenseKey', 'toolbarStyle', 'fallbackMode',
     'strictPluginLoading', 'allowConfigRequiredPlugins', 'contentChangeEvents',
+    'fullscreenPage', 'fullscreenPageWidth',
 ];
 
 /** 内部状态（原 `@state`）。 */
@@ -47,7 +48,7 @@ const DEFAULTS: Record<string, unknown> = {
     aiSidebarEnabled: false, ghsEnabled: false, hideToolbar: false, sync: true,
     plugins: [], toolbar: [], config: {}, licenseKey: 'GPL', toolbarStyle: undefined,
     fallbackMode: 'textarea', strictPluginLoading: false, allowConfigRequiredPlugins: false,
-    contentChangeEvents: false,
+    contentChangeEvents: false, fullscreenPage: 'a4-fit', fullscreenPageWidth: '',
     editor: null, cursorPosition: null, aiSidebarCollapsed: true,
 };
 

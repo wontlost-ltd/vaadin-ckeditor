@@ -507,20 +507,49 @@ vaadin-ckeditor {
 `--ck-bookmark-icon-fill-color` defaults to the editor text color (`--ck-color-text`), so the icon is
 dark in the light theme and near-white in the dark theme.
 
-#### Fullscreen editable width
+#### Fullscreen page width
 
-In fullscreen mode CKEditor shows the content as an A4-wide page (`795.701px`); CKEditor has no
-option for this. Set `--ck-fullscreen-editable-width` on `html` to use another width: any CSS width value,
-such as `1200px`, `90vw` or `min(1400px, 90vw)`.
-The fullscreen container is attached to `<body>`, so set it on `html` rather than on `vaadin-ckeditor`:
+CKEditor's fullscreen mode (`CKEditorPlugin.FULLSCREEN`) shows the content as a page. Choose its width per editor
+with `FullscreenPage`:
+
+| Value | Page width |
+|-------|------------|
+| `FullscreenPage.A4_FIT` (default since 6.2.0) | Editing column minus a 28px gutter on each side; margins and minimum height keep A4 proportions |
+| `FullscreenPage.A4` | CKEditor's fixed A4 width, `795.701px` (the look before 6.2.0) |
+| `FullscreenPage.FULL_WIDTH` | The whole editing column |
+| `FullscreenPage.custom("1200px")` | Any CSS width: a number with a unit or `%`, or `calc()` / `min()` / `max()` / `clamp()` of them |
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.STANDARD)
+    .addPlugin(CKEditorPlugin.FULLSCREEN)
+    .withFullscreenPage(FullscreenPage.custom("min(1400px, 90%)"))
+    .build();
+
+editor.setFullscreenPage(FullscreenPage.A4);   // back to CKEditor's fixed page, also while fullscreen is open
+```
+
+**How `A4_FIT` fits.** The *editing column* is the fullscreen area minus sidebars that have content (document outline,
+comments, AI panel); empty sidebars are hidden. The page is as wide as the column minus a gutter equal to the fullscreen
+top margin (`--ck-fullscreen-editor-top-margin`, 28px) on each side. Its padding (20mm × 12mm on a 210mm page) and
+minimum height (297mm) scale with that width, so an empty page looks like an A4 sheet. The page grows downwards with the
+content, as in CKEditor, so the window height does not limit the width. Resizing the window or zooming the browser
+(Ctrl/Cmd + / −) changes the page size: at 200 % zoom the page still fills the window, with text twice as large.
+
+> **Behaviour change in 6.2.0:** fullscreen used CKEditor's fixed 795.701px page before. Use `FullscreenPage.A4` to keep
+> that look.
+
+Percentages in `custom(...)` refer to the editing column. Every value applies to both the editing view and the
+source view, and only to this editor.
+
+**Application-wide override.** `--ck-fullscreen-editable-width` set on `html` overrides the setting of every editor.
+Use a length (`1200px`, `90vw`); with `A4_FIT` the margins and minimum height follow the overridden width:
 
 ```css
 html {
-    --ck-fullscreen-editable-width: min(1400px, 90vw);
+    --ck-fullscreen-editable-width: 1200px;
 }
 ```
-
-It applies to both the editing view and the source view. Browser zoom (Ctrl/Cmd + / −) also works in fullscreen.
 
 ### Custom CSS
 
