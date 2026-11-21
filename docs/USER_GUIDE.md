@@ -579,7 +579,10 @@ editors `setFullscreenPage` has no effect.
 > **Behaviour change in 6.2.0:** fullscreen used CKEditor's fixed 795.701px page before. Use `FullscreenPage.A4` to keep
 > that look.
 
-Percentages in `custom(...)` refer to the editing column. Every value applies to both the editing view and the
+Percentages in `custom(...)` refer to the editing column. A fixed width (from `custom(...)` or the `html` override
+below) that does not fit beside the visible sidebars never slides under them: the fullscreen area scrolls horizontally
+instead. In mixed expressions only the fixed part counts towards that minimum (`max(50cqw, 1200px)` needs 1200px), and
+a page never grows wider than the editing column (`calc(100% + 120px)` is capped at the column). Every value applies to both the editing view and the
 source view, and only to this editor.
 
 **Application-wide override.** `--ck-fullscreen-editable-width` set on `html` overrides the setting of every editor.

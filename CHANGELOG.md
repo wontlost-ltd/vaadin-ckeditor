@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`--ck-fullscreen-editable-width`**（#156）：设在 `html` 上的应用级覆盖，优先于所有编辑器的 `FullscreenPage`。
 
 ### Fixed
+- **全屏中固定宽度的页面滑到右侧 minimap 下面**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）：
+  `FullscreenPage.custom(...)` 或 `html` 上的 `--ck-fullscreen-editable-width` 比编辑列宽时（如 1366×768 下
+  `custom("1200px")` + minimap），编辑列因 `min-width: 0` 与尺寸包含被压到剩余宽度，页面右侧伸到 minimap 下、
+  且不出现横向滚动条。编辑列现以固定宽度为下限（`html` 覆盖取其宽度；custom 取表达式中与编辑列无关的部分，
+  如 `max(50cqw, 1200px)` → `1200px`、`60%` → `0px`），页面不超过编辑列（`calc(100% + 120px)` 收在编辑列内），
+  放不下时全屏区域横向滚动，大纲与 minimap 都不被遮挡、minimap 仍同步滚动；`A4_FIT` / `FULL_WIDTH` / `A4` 与非全屏布局不变。
 - **全屏页面被 `setWidth` / `setHeight` 压窄**（#156）：连接器把编辑器尺寸写成编辑根的内联 `width` / `height`，
   全屏时它们压过 CKEditor 的页面宽度（如 `setWidthFull()` 下 A4 页只剩 545px，文档编辑器带大纲时只剩 92px）。
   全屏布局现在接管页面的宽 / 高，退出全屏后内联尺寸照常生效。
