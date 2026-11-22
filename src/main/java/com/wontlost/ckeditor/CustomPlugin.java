@@ -1,5 +1,7 @@
 package com.wontlost.ckeditor;
 
+import tools.jackson.databind.JsonNode;
+
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
@@ -23,6 +25,20 @@ import java.util.regex.Pattern;
  *     .addCustomPlugin(myPlugin)
  *     .build();
  * </pre>
+ *
+ * <p><b>Passing configuration from Java</b> ({@link Builder#withConfig(String, JsonNode)}, since 6.2.0):
+ * the value is handed to the editor as {@code config[configKey]}, so the plugin reads it with
+ * {@code editor.config.get(configKey)}. Replacing the plugin on a displayed editor with the same plugin
+ * but a different configuration does not recreate the editor: the connector updates
+ * {@code editor.config} and fires {@code editor.fire('vaadin:pluginConfig', configKey, value)}, which the
+ * plugin can listen to. Adding or removing plugins on a displayed editor recreates it with the current
+ * content (CKEditor cannot change its plugins after creation).</p>
+ *
+ * <p><b>Bundling</b>: a module path given with {@link Builder#withImportPath(String)} is imported at
+ * runtime and is not processed by Vaadin's Vite build. Plugins that must be bundled register themselves
+ * from a {@code @JsModule} with {@code registerCKEditorPlugin(name, PluginClass)} or, to load lazily as a
+ * separate chunk, {@code registerCKEditorPluginLoader(name, () => import('./my-plugin'))} (both from
+ * {@code vaadin-ckeditor/plugin-resolver}). Registered plugins take precedence over the import path.</p>
  *
  * <p>Custom plugins must meet CKEditor 5 plugin requirements:</p>
  * <ul>
@@ -61,11 +77,16 @@ public class CustomPlugin implements java.io.Serializable {
         Pattern.CASE_INSENSITIVE
     );
 
+    /** 会与 JavaScript 对象原型冲突的配置键。 */
+    private static final Set<String> RESERVED_CONFIG_KEYS = Set.of("__proto__", "constructor", "prototype");
+
     private final String jsName;
     private final String importPath;
     private final Set<String> toolbarItems;
     private final Set<String> dependencies;
     private final boolean isPremium;
+    private final String configKey;
+    private final JsonNode config;
 
     private CustomPlugin(Builder builder) {
         this.jsName = Objects.requireNonNull(builder.jsName, "Plugin name cannot be null");
@@ -77,6 +98,24 @@ public class CustomPlugin implements java.io.Serializable {
             ? Collections.unmodifiableSet(builder.dependencies)
             : Collections.emptySet();
         this.isPremium = builder.isPremium;
+        this.configKey = builder.configKey;
+        this.config = builder.config;
+    }
+
+    /**
+     * @return the editor configuration key this plugin reads, or {@code null} if none was set
+     * @since 6.2.0
+     */
+    public String getConfigKey() {
+        return configKey;
+    }
+
+    /**
+     * @return the configuration value passed to the editor under {@link #getConfigKey()}, or {@code null}
+     * @since 6.2.0
+     */
+    public JsonNode getConfig() {
+        return config == null ? null : config.deepCopy();
     }
 
     /**
@@ -137,6 +176,26 @@ public class CustomPlugin implements java.io.Serializable {
     }
 
     /**
+     * Reference a plugin registered in the browser with {@code registerCKEditorPlugin(name, PluginClass)}
+     * (exported by the connector module {@code vaadin-ckeditor/plugin-resolver}), without an import path.
+     * Names of built-in CKEditor plugins take precedence over registered ones.
+     *
+     * <pre>
+     * // frontend/my-plugins.ts, imported by the application
+     * registerCKEditorPlugin('Highlighter', Highlighter);
+     *
+     * // Java
+     * builder.addCustomPlugin(CustomPlugin.fromRegistry("Highlighter"));
+     * </pre>
+     *
+     * @param jsName the registered plugin name
+     * @return the plugin definition
+     */
+    public static CustomPlugin fromRegistry(String jsName) {
+        return builder(jsName).build();
+    }
+
+    /**
      * Quick create plugin from ckeditor5-premium-features
      */
     public static CustomPlugin fromPremium(String jsName) {
@@ -174,6 +233,8 @@ public class CustomPlugin implements java.io.Serializable {
         private Set<String> toolbarItems;
         private Set<String> dependencies;
         private boolean isPremium = false;
+        private String configKey;
+        private JsonNode config;
 
         private Builder(String jsName) {
             this.jsName = jsName;
@@ -237,6 +298,30 @@ public class CustomPlugin implements java.io.Serializable {
          */
         public Builder withDependencies(String... deps) {
             this.dependencies = Set.of(deps);
+            return this;
+        }
+
+        /**
+         * Pass configuration to the plugin: the editor receives {@code config[configKey] = value}
+         * (read in the plugin with {@code editor.config.get(configKey)}). Use a key specific to the plugin: a
+         * CKEditor setting such as {@code toolbar} would be replaced. See the class documentation for
+         * how changes reach a displayed editor.
+         *
+         * @param configKey the editor configuration key, a JavaScript identifier
+         * @param value the configuration value, not null
+         * @return this builder
+         * @throws IllegalArgumentException if the key is not a JavaScript identifier, or is
+         *         {@code __proto__}, {@code constructor} or {@code prototype}
+         * @since 6.2.0
+         */
+        public Builder withConfig(String configKey, JsonNode value) {
+            if (configKey == null || !configKey.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+                    || RESERVED_CONFIG_KEYS.contains(configKey)) {
+                throw new IllegalArgumentException(
+                    "Config key must be a JavaScript identifier other than __proto__, constructor, prototype: " + configKey);
+            }
+            this.configKey = configKey;
+            this.config = Objects.requireNonNull(value, "value").deepCopy();
             return this;
         }
 

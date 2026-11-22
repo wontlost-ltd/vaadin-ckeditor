@@ -387,6 +387,108 @@ config.setStyle(
 );
 ```
 
+### General HTML Support
+
+[General HTML Support](https://ckeditor.com/docs/ckeditor5/latest/features/html/general-html-support.html)
+(GHS) keeps HTML that no editor feature handles. `HtmlSupport` builds CKEditor's `htmlSupport` option
+(`allow` / `disallow` rules with `name`, `attributes`, `classes`, `styles`, plus `allowEmpty`,
+`preserveEmptyBlocksInEditingView`, `htmlIframeSandbox` and `fullPage.allowRenderStylesFromHead`):
+
+```java
+config.setHtmlSupport(HtmlSupport.create()
+    // <div>, <section>, <article> with any class
+    .allow(Rule.elements("div", "section", "article").classes(true))
+    // collapsible blocks
+    .allow(Rule.elements("details", "summary").attributes("open"))
+    // YouTube embeds only: iframes need an explicit opt-in
+    .allowIframes()
+    .allow(Rule.element("iframe")
+        .attribute("src", Pattern.compile("^https://www\\.youtube(-nocookie)?\\.com/embed/"))
+        .attributes("width", "height", "allowfullscreen", "title"))
+    // classes and styles on paragraphs
+    .allow(Rule.element("p").classes("lead", "note").styles("color", "text-align"))
+    .allow(Rule.element("span").classes(Pattern.compile("^text-")).style("color", Pattern.compile("^#[0-9a-f]{6}$"))));
+```
+
+| Rule method | GHS |
+|-------------|-----|
+| `Rule.element("div")`, `Rule.elements("div", "section")`, `Rule.element(Pattern)`, `Rule.anyElement()` | `name: 'div'`, `name: /^(div\|section)$/`, `name: /.../`, no name (every element) |
+| `attributes(true)`, `attributes("id", "title")`, `attribute(Pattern)`, `attribute("rel", "noopener")`, `attribute("src", Pattern)` | `attributes: true` or `[ 'id', /^data-/, { key: 'src', value: /.../ } ]` |
+| `classes(true)`, `classes("a", "b")`, `classes(Pattern)` | `classes: true` or `[ 'a', /^text-/ ]` |
+| `styles(true)`, `styles("color")`, `style("color", "red")`, `style("color", Pattern)` | `styles: true` or `[ 'color', { key: 'color', value: /.../ } ]` |
+
+- **Safe by default.** Unless you call `allowScripts()`, `allowIframes()` or `allowEventHandlers()`,
+  three `disallow` rules are added: `<script>`, `<iframe>` and `on*` attributes on every element
+  (GHS applies `disallow` after `allow`). Opt in only for content you trust.
+- **CKEditor is not an XSS filter.** Whatever GHS allows is returned by `getValue()`. Allowed `href` /
+  `src` values are not checked for `javascript:` URLs, and `htmlIframeSandbox` only affects the editing
+  view, not the data. Sanitize on the server before storing or displaying the HTML (see below).
+- Patterns are Java `Pattern`s in the syntax Java and JavaScript share; they run in the browser.
+  Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported.
+- The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
+  `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`).
+- **`fullPageAllowRenderStylesFromHead` has no effect yet.** It is read by CKEditor's
+  [Full page HTML](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) plugin
+  `FullPage` (plan-gated, `GPL` works), which the add-on cannot load today: it is not a
+  `CKEditorPlugin`, and `CustomPlugin.fromCKEditor5("FullPage")` only resolves names already in the
+  connector's plugin registry. A follow-up will add it. The `sanitizeCss` callback CKEditor recommends
+  for that option cannot be passed from Java either.
+- `setHtmlSupport(true)` is `HtmlSupport.allowAll()`: every element with all attributes, classes and
+  styles, except scripts, iframes and `on*` attributes. Before 6.2.0 it sent the name as the string
+  `"/.*/"`, which CKEditor compares literally, so it had no effect.
+  `setGeneralHtmlSupportEnabled(true)` is unchanged and allows everything, scripts included.
+
+**Server-side sanitizer.** `HtmlSanitizer` (jsoup) runs on the server and is independent of GHS: it
+does not know your GHS rules. With `getSanitizedValue()` or `setSanitizeOnInput(true)`, elements GHS
+keeps are still removed unless the safelist allows them, e.g. for the example above:
+
+```java
+editor.setHtmlSanitizer(HtmlSanitizer.withSafelist(Safelist.relaxed()
+    .addTags("section", "article", "details", "summary", "iframe")
+    .addAttributes(":all", "class")
+    .addAttributes("p", "style")
+    .addAttributes("details", "open")
+    .addAttributes("iframe", "src", "width", "height", "allowfullscreen", "title")
+    .addProtocols("iframe", "src", "https")));
+```
+
+### Any CKEditor option: `set(path, value)`
+
+Options without a dedicated setter (premium features, AI, cloud services, ...) are set with
+`set(path, value)`. The path uses dots for nesting, the same notation CKEditor uses in its
+[`Config`](https://ckeditor.com/docs/ckeditor5/latest/api/module_utils_config-Config.html) API
+(`config.get('toolbar.collapsed')`), so the keys from the CKEditor documentation can be copied as-is:
+
+```java
+CKEditorConfig config = new CKEditorConfig()
+    // https://ckeditor.com/docs/ckeditor5/latest/api/module_cloud-services_cloudservicesconfig-CloudServicesConfig.html
+    .set("cloudServices.tokenUrl", "https://example.com/cs-token")
+    .set("cloudServices.webSocketUrl", "wss://example.com/ws")
+    .set("collaboration.channelId", "document-" + documentId)
+    // values: String, int / long / double / boolean, Number, List, Map, JsonNode
+    .set("fontSize.options", List.of(10, 12, "default", 16, 20))
+    // AI Assistant with the OpenAI adapter (add CustomPlugin.fromPremium("AIAssistant") and
+    // CustomPlugin.fromPremium("OpenAITextAdapter")):
+    // https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html
+    .set("ai.assistant.adapter.openAI", Map.of(
+        "apiUrl", "https://example.com/ai-proxy",          // your proxy, keeps the API key off the client
+        "requestParameters.model", "gpt-4o"));             // map keys are paths too
+// → { cloudServices: { tokenUrl, webSocketUrl }, collaboration: { channelId }, fontSize: { options: [...] },
+//     ai: { assistant: { adapter: { openAI: { apiUrl, requestParameters: { model } } } } } }
+```
+
+- Parents are **merged**: `set("cloudServices.webSocketUrl", ...)` keeps an existing `tokenUrl`,
+  also inside objects built by the typed setters (`set("ui.viewportOffset.top", 56)` after
+  `setUiViewportOffset(...)` keeps the other sides).
+- The last segment is **replaced**: `set("cloudServices", Map.of(...))` replaces the whole object,
+  as in earlier versions. A parent that is not an object (e.g. a toolbar array) is replaced by one.
+- **Keys cannot contain a literal dot.** CKEditor splits every key on `.` at every level when the
+  editor is created, so such a key could never reach a plugin; there is no escape syntax.
+  Empty segments (`"a..b"`, `".a"`) throw `IllegalArgumentException`.
+- `getJsonNode`, `getString`, `getInt`, `getBoolean` and `hasConfig` accept the same paths.
+- Callbacks (functions) and DOM elements cannot be passed from Java, e.g. a token *function* for
+  `cloudServices.tokenUrl`; use a URL.
+
 ---
 
 ## Toolbar Customization
@@ -600,6 +702,66 @@ html {
 }
 ```
 
+### Code block syntax highlighting
+
+CKEditor's code blocks are not colored while editing ([ckeditor/ckeditor5#5769](https://github.com/ckeditor/ckeditor5/issues/5769)).
+The add-on can highlight them with [highlight.js](https://highlightjs.org/) — opt-in, off by default. It is a
+[custom plugin](#custom-plugins) shipped with the add-on (`VaadinCodeBlockHighlighting`): editors that never enable
+highlighting do not load it, nor highlight.js.
+
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.FULL)                                 // FULL / AI_DOCUMENT / NOTION include CODE_BLOCK
+    .withCodeBlockHighlighting(CodeHighlightTheme.AUTO)              // or withCodeBlockHighlighting(true)
+    .build();
+
+editor.setCodeBlockHighlightTheme(CodeHighlightTheme.ATOM_ONE_DARK); // takes effect immediately
+editor.setCodeBlockHighlighting(false);                              // so does switching it off
+```
+
+Enabling highlighting for the first time on an editor that is already displayed adds the plugin, which recreates the
+editor once with its current content (the undo history starts anew). After that, switching it on and off and changing the
+theme apply immediately.
+
+| `CodeHighlightTheme` | Colors |
+|----------------------|--------|
+| `AUTO` (default) | highlight.js `github` on a light editor, `github-dark` on a dark one (Lumo dark, OS dark mode or `CKEditorTheme.DARK`); keeps the editor's code block background |
+| `GITHUB` / `ATOM_ONE_LIGHT` | Light palette with a light code block background |
+| `GITHUB_DARK` / `ATOM_ONE_DARK` | Dark palette with a dark code block background, in light and dark editors |
+| `NONE` | No built-in colors: code carries highlight.js `hljs-*` classes, style them with any highlight.js theme CSS |
+
+**What is highlighted.** Each code block uses its language from `codeBlock.languages` (the toolbar's language list).
+CKEditor's default languages are all supported (`cs` → C#, `html` → XML/HTML); custom languages work when
+highlight.js knows the name or alias (`kotlin`, `sql`, `go`, `rust`, `yaml`, `bash`, …: the highlight.js "common" bundle
+of about 36 languages). Plain text and unknown languages stay uncolored.
+
+**The saved HTML stays clean.** Highlighting changes the editing view only, never the document model: `getValue()`
+returns the same `<pre><code class="language-…">` HTML as without highlighting, undo/redo history is not touched,
+and value-change events do not fire because of it. There is no option to store the highlight markup; highlight the
+saved HTML where it is displayed (highlight.js and Prism both understand the `language-*` classes).
+
+**Colors** are CSS variables on the editing root (`--ck-code-hl-keyword`, `-string`, `-comment`, `-number`, `-title`,
+`-builtin`, …); override any of them in your theme:
+
+```css
+.ck-code-hl { --ck-code-hl-keyword: #b00; }
+```
+
+**Performance.** highlight.js (the common bundle: about 150 KB minified, 37 KB brotli) is loaded the first time an editor enables
+highlighting. After typing, only the changed code block is re-tokenized (debounced by 30 ms) and only lines whose
+coloring changed are re-rendered. Measured in Chromium on an Apple Silicon laptop (`e2e/tests/code-block-highlighting.spec.ts`):
+
+| Code block | First highlight | Keystroke without highlighting | Keystroke with highlighting | Re-highlight after the keystroke |
+|------------|-----------------|--------------------------------|-----------------------------|----------------------------------|
+| 100 lines (5 KB) | 25 ms | 10 ms | 10 ms | 4 ms |
+| 500 lines (27 KB) | 61 ms | 20 ms | 33 ms | 15 ms |
+| 1500 lines (82 KB) | 179 ms | 58 ms | 85 ms | 43 ms |
+
+Code blocks longer than 100,000 characters are not highlighted. While an input method (IME) composition is in progress
+highlighting waits until it ends. Lines that also carry a comment or suggestion highlight keep their previous coloring
+until that highlight goes away.
+
 ### Custom CSS
 
 ```java
@@ -639,6 +801,52 @@ Change sources:
 - `PASTE` - Paste action
 - `COLLABORATION` - Collaborative editing sync
 - `UNKNOWN` - Unknown source
+
+### Word Count and Limits
+
+Live word and character counts come from CKEditor's
+[WordCount](https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html) plugin through the
+add-on's `VaadinWordCount` [registry plugin](#plugins-from-the-browser-registry)
+(`VaadinCKEditor.WORD_COUNT_PLUGIN`), which requires `WordCount`. It is added automatically when a
+listener is registered or the counter is shown, so any preset works.
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.STANDARD)
+    .withMaxWords(500)            // 0 = no limit
+    .withMaxCharacters(3000)
+    .withWordCountVisible(true)   // "Words: 12  Characters: 64" below the editor
+    .build();
+
+editor.addWordCountChangeListener(e ->
+    status.setText(e.getWords() + " / 500 words"));
+
+editor.setMaxWordsErrorMessage("Keep it under {0} words (now {1})");
+
+Binder<Post> binder = new Binder<>(Post.class);
+binder.forField(editor).bind(Post::getBody, Post::setBody);   // the limits are part of the default validator
+```
+
+- **Rate:** CKEditor updates the count at most every 250 ms; the add-on forwards it to the server at
+  most once per 500 ms, only when a number changed, plus once with the initial counts. Register the
+  listener (or show the counter) before the editor is attached: the first call on a displayed editor
+  adds the plugin, which recreates the editor once with its current content (undo history starts anew).
+- **Limits mark the field invalid; they do not block input.** Over the limit the editor shows Vaadin's
+  error state (red border, error message, `aria-invalid`), the counter turns red, and a bound `Binder`
+  fails `validate()` / `writeBean()`. Truncating rich text would break paste, undo and IME composition,
+  and CKEditor has no built-in hard limit; its own
+  [demo](https://ckeditor.com/docs/ckeditor5/latest/features/word-count.html) warns instead of blocking.
+- **Counted on the server.** Validation counts the value on the server with the WordCount rules
+  (characters exclude block boundaries; words match `([\p{L}\p{N}]+\S?)+`), so a client cannot bypass
+  it and the number matches the counter. The invalid state follows the value, i.e. it updates on every
+  change by default and on blur with `setSynchronized(false)`.
+- `setManualValidation(true)` stops the editor from marking itself invalid; the default validator still
+  applies through `Binder`. `getWordCount()` / `getCharacterCount()` keep their old estimate and can differ.
+- Show only one number with `config.set("wordCount", Map.of("displayCharacters", false))` (needs the
+  dotted-path `set` overloads) or the equivalent `JsonNode`.
+- `WordCount` is a CKEditor premium feature (`CKEditorPlugin.WORD_COUNT.isPremiumFeature()`, see the
+  [Premium Integration Guide](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package)):
+  the `GPL` key works; commercial license keys must include the WordCount feature.
 
 ### Autosave
 
@@ -982,6 +1190,82 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
+### Plugins from the browser registry
+
+A plugin class registered in the frontend with `registerCKEditorPlugin`, or a lazy loader registered with
+`registerCKEditorPluginLoader` (see [Bundling and lazy loading](#bundling-and-lazy-loading)), can be referenced
+by name, without an import path (`CustomPlugin.fromRegistry`). Built-in CKEditor plugin names take precedence.
+Use `CustomPlugin.builder(name).withConfig(...)` without `withImportPath` to pass configuration to such a plugin.
+
+```ts
+// src/main/frontend/my-plugins.ts, loaded with @JsModule("./my-plugins.ts") on a view or the app shell
+// (Vaadin copies the add-on's frontend files to Frontend/generated/jar-resources/)
+import { registerCKEditorPlugin } from 'Frontend/generated/jar-resources/vaadin-ckeditor/plugin-resolver';
+import Highlighter from './highlighter';
+registerCKEditorPlugin('Highlighter', Highlighter);
+```
+
+```java
+builder.addCustomPlugin(CustomPlugin.fromRegistry("Highlighter"));
+```
+
+The add-on's own word count bridge (`VaadinCKEditor.WORD_COUNT_PLUGIN`, `VaadinWordCount`) is such a
+plugin; register a subclass under the same name to extend or replace it (an application registration
+wins whether it runs before or after the connector).
+
+### Bundling and lazy loading
+
+A path passed to `withImportPath(...)` is imported at runtime, outside Vaadin's Vite build, so in a production build it
+only works for modules the browser can load by that URL. To ship a plugin inside the application bundle, register it
+from a `@JsModule` script with the connector's registry (`vaadin-ckeditor/plugin-resolver`). Registered plugins take
+precedence over the import path:
+
+```ts
+// frontend/my-plugins.ts, loaded with @JsModule("./my-plugins.ts") on any Vaadin component
+import { registerCKEditorPlugin, registerCKEditorPluginLoader } from 'Frontend/generated/jar-resources/vaadin-ckeditor/plugin-resolver';
+import MyPlugin from './my-plugin';
+
+registerCKEditorPlugin('MyPlugin', MyPlugin);                                  // bundled with the page
+registerCKEditorPluginLoader('MyHeavyPlugin', () => import('./my-heavy-plugin')); // separate chunk, downloaded
+                                                                                  // only by editors that use it
+```
+
+A loader may resolve to the plugin class, a module with a `default` export, or a module exporting the plugin under its name.
+
+### Passing configuration from Java
+
+`withConfig(key, json)` hands a value to the plugin as `config[key]` (since 6.2.0). The key is a top-level editor
+configuration key: use one that is specific to your plugin (`myPlugin`), never a CKEditor setting such as `toolbar` or
+`plugins`, which it would replace:
+
+```java
+ObjectNode options = JsonUtil.createObjectNode().put("level", 2);
+CustomPlugin plugin = CustomPlugin.builder("MyPlugin")
+    .withImportPath("my-plugin")
+    .withConfig("myPlugin", options)
+    .build();
+```
+
+```ts
+class MyPlugin extends Plugin {
+    init() {
+        const options = this.editor.config.get('myPlugin');         // { level: 2 }
+        this.listenTo(this.editor, 'vaadin:pluginConfig', (evt, key, value) => {
+            if (key === 'myPlugin') { /* apply the new value */ }
+        });
+    }
+}
+```
+
+Plugins are applied when the editor is created. If the plugin list of a displayed editor changes (the server sends a new
+`plugins` list, as `setCodeBlockHighlighting(true)` does), the connector compares it with the current one: when only
+configuration values changed it updates `editor.config` and fires `vaadin:pluginConfig` (key, value) on the editor;
+when plugins were added or removed it recreates the editor with its current content (undo history starts anew).
+
+The add-on's own optional features use this mechanism: [code block syntax highlighting](#code-block-syntax-highlighting)
+is the custom plugin `VaadinCodeBlockHighlighting`, registered with a lazy loader and configured with
+`codeBlockHighlighting: { enabled, theme }`.
+
 ---
 
 ## Premium Features
@@ -1078,13 +1362,15 @@ needs a licensed key) are in
 | `setWidth(String)` | Set width (CSS value) |
 | `setHeight(String)` | Set height (CSS value) |
 | `setMinimapEnabled(boolean)` | Enable minimap (DECOUPLED only) |
+| `setCodeBlockHighlighting(boolean)` | Syntax highlighting in code blocks while editing (see [Code block syntax highlighting](#code-block-syntax-highlighting)) |
+| `setCodeBlockHighlightTheme(CodeHighlightTheme)` | Highlighting colors (`AUTO`, `GITHUB`, `GITHUB_DARK`, `ATOM_ONE_LIGHT`, `ATOM_ONE_DARK`, `NONE`) |
 
 #### Configuration
 
 | Method | Description |
 |--------|-------------|
 | `setOverrideCssUrl(String)` | Set custom CSS URL |
-| `setGeneralHtmlSupportEnabled(boolean)` | Enable GHS |
+| `setGeneralHtmlSupportEnabled(boolean)` | Allow all HTML via GHS, scripts included (prefer `CKEditorConfig.setHtmlSupport(HtmlSupport)`) |
 | `setSynchronized(boolean)` | Enable sync mode |
 
 #### Handlers
@@ -1105,6 +1391,17 @@ needs a licensed key) are in
 | `addAutosaveListener(listener)` | Listen for autosave |
 | `addEditorErrorListener(listener)` | Listen for errors |
 | `addFallbackListener(listener)` | Listen for fallback |
+| `addWordCountChangeListener(listener)` | Live word / character count |
+
+#### Word Count and Validation
+
+| Method | Description |
+|--------|-------------|
+| `setMaxWords(int)` / `setMaxCharacters(int)` | Limits; over them the field is invalid (0 = no limit) |
+| `setMaxWordsErrorMessage(String)` / `setMaxCharactersErrorMessage(String)` | Messages, `{0}` = limit, `{1}` = count |
+| `setWordCountVisible(boolean)` | Show CKEditor's counter below the editor |
+| `getDefaultValidator()` | Limit validator used by `Binder` |
+| `setManualValidation(boolean)` | Do not mark the field invalid automatically |
 
 ### VaadinCKEditorBuilder Methods
 
@@ -1115,6 +1412,8 @@ needs a licensed key) are in
 | `withViewOnly()` | Sets readOnly + hideToolbar + READ_ONLY fallback mode |
 | `withReadOnly(boolean)` | Alias for `readOnly(boolean)` |
 | `withHideToolbar(boolean)` | Hide/show toolbar in built editor |
+| `withMaxWords(int)` / `withMaxCharacters(int)` | Word / character limits |
+| `withWordCountVisible(boolean)` | Show the word count below the editor |
 
 ---
 

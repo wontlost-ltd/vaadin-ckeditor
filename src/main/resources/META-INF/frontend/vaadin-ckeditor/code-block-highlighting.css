@@ -1,0 +1,164 @@
+/*
+ * 代码块语法高亮配色（只作用于编辑区；getHtml() 输出不含高亮 span）。
+ *
+ * 编辑根带 .ck-code-hl 与 .ck-code-hl_theme-<名称>（auto 时暗色另加 .ck-code-hl_dark），
+ * 由 code-block-highlighting.ts 写入。配色以 CSS 变量表达（:where() 零特异性），应用以任意选择器
+ * （如 `.ck-code-hl { --ck-code-hl-keyword: #b00; }`）即可覆盖；
+ * theme "none" 不定义变量，只保留 hljs-* 类，可直接引入任意 highlight.js 主题样式表。
+ *
+ * 色值取自 highlight.js 11 的 github / github-dark / atom-one-light / atom-one-dark 主题
+ * （BSD-3-Clause, https://github.com/highlightjs/highlight.js/tree/main/src/styles）。
+ */
+
+:where(.ck.ck-editor__editable.ck-code-hl_theme-github, .ck.ck-editor__editable.ck-code-hl_theme-auto:not(.ck-code-hl_dark)) {
+    --ck-code-hl-keyword: #d73a49;
+    --ck-code-hl-title: #6f42c1;
+    --ck-code-hl-class: #6f42c1;
+    --ck-code-hl-attr: #005cc5;
+    --ck-code-hl-number: #005cc5;
+    --ck-code-hl-literal: #005cc5;
+    --ck-code-hl-variable: #005cc5;
+    --ck-code-hl-string: #032f62;
+    --ck-code-hl-builtin: #e36209;
+    --ck-code-hl-comment: #6a737d;
+    --ck-code-hl-name: #22863a;
+    --ck-code-hl-subst: #24292e;
+    --ck-code-hl-section: #005cc5;
+    --ck-code-hl-bullet: #735c0f;
+    --ck-code-hl-addition: #22863a;
+    --ck-code-hl-addition-bg: #f0fff4;
+    --ck-code-hl-deletion: #b31d28;
+    --ck-code-hl-deletion-bg: #ffeef0;
+}
+
+:where(.ck.ck-editor__editable.ck-code-hl_theme-github-dark, .ck.ck-editor__editable.ck-code-hl_theme-auto.ck-code-hl_dark) {
+    --ck-code-hl-keyword: #ff7b72;
+    --ck-code-hl-title: #d2a8ff;
+    --ck-code-hl-class: #d2a8ff;
+    --ck-code-hl-attr: #79c0ff;
+    --ck-code-hl-number: #79c0ff;
+    --ck-code-hl-literal: #79c0ff;
+    --ck-code-hl-variable: #79c0ff;
+    --ck-code-hl-string: #a5d6ff;
+    --ck-code-hl-builtin: #ffa657;
+    --ck-code-hl-comment: #8b949e;
+    --ck-code-hl-name: #7ee787;
+    --ck-code-hl-subst: #c9d1d9;
+    --ck-code-hl-section: #1f6feb;
+    --ck-code-hl-bullet: #f2cc60;
+    --ck-code-hl-addition: #aff5b4;
+    --ck-code-hl-addition-bg: #033a16;
+    --ck-code-hl-deletion: #ffdcd7;
+    --ck-code-hl-deletion-bg: #67060c;
+}
+
+:where(.ck.ck-editor__editable.ck-code-hl_theme-atom-one-light) {
+    --ck-code-hl-keyword: #a626a4;
+    --ck-code-hl-title: #4078f2;
+    --ck-code-hl-class: #c18401;
+    --ck-code-hl-attr: #986801;
+    --ck-code-hl-number: #986801;
+    --ck-code-hl-literal: #0184bb;
+    --ck-code-hl-variable: #986801;
+    --ck-code-hl-string: #50a14f;
+    --ck-code-hl-builtin: #c18401;
+    --ck-code-hl-comment: #a0a1a7;
+    --ck-code-hl-name: #e45649;
+    --ck-code-hl-subst: #e45649;
+    --ck-code-hl-section: #e45649;
+    --ck-code-hl-bullet: #4078f2;
+    --ck-code-hl-addition: #50a14f;
+    --ck-code-hl-addition-bg: transparent;
+    --ck-code-hl-deletion: #e45649;
+    --ck-code-hl-deletion-bg: transparent;
+}
+
+:where(.ck.ck-editor__editable.ck-code-hl_theme-atom-one-dark) {
+    --ck-code-hl-keyword: #c678dd;
+    --ck-code-hl-title: #61aeef;
+    --ck-code-hl-class: #e6c07b;
+    --ck-code-hl-attr: #d19a66;
+    --ck-code-hl-number: #d19a66;
+    --ck-code-hl-literal: #56b6c2;
+    --ck-code-hl-variable: #d19a66;
+    --ck-code-hl-string: #98c379;
+    --ck-code-hl-builtin: #e6c07b;
+    --ck-code-hl-comment: #5c6370;
+    --ck-code-hl-name: #e06c75;
+    --ck-code-hl-subst: #e06c75;
+    --ck-code-hl-section: #e06c75;
+    --ck-code-hl-bullet: #61aeef;
+    --ck-code-hl-addition: #98c379;
+    --ck-code-hl-addition-bg: transparent;
+    --ck-code-hl-deletion: #e06c75;
+    --ck-code-hl-deletion-bg: transparent;
+}
+
+/* 显式暗色配色自带代码块底色，否则在亮色编辑器的浅灰 pre 上不可读（auto 沿用编辑器自身的 pre 样式）。
+   !important + 更高特异性：压过 theme-manager.ts 暗色模式下的 `.ck.ck-content pre` 规则。 */
+.ck.ck-editor__editable.ck-code-hl_theme-github-dark pre {
+    background: #0d1117 !important;
+    color: #c9d1d9 !important;
+}
+.ck.ck-editor__editable.ck-code-hl_theme-atom-one-dark pre {
+    background: #282c34 !important;
+    color: #abb2bf !important;
+}
+.ck.ck-editor__editable.ck-code-hl_theme-github pre {
+    background: #f6f8fa !important;
+    color: #24292e !important;
+}
+.ck.ck-editor__editable.ck-code-hl_theme-atom-one-light pre {
+    background: #fafafa !important;
+    color: #383a42 !important;
+}
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-keyword,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-doctag,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-template-tag,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-template-variable,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-formula,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-variable.language_ { color: var(--ck-code-hl-keyword); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-title,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-title.function_ { color: var(--ck-code-hl-title); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-title.class_,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-title.class_.inherited__,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-type { color: var(--ck-code-hl-class); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-attr,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-attribute,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-meta,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-operator,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-selector-attr,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-selector-class,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-selector-id { color: var(--ck-code-hl-attr); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-number { color: var(--ck-code-hl-number); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-literal { color: var(--ck-code-hl-literal); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-variable,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-params { color: var(--ck-code-hl-variable); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-string,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-regexp,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-meta.hljs-string { color: var(--ck-code-hl-string); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-built_in,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-symbol { color: var(--ck-code-hl-builtin); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-comment,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-code,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-quote { color: var(--ck-code-hl-comment); font-style: italic; }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-name,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-tag,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-selector-tag,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-selector-pseudo { color: var(--ck-code-hl-name); }
+
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-subst { color: var(--ck-code-hl-subst); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-section { color: var(--ck-code-hl-section); font-weight: bold; }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-bullet,
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-link { color: var(--ck-code-hl-bullet); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-emphasis { font-style: italic; }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-strong { font-weight: bold; }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-addition { color: var(--ck-code-hl-addition); background-color: var(--ck-code-hl-addition-bg); }
+.ck-code-hl:not(.ck-code-hl_theme-none) pre .hljs-deletion { color: var(--ck-code-hl-deletion); background-color: var(--ck-code-hl-deletion-bg); }

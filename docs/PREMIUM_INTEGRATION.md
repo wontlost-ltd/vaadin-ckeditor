@@ -300,7 +300,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .withLicenseKey(System.getenv("CKEDITOR_LICENSE_KEY"))
     .addCustomPlugin(CustomPlugin.fromPremium("Comments"))        // premium: ckeditor5-premium-features
     .addCustomPlugin(CustomPlugin.fromPremium("TrackChanges"))
-    .addCustomPlugin(CustomPlugin.of("MyPlugin", "./my-plugin"))  // yours, registered with registerCKEditorPlugin
+    .addCustomPlugin(CustomPlugin.fromRegistry("MyPlugin"))       // yours, registered with registerCKEditorPlugin
     .withCollaborationBridge(bridge)                              // the add-on's custom plugin "VaadinCollaborationBridge"
     .build();
 ```
@@ -447,7 +447,7 @@ stores whole document snapshots, and it was left out of this first version.
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withCustomConfig("exportPdf", Map.of(
+    .set("exportPdf", Map.of(
         "fileName", "document.pdf",
         "converterOptions", Map.of(
             "format", "A4",
@@ -472,13 +472,9 @@ Real-time collaboration requires CKEditor Cloud Services:
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withCustomConfig("cloudServices", Map.of(
-        "tokenUrl", "https://your-server.com/ckeditor-token",
-        "webSocketUrl", "wss://your-collaboration-server.com"
-    ))
-    .withCustomConfig("collaboration", Map.of(
-        "channelId", "document-" + documentId
-    ));
+    .set("cloudServices.tokenUrl", "https://your-server.com/ckeditor-token")
+    .set("cloudServices.webSocketUrl", "wss://your-collaboration-server.com")
+    .set("collaboration.channelId", "document-" + documentId);
 
 VaadinCKEditor editor = VaadinCKEditor.create()
     .withPreset(CKEditorPreset.FULL)

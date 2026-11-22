@@ -11,6 +11,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 - **Premium Plugin Support** - Easy integration with `ckeditor5-premium-features`
 - **Multiple Editor Types** - Classic, Inline, Balloon, and Decoupled editors
 - **Theme Integration** - Auto-sync with Vaadin's Lumo theme (light/dark)
+- **Code Block Syntax Highlighting** - Opt-in highlight.js coloring while editing; saved HTML stays clean — see [Code block syntax highlighting](docs/USER_GUIDE.md#code-block-syntax-highlighting)
 - **Custom Toolbar Styling** - Fine-grained control over toolbar and button appearance
 - **File Upload Handling** - Built-in upload with validation and progress tracking
 - **Error Handling** - Comprehensive error events and fallback modes
@@ -352,11 +353,15 @@ CustomPlugin examplePlugin = CustomPlugin.builder("ExampleFeature")
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withHeading(new String[]{"paragraph", "heading1", "heading2", "heading3"})
-    .withFontSizes(new String[]{"tiny", "small", "default", "big", "huge"})
-    .withFontFamilies(new String[]{"Arial", "Georgia", "Times New Roman"})
-    .withImageUploadUrl("/api/upload")
-    .withCustomConfig("placeholder", "Start typing...");
+    .setPlaceholder("Start typing...")
+    .setFontSize("tiny", "small", "default", "big", "huge")
+    .setFontFamily("Arial", "Georgia", "Times New Roman")
+    .setSimpleUpload("/api/upload")
+    // any other CKEditor option, by dotted path (parents are merged)
+    .set("cloudServices.tokenUrl", "https://example.com/cs-token")
+    .set("link.decorators.openInNewTab", Map.of(
+        "mode", "manual", "label", "Open in a new tab",
+        "attributes", Map.of("target", "_blank")));
 
 VaadinCKEditor editor = VaadinCKEditor.create()
     .withPreset(CKEditorPreset.FULL)
@@ -366,11 +371,16 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ### General HTML Support (GHS)
 
-Enable to preserve all HTML attributes:
+Keep HTML that no editor feature handles, with typed rules (scripts, iframes and `on*` attributes stay
+blocked unless you opt in):
 
 ```java
-editor.setGhsEnabled(true);
+CKEditorConfig config = new CKEditorConfig().setHtmlSupport(HtmlSupport.create()
+    .allow(HtmlSupport.Rule.elements("div", "section", "article").classes(true))
+    .allow(HtmlSupport.Rule.elements("details", "summary").attributes("open")));
 ```
+
+See the User Guide, "General HTML Support", for iframes, styles, patterns and server-side sanitizing.
 
 ### Minimap (Decoupled Editor)
 
@@ -382,6 +392,18 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 editor.setMinimapEnabled(true);
 ```
+
+### Code Block Syntax Highlighting
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.FULL)
+    .withCodeBlockHighlighting(CodeHighlightTheme.AUTO)   // follows the light/dark editor theme
+    .build();
+```
+
+Highlighting is applied to the editing view only: `getValue()` contains no highlight markup. See the
+[User Guide](docs/USER_GUIDE.md#code-block-syntax-highlighting) for themes, languages and performance.
 
 ### Custom Toolbar Styling
 

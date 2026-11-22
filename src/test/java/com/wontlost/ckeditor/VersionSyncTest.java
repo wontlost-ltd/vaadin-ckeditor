@@ -106,4 +106,16 @@ class VersionSyncTest {
             "VaadinCKEditorPremium.getVersion() 必须与实际 npm 版本一致，"
             + "否则消费端据此判断 premium 能力时会做出错误决策");
     }
+
+    @Test
+    @DisplayName("highlight.js 的 @NpmPackage 版本必须与 package.json 一致")
+    void highlightJsNpmVersionMatchesPackageJson() throws IOException {
+        String pkg = read("src/main/resources/META-INF/frontend/vaadin-ckeditor/package.json");
+        String editorJava = read("src/main/java/com/wontlost/ckeditor/VaadinCKEditor.java");
+        assertEquals(
+            firstMatch(pkg, "\"highlight\\.js\"\\s*:\\s*\"([^\"]+)\"", "package.json 中 highlight.js 版本"),
+            firstMatch(editorJava, "@NpmPackage\\(value = \"highlight\\.js\", version = \"([^\"]+)\"\\)",
+                "@NpmPackage 中 highlight.js 版本"),
+            "连接器测试与消费端安装的 highlight.js 必须是同一版本");
+    }
 }

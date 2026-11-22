@@ -29,6 +29,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   license 检查，因此它们可运行；CKEditor 文档与定价把它们标为 premium，商业使用需要 CKEditor 标明的 plan。
 - **`PremiumPlugin.FOOTNOTES` / `FOOTNOTES_PROPERTIES` / `UPLOADCARE` / `UPLOADCARE_IMAGE_EDIT` / `DOCUMENT_COMPARE`**
   及其依赖登记（Uploadcare：Image、ImageUpload、ImageInsert；PictureEditing 由 Uploadcare 自身加载；配置键 `uploadcare.pubkey`）。
+- **代码块编辑时语法高亮**（opt-in，[ckeditor/ckeditor5#5769](https://github.com/ckeditor/ckeditor5/issues/5769)）：
+  `VaadinCKEditor#setCodeBlockHighlighting(boolean)` / `setCodeBlockHighlightTheme(CodeHighlightTheme)`、
+  `VaadinCKEditorBuilder#withCodeBlockHighlighting(boolean | CodeHighlightTheme)`。以 add-on 自带的自定义插件
+  `VaadinCodeBlockHighlighting` 实现，只在启用后加入插件列表，插件模块与 highlight.js（common 语言包）是独立
+  chunk、未启用时不下载；在已显示的编辑器上首次启用会以当前内容重建编辑器一次。按代码块的 `codeBlock.languages` 语言着色；只改编辑视图（逐行对齐的 `hljs-*` 属性元素），
+  模型不变：`getValue()` 不含高亮 span、撤销栈与值变更事件不受影响。配色 `AUTO`（随编辑器明暗切换 github /
+  github-dark）、`GITHUB`、`GITHUB_DARK`、`ATOM_ONE_LIGHT`、`ATOM_ONE_DARK`、`NONE`（只输出类名，自带样式），
+  可在运行期切换；颜色为 `--ck-code-hl-*` CSS 变量。新增 npm 依赖 `highlight.js@11.11.1`（未启用时不下载）。
+  见 User Guide「Code block syntax highlighting」（含性能数据）。
+- **自定义插件机制的扩展**（向后兼容，见 User Guide「Custom Plugins」）：
+  - `CustomPlugin.Builder#withConfig(String, JsonNode)`：把 Java 端配置以 `config[key]` 传给插件；
+  - 连接器 `registerCKEditorPluginLoader(name, () => import(...))` / `unregisterCKEditorPluginLoader`：按需加载的插件
+    （独立 chunk），优先级在 `registerCKEditorPlugin` 之后、`withImportPath` 动态导入之前；不带 importPath 的
+    `CustomPlugin.fromRegistry` 插件同样回退到加载器；
+  - 编辑器显示后插件列表变化：只有配置变化时更新 `editor.config` 并在编辑器上触发 `vaadin:pluginConfig`(key, value)，
+    增删插件时以当前内容重建编辑器（此前该变化被忽略）。
+- **实时字数 / 字符数与上限校验**（[#70](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/70)，上游 ckeditor5#2573）：
+  `addWordCountChangeListener`（`WordCountChangeEvent#getWords` / `getCharacters`，数值来自 CKEditor WordCount 插件，
+  需要时自动加载；每 500 ms 至多上报一次、数值不变不上报，另有一次初始计数）、`setWordCountVisible`（编辑器下方显示计数，
+  超限变红）、`setMaxWords` / `setMaxCharacters` 及其错误消息模板、`VaadinCKEditorBuilder#withMaxWords` /
+  `withMaxCharacters` / `withWordCountVisible`。`VaadinCKEditor` 实现 `HasValidator<String>`：上限是 Binder 的默认校验器，
+  只改上限时也会通知 Binder 重新校验；`setManualValidation(true)` 关闭自校验。
+  计数逻辑以 add-on 的自定义插件机制提供：`VaadinWordCount` 插件（`word-count-plugin.ts`，依赖 CKEditor `WordCount`）注册在
+  浏览器端插件注册表中，Java 端按需以 `VaadinCKEditor.WORD_COUNT_PLUGIN` 加入；应用可同名注册子类来扩展或替换。
+- **`CustomPlugin.fromRegistry(name)` 与 `registerDefaultCKEditorPlugin`**：不带 importPath 的插件名在内置 CKEditor 插件中
+  找不到时回退到 `registerCKEditorPlugin` 注册表（内置名优先，向后兼容），从 Java 直接引用前端注册的插件。
+  **裁定**：超限只标记无效、不阻止输入（截断富文本会破坏粘贴、撤销与输入法组合，CKEditor 无内置硬上限，其示例同样只提示）；
+  校验在服务端按 WordCount 的规则从值计数（客户端无法绕过，且与显示的计数一致），无效状态随值同步更新。
+- **`HtmlSupport`：类型化的 General HTML Support 规则**，`CKEditorConfig#setHtmlSupport(HtmlSupport)`。对应 CKEditor
+  `htmlSupport` 的 `allow` / `disallow`（`Rule.element` / `elements` / `element(Pattern)` / `anyElement`，
+  `attributes` / `classes` / `styles` 支持 `true`、名称、精确值与 `Pattern`），以及 `allowEmpty`、
+  `preserveEmptyBlocksInEditingView`、`htmlIframeSandbox`、`fullPage.allowRenderStylesFromHead`（`FullPage` 插件目前无法从 add-on 加载，
+  该项暂不生效，待后续补充）。默认追加三条 disallow：
+  `<script>`、`<iframe>`、`on*` 属性，需 `allowScripts()` / `allowIframes()` / `allowEventHandlers()` 显式放开。
+  `Pattern` 以 `{"$regexp", "$flags"}` 传到客户端并还原为 `RegExp`。配置了 htmlSupport 选项时构建器自动加载 `GeneralHtmlSupport`
+  （`DependencyMode.MANUAL` 除外）。服务端 `HtmlSanitizer` 与 GHS 相互独立，User Guide 给出与规则对应的 safelist 示例。
+- **`CKEditorConfig.set(path, value)` 支持点号路径与常用值类型**：`set("cloudServices.tokenUrl", "https://…")`、
+  `set("ai.assistant.adapter.openAI.apiUrl", url)` 写成嵌套对象，与 CKEditor `Config` 的点号语义一致；已存在的父对象合并而不是覆盖
+  （包括 `setUiViewportOffset` 等类型化 setter 建立的对象），最后一段照旧整体替换。新增 `set(String, boolean | int | long | double)`
+  与 `set(String, Object)`（String、Number、List、Map、数组及其嵌套，经 Jackson 转换；Map 的键同样按路径展开），
+  `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
+  键中不能含字面量点号：CKEditor 创建编辑器时会在每一层按 `.` 拆分键，无法转义；空段（`a..b`）抛 `IllegalArgumentException`。
 
 ### Changed
 - **`PremiumPlugin.PAGINATION` 的工具栏项**改为 `previousPage`、`nextPage`、`pageNavigation`（此前的 `pagination` 并不存在）；
@@ -39,6 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   加载，但该包不导出它们，`CustomPlugin.fromPremium("CKBox")` 从未能加载。CKBox 是由开源 `ckeditor5` 包导出的
   premium feature，现改用 `CKEditorPlugin.CKBOX`；新增测试保证经 premium 包加载的名称都不是 `ckeditor5` 包导出的插件。
 - **MediaEmbedResize 注释**：它由 49.1.0 的 `ckeditor5` 导出；此前"GPL 下加载会报 license 错误"的说法不对（内核对 GPL 跳过插件检查）。
+- **`setInvalid` / `setErrorMessage` 在编辑器上没有任何显示**：`vaadin-ckeditor` 元素此前不处理 CustomField 写入的
+  `invalid` / `errorMessage` 属性。现在无效时编辑区显示错误色边框、下方显示错误消息（`role="alert"`），
+  可编辑区设置 `aria-invalid`。
+- **`CKEditorConfig.setHtmlSupport(true)` 不起作用**：元素名以字符串 `"/.*/"` 发送，CKEditor 按字面比较字符串名，
+  实际不匹配任何元素。现为 `HtmlSupport.allowAll()`：允许所有元素及其属性、类名、样式，但不含脚本、iframe 与 `on*` 属性
+  （行为变化：此前什么也不保留）。`isHtmlSupportAllowAll()` 识别新结构；`setGeneralHtmlSupportEnabled(true)` 不变。
+- **README 中不存在的 `setGhsEnabled`** 改为可用的写法。
+- **文档中的高级配置示例无法编译**：`CKEditorPreset.COLLABORATIVE` 的 Javadoc 用了不存在的 `set(String, String)` 与
+  `withConfig(lambda)`，README 与 `PREMIUM_INTEGRATION.md` 用了不存在的 `withCustomConfig` / `withHeading` /
+  `withFontSizes` / `withImageUploadUrl`；改为可编译的写法（`PREMIUM_INTEGRATION.md` 中旧的 AI Assistant 示例另由 #170 处理）。
+- **点号键不被连接器识别**：此前即使通过 `set(key, JsonNode)` 写入 `"collaboration.channelId"` 之类的字面量键，
+  CKEditor 自己能展开，但连接器读取 `collaboration.channelId`、`ai.container` 等嵌套配置的逻辑看不到它；现在服务端即写成嵌套对象。
 
 ### Documentation
 - Premium Integration Guide 新增「Licensing for self-hosted (npm) builds」：本 add-on 属自托管（npm）分发，CKEditor 的

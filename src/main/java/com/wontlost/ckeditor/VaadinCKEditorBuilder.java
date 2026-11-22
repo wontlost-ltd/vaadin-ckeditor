@@ -503,6 +503,34 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Enable or disable syntax highlighting of code blocks while editing.
+     *
+     * @param enabled true to highlight code blocks
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCodeBlockHighlighting(boolean)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCodeBlockHighlighting(boolean enabled) {
+        editor.setCodeBlockHighlighting(enabled);
+        return this;
+    }
+
+    /**
+     * Enable syntax highlighting of code blocks while editing, with the given color theme.
+     *
+     * @param theme the color theme, not null
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCodeBlockHighlighting(boolean)
+     * @see VaadinCKEditor#setCodeBlockHighlightTheme(CodeHighlightTheme)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCodeBlockHighlighting(CodeHighlightTheme theme) {
+        editor.setCodeBlockHighlightTheme(theme);
+        editor.setCodeBlockHighlighting(true);
+        return this;
+    }
+
+    /**
      * Set the page width used in fullscreen mode. Defaults to {@link FullscreenPage#A4_FIT}.
      *
      * @param page the page width, not null
@@ -511,6 +539,42 @@ public class VaadinCKEditorBuilder {
      */
     public VaadinCKEditorBuilder withFullscreenPage(FullscreenPage page) {
         editor.setFullscreenPage(page);
+        return this;
+    }
+
+    /**
+     * Limit the number of words; the field becomes invalid above it.
+     *
+     * @param maxWords the limit, {@code 0} for no limit
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setMaxWords(int)
+     */
+    public VaadinCKEditorBuilder withMaxWords(int maxWords) {
+        editor.setMaxWords(maxWords);
+        return this;
+    }
+
+    /**
+     * Limit the number of characters; the field becomes invalid above it.
+     *
+     * @param maxCharacters the limit, {@code 0} for no limit
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setMaxCharacters(int)
+     */
+    public VaadinCKEditorBuilder withMaxCharacters(int maxCharacters) {
+        editor.setMaxCharacters(maxCharacters);
+        return this;
+    }
+
+    /**
+     * Show CKEditor's word and character counter below the editor.
+     *
+     * @param visible true to show the counter
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setWordCountVisible(boolean)
+     */
+    public VaadinCKEditorBuilder withWordCountVisible(boolean visible) {
+        editor.setWordCountVisible(visible);
         return this;
     }
 
@@ -647,6 +711,11 @@ public class VaadinCKEditorBuilder {
         initialPlugins.addAll(editor.getPluginsInternal());
         initialPlugins.addAll(additionalPlugins);
         initialPlugins.removeAll(removedPlugins);
+
+        // htmlSupport 选项需要 GeneralHtmlSupport 插件（只有 EMAIL 预设自带）；MANUAL 模式尊重用户的插件选择
+        if (config != null && config.hasHtmlSupportOptions() && dependencyMode != DependencyMode.MANUAL) {
+            initialPlugins.add(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        }
 
         // Process plugins based on dependency mode
         Set<CKEditorPlugin> finalPlugins = processPluginDependencies(initialPlugins);
