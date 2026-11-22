@@ -455,6 +455,22 @@ export function unregisterCKEditorPluginLoader(name: string): boolean {
 }
 
 /**
+ * Register a plugin unless the application already registered one under the same name.
+ * Used for the add-on's own registry plugins (e.g. `VaadinWordCount`) so that an application module that
+ * runs before the connector can still replace them.
+ *
+ * @returns true if the plugin was registered
+ */
+export function registerDefaultCKEditorPlugin(name: string, plugin: unknown): boolean {
+    const registry = getGlobalPluginRegistry();
+    if (Object.prototype.hasOwnProperty.call(registry, name)) {
+        return false;
+    }
+    registry[name] = plugin;
+    return true;
+}
+
+/**
  * Remove a custom plugin from the global registry.
  *
  * The registry is a process-global (window-level) map: custom plugins registered
@@ -672,9 +688,22 @@ export class PluginResolver {
             p => filteredSet.has(p.name) && p.importPath
         );
 
-        // Load standard plugins from registry
+        // Load standard plugins from registry; names that are not CKEditor plugins fall back to the
+        // global registry (registerCKEditorPlugin), then to a lazy loader (registerCKEditorPluginLoader),
+        // so a registered plugin can be referenced from Java without an import path
+        // (CustomPlugin.fromRegistry). Built-in names keep precedence.
+        const globalRegistry = getGlobalPluginRegistry();
         for (const pluginConfig of standardPluginsToLoad) {
-            const plugin = PLUGIN_REGISTRY[pluginConfig.name];
+            let plugin: unknown;
+            try {
+                plugin = PLUGIN_REGISTRY[pluginConfig.name] ?? globalRegistry[pluginConfig.name]
+                    ?? await this.loadViaLoader(pluginConfig);
+            } catch (error) {
+                const errorMsg = `Failed to load plugin ${pluginConfig.name} via loader`;
+                this.logger.error(errorMsg + ':', error);
+                this.loadErrors.push(errorMsg);
+                continue;
+            }
             if (plugin) {
                 resolvedPlugins.push(plugin);
             } else {
@@ -744,15 +773,10 @@ export class PluginResolver {
             }
 
             // Then a lazy loader (bundled as a separate chunk, loaded only when the plugin is used)
-            const loader = getPluginLoaders()[pluginConfig.name];
-            if (loader) {
-                const loaded = await loader() as Record<string, unknown> | null;
-                const plugin = loaded?.[pluginConfig.name] ?? loaded?.default ?? loaded;
-                if (plugin) {
-                    resolvedPlugins.push(plugin);
-                    this.logger.debug(`Loaded custom plugin via loader: ${pluginConfig.name}`);
-                    return;
-                }
+            const loaded = await this.loadViaLoader(pluginConfig);
+            if (loaded) {
+                resolvedPlugins.push(loaded);
+                return;
             }
 
             // Otherwise, try dynamic import
@@ -771,6 +795,23 @@ export class PluginResolver {
             this.logger.error(errorMsg + ':', error);
             this.loadErrors.push(errorMsg);
         }
+    }
+
+    /**
+     * 经 {@link registerCKEditorPluginLoader} 登记的加载器取插件：加载结果可以是插件类、带 default 导出的模块，
+     * 或以插件名导出的模块。未登记加载器时返回 undefined；加载失败的异常交给调用方记录。
+     */
+    private async loadViaLoader(pluginConfig: PluginConfig): Promise<unknown> {
+        const loader = getPluginLoaders()[pluginConfig.name];
+        if (!loader) {
+            return undefined;
+        }
+        const loaded = await loader() as Record<string, unknown> | null;
+        const plugin = loaded?.[pluginConfig.name] ?? loaded?.default ?? loaded;
+        if (plugin) {
+            this.logger.debug(`Loaded plugin via loader: ${pluginConfig.name}`);
+        }
+        return plugin ?? undefined;
     }
 
     /**

@@ -303,11 +303,15 @@ CustomPlugin examplePlugin = CustomPlugin.builder("ExampleFeature")
 
 ```java
 CKEditorConfig config = new CKEditorConfig()
-    .withHeading(new String[]{"paragraph", "heading1", "heading2", "heading3"})
-    .withFontSizes(new String[]{"tiny", "small", "default", "big", "huge"})
-    .withFontFamilies(new String[]{"Arial", "Georgia", "Times New Roman"})
-    .withImageUploadUrl("/api/upload")
-    .withCustomConfig("placeholder", "Start typing...");
+    .setPlaceholder("Start typing...")
+    .setFontSize("tiny", "small", "default", "big", "huge")
+    .setFontFamily("Arial", "Georgia", "Times New Roman")
+    .setSimpleUpload("/api/upload")
+    // any other CKEditor option, by dotted path (parents are merged)
+    .set("cloudServices.tokenUrl", "https://example.com/cs-token")
+    .set("link.decorators.openInNewTab", Map.of(
+        "mode", "manual", "label", "Open in a new tab",
+        "attributes", Map.of("target", "_blank")));
 
 VaadinCKEditor editor = VaadinCKEditor.create()
     .withPreset(CKEditorPreset.FULL)
@@ -317,11 +321,16 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ### General HTML Support (GHS)
 
-Enable to preserve all HTML attributes:
+Keep HTML that no editor feature handles, with typed rules (scripts, iframes and `on*` attributes stay
+blocked unless you opt in):
 
 ```java
-editor.setGhsEnabled(true);
+CKEditorConfig config = new CKEditorConfig().setHtmlSupport(HtmlSupport.create()
+    .allow(HtmlSupport.Rule.elements("div", "section", "article").classes(true))
+    .allow(HtmlSupport.Rule.elements("details", "summary").attributes("open")));
 ```
+
+See the User Guide, "General HTML Support", for iframes, styles, patterns and server-side sanitizing.
 
 ### Minimap (Decoupled Editor)
 

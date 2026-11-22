@@ -22,7 +22,7 @@ import SOURCE from './vaadin-ckeditor.ts?raw';
  */
 const NO_TSCONFIG_PATH = '/__vaadin_ckeditor_no_tsconfig__/vaadin-ckeditor.ts';
 
-/** 由服务端同步的公开属性（原 `@property`，以及 issue #137 的 contentChangeEvents、#156 的全屏页面宽度）。 */
+/** 由服务端同步的公开属性（原 `@property`，以及 issue #137 的 contentChangeEvents、#156 的全屏页面宽度、#70 的字数统计）。 */
 const PUBLIC_PROPERTIES = [
     'editorId', 'editorType', 'themeType', 'editorData', 'editorWidth', 'editorHeight',
     'language', 'overrideCssUrl', 'isReadOnly', 'isEnabled', 'autosave', 'autosaveWaitingTime',
@@ -31,6 +31,7 @@ const PUBLIC_PROPERTIES = [
     'plugins', 'toolbar', 'config', 'licenseKey', 'toolbarStyle', 'fallbackMode',
     'strictPluginLoading', 'allowConfigRequiredPlugins', 'contentChangeEvents',
     'fullscreenPage', 'fullscreenPageWidth',
+    'wordCountEvents', 'wordCountVisible', 'maxWords', 'maxCharacters', 'invalid', 'errorMessage',
 ];
 
 /** 内部状态（原 `@state`）。 */
@@ -49,6 +50,8 @@ const DEFAULTS: Record<string, unknown> = {
     plugins: [], toolbar: [], config: {}, licenseKey: 'GPL', toolbarStyle: undefined,
     fallbackMode: 'textarea', strictPluginLoading: false, allowConfigRequiredPlugins: false,
     contentChangeEvents: false, fullscreenPage: 'a4-fit', fullscreenPageWidth: '',
+    wordCountEvents: false, wordCountVisible: false, maxWords: 0, maxCharacters: 0,
+    invalid: false, errorMessage: '',
     editor: null, cursorPosition: null, aiSidebarCollapsed: true,
 };
 

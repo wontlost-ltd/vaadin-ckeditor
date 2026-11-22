@@ -11,6 +11,7 @@ import {
     PluginResolver,
     PLUGIN_REGISTRY,
     registerCKEditorPlugin,
+    registerDefaultCKEditorPlugin,
     unregisterCKEditorPlugin,
     getGlobalPluginRegistry,
     registerCKEditorPluginLoader,
@@ -286,6 +287,36 @@ describe('Global Plugin Registry', () => {
         expect(unregisterCKEditorPlugin('NeverRegistered')).toBe(false);
     });
 
+    it('registerDefaultCKEditorPlugin registers only when the name is free (application plugin wins)', () => {
+        const appPlugin = class AppWordCount {};
+        const builtIn = class VaadinWordCount {};
+        expect(registerDefaultCKEditorPlugin('Defaulted', builtIn)).toBe(true);
+        expect(getGlobalPluginRegistry()['Defaulted']).toBe(builtIn);
+
+        registerCKEditorPlugin('Replaced', appPlugin);
+        expect(registerDefaultCKEditorPlugin('Replaced', builtIn)).toBe(false);
+        expect(getGlobalPluginRegistry()['Replaced']).toBe(appPlugin);
+    });
+
+    it('a registered plugin is resolved by name without an import path (CustomPlugin.fromRegistry)', async () => {
+        const logger = createMockLogger();
+        const registered = class Registered {};
+        registerCKEditorPlugin('RegisteredOnly', registered);
+        const resolver = new PluginResolver(logger);
+
+        const plugins = await resolver.resolvePlugins([{ name: 'RegisteredOnly', premium: false }]);
+
+        expect(plugins).toEqual([registered]);
+        expect(resolver.loadErrors).toEqual([]);
+    });
+
+    it('built-in CKEditor plugins keep precedence over registered ones with the same name', async () => {
+        registerCKEditorPlugin('Bold', class FakeBold {});
+        const resolver = new PluginResolver(createMockLogger());
+        const plugins = await resolver.resolvePlugins([{ name: 'Bold', premium: false }]);
+        expect(plugins).toEqual([PLUGIN_REGISTRY['Bold']]);
+    });
+
     it('unregister only removes the named plugin, leaving others intact', () => {
         registerCKEditorPlugin('KeepMe', class K {});
         registerCKEditorPlugin('DropMe', class D {});
@@ -451,6 +482,35 @@ describe('自定义插件的按需加载器与配置', () => {
         expect(await resolver.resolvePlugins([{ name: 'BrokenPlugin', premium: false, importPath: './b' }])).toEqual([]);
         expect(resolver.loadErrors[0]).toContain('BrokenPlugin');
         unregisterCKEditorPluginLoader('BrokenPlugin');
+    });
+
+    it('无 importPath 的注册表插件名（CustomPlugin.fromRegistry）也回退到加载器；失败记入 loadErrors', async () => {
+        const Lazy = class { static pluginName = 'RegistryLazy'; };
+        const loader = vi.fn(async () => ({ default: Lazy }));
+        registerCKEditorPluginLoader('RegistryLazy', loader);
+        registerCKEditorPluginLoader('RegistryBroken', () => Promise.reject(new Error('chunk 404')));
+        try {
+            const resolver = new PluginResolver(createMockLogger());
+            expect(await resolver.resolvePlugins([
+                { name: 'RegistryLazy', premium: false, configKey: 'registryLazy', config: { level: 2 } },
+                { name: 'RegistryBroken', premium: false },
+                { name: 'Bold', premium: false },
+            ])).toEqual([Lazy, PLUGIN_REGISTRY['Bold']]);
+            expect(loader).toHaveBeenCalledTimes(1);
+            expect(resolver.loadErrors).toHaveLength(1);
+            expect(resolver.loadErrors[0]).toContain('RegistryBroken');
+
+            // 注册表中的类优先于加载器
+            const Registered = class { static pluginName = 'RegistryLazy'; };
+            registerCKEditorPlugin('RegistryLazy', Registered);
+            expect(await new PluginResolver(createMockLogger())
+                .resolvePlugins([{ name: 'RegistryLazy', premium: false }])).toEqual([Registered]);
+            expect(loader).toHaveBeenCalledTimes(1);
+            unregisterCKEditorPlugin('RegistryLazy');
+        } finally {
+            unregisterCKEditorPluginLoader('RegistryLazy');
+            unregisterCKEditorPluginLoader('RegistryBroken');
+        }
     });
 
     it('add-on 登记了代码块高亮插件的加载器', async () => {
