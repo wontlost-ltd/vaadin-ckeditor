@@ -11,6 +11,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 - **Premium Plugin Support** - Easy integration with `ckeditor5-premium-features`
 - **Multiple Editor Types** - Classic, Inline, Balloon, and Decoupled editors
 - **Theme Integration** - Auto-sync with Vaadin's Lumo theme (light/dark)
+- **Code Block Syntax Highlighting** - Opt-in highlight.js coloring while editing; saved HTML stays clean — see [Code block syntax highlighting](docs/USER_GUIDE.md#code-block-syntax-highlighting)
 - **Custom Toolbar Styling** - Fine-grained control over toolbar and button appearance
 - **File Upload Handling** - Built-in upload with validation and progress tracking
 - **Error Handling** - Comprehensive error events and fallback modes
@@ -341,6 +342,18 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 editor.setMinimapEnabled(true);
 ```
+
+### Code Block Syntax Highlighting
+
+```java
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withPreset(CKEditorPreset.FULL)
+    .withCodeBlockHighlighting(CodeHighlightTheme.AUTO)   // follows the light/dark editor theme
+    .build();
+```
+
+Highlighting is applied to the editing view only: `getValue()` contains no highlight markup. See the
+[User Guide](docs/USER_GUIDE.md#code-block-syntax-highlighting) for themes, languages and performance.
 
 ### Custom Toolbar Styling
 

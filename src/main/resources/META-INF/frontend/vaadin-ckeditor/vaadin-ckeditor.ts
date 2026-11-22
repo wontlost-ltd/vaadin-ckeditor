@@ -13,10 +13,15 @@ import { FallbackRenderer, type FallbackMode } from './fallback-renderer';
 import { bindEditorErrors } from './error-reporter';
 import {
     PluginResolver,
+    PLUGIN_CONFIG_EVENT,
+    pluginConfigEntries,
+    pluginSetChanged,
     registerCKEditorPlugin,
     registerDefaultCKEditorPlugin,
     type PluginConfig,
 } from './plugin-resolver';
+// add-on 自带的可选插件（经自定义插件机制按需加载，见 addon-plugins.ts）
+import './addon-plugins';
 import {
     buildCreateConfig,
     normalizeAIConfig48,
@@ -466,6 +471,9 @@ export class VaadinCKEditor extends LitElement {
     // Server communication
     private $server?: VaadinServer;
 
+    /** 当前编辑器创建时使用（及此后已通知插件）的插件列表。 */
+    private appliedPlugins: PluginConfig[] | null = null;
+
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
     private readonly version = '6.1.0';
 
@@ -610,9 +618,56 @@ export class VaadinCKEditor extends LitElement {
             this.updateFullscreenPage();
         }
 
+        if (changedProperties.has('plugins')) {
+            this.applyPluginsChange();
+        }
+
         // Handle theme changes from Java backend
         if (changedProperties.has('themeType')) {
             this.handleThemeTypeChange();
+        }
+    }
+
+    /**
+     * 编辑器运行中插件列表变化（Java 端在显示后增删自定义插件或改其配置）：与当前编辑器创建时（及此后
+     * 已通知过）的列表 {@link appliedPlugins} 比较。插件集合不变时只把变化的配置通知给插件
+     * （{@link PLUGIN_CONFIG_EVENT}；被移除的配置键以 undefined 通知），否则保留当前内容重建编辑器
+     * （CKEditor 不能在创建后增删插件；撤销历史随之清空）。创建进行中不处理，由创建流程结束时再调用。
+     */
+    private applyPluginsChange(): void {
+        const editor = this.editor;
+        if (!editor || this.isCreating || this.isDestroying || this.plugins === this.appliedPlugins) {
+            return;
+        }
+        const previous = this.appliedPlugins;
+        if (pluginSetChanged(previous, this.plugins)) {
+            void this.rebuildEditor();
+            return;
+        }
+        const before = pluginConfigEntries(previous);
+        const after = pluginConfigEntries(this.plugins);
+        this.appliedPlugins = this.plugins;
+        for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+            if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
+                editor.config.set(key, after[key] as never);
+                editor.fire(PLUGIN_CONFIG_EVENT, key, after[key]);
+            }
+        }
+    }
+
+    /** 以当前内容销毁并重建编辑器（插件集合变化时）。 */
+    private async rebuildEditor(): Promise<void> {
+        const editor = this.editor;
+        if (!editor) {
+            return;
+        }
+        const data = editor.getData();
+        logger.debug(' plugin set changed, rebuilding editor');
+        await this.destroyEditor();
+        // 编辑器已销毁，写 editorData 不会触发 updateData；新编辑器在 setupEditorUI 中载入它
+        this.editorData = data;
+        if (!this.isDisconnected) {
+            await this.createEditor();
         }
     }
 
@@ -788,6 +843,8 @@ export class VaadinCKEditor extends LitElement {
      * Build editor configuration
      */
     private async buildConfig(): Promise<EditorConfig> {
+        // 记录本次创建使用的插件列表，供运行中的列表变化比较（applyPluginsChange）
+        this.appliedPlugins = this.plugins;
         const resolvedPlugins = await this.resolvePlugins();
 
         // 评论权限强制插件：隐藏非当前用户评论的 Edit/Remove 按钮
@@ -830,6 +887,8 @@ export class VaadinCKEditor extends LitElement {
             plugins: resolvedPlugins as EditorConfig['plugins'],
             ...(translations ? { translations: [translations] } : {}),
             ...remainingConfig,
+            // 自定义插件的配置（Java CustomPlugin.Builder#withConfig），见 PluginConfig.configKey
+            ...pluginConfigEntries(this.plugins),
             // 放在 remainingConfig 之后，写回归一化后的 ui（对象形式保留 content / textPartLanguage）
             language: withUiLanguage(remainingConfig.language, uiLanguage) as EditorConfig['language'],
         };
@@ -1214,6 +1273,9 @@ export class VaadinCKEditor extends LitElement {
             if (this.pendingOrphanRecreate) {
                 this.pendingOrphanRecreate = false;
                 this.recreateEditorOnReconnect();
+            } else {
+                // 创建期间插件列表可能又变了（新编辑器用的是 buildConfig 时的列表），此处补一次对齐
+                this.applyPluginsChange();
             }
         }
     }

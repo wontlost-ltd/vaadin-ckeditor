@@ -143,6 +143,40 @@ export interface PluginConfig {
     name: string;
     premium: boolean;
     importPath?: string;
+    /**
+     * 自定义插件的配置键（Java {@code CustomPlugin.Builder#withConfig}）：建编辑器时以
+     * `editorConfig[configKey] = config` 传给插件，插件用 `editor.config.get(configKey)` 读取；
+     * 编辑器运行中配置变化时由连接器经 {@link PLUGIN_CONFIG_EVENT} 通知插件。
+     */
+    configKey?: string;
+    config?: unknown;
+}
+
+/**
+ * 编辑器运行中自定义插件配置变化时，连接器在编辑器上触发的事件：
+ * `editor.fire(PLUGIN_CONFIG_EVENT, configKey, config)`，此前已 `editor.config.set(configKey, config)`。
+ * 插件以 `this.listenTo(editor, PLUGIN_CONFIG_EVENT, (evt, key, config) => ...)` 响应。
+ */
+export const PLUGIN_CONFIG_EVENT = 'vaadin:pluginConfig';
+
+/** 插件列表中各自定义插件的配置：configKey → config。 */
+export function pluginConfigEntries(plugins: readonly PluginConfig[] | null | undefined): Record<string, unknown> {
+    // 无原型对象：配置键即使是 "__proto__" 也只是普通属性（Java 端另有校验）
+    const entries: Record<string, unknown> = Object.create(null);
+    for (const plugin of plugins ?? []) {
+        if (plugin.configKey) {
+            entries[plugin.configKey] = plugin.config;
+        }
+    }
+    return entries;
+}
+
+/** 两个插件列表加载的插件是否不同（名称、来源）；只有配置不同时返回 false。 */
+export function pluginSetChanged(before: readonly PluginConfig[] | null | undefined, after: readonly PluginConfig[] | null | undefined): boolean {
+    const key = (p: PluginConfig) => `${p.name}|${p.premium ? 1 : 0}|${p.importPath ?? ''}`;
+    const a = (before ?? []).map(key).sort();
+    const b = (after ?? []).map(key).sort();
+    return a.length !== b.length || a.some((k, i) => k !== b[i]);
 }
 
 /**
@@ -383,6 +417,43 @@ export function registerCKEditorPlugin(name: string, plugin: unknown): void {
     registry[name] = plugin;
 }
 
+/** 自定义插件的按需加载器：返回插件类（或带 default 导出的模块）的 Promise。 */
+export type CKEditorPluginLoader = () => Promise<unknown>;
+
+const CKEDITOR_PLUGIN_LOADERS_KEY = Symbol.for('vaadin-ckeditor-custom-plugin-loaders');
+
+function getPluginLoaders(): Record<string, CKEditorPluginLoader> {
+    const win = window as unknown as Record<symbol, Record<string, CKEditorPluginLoader> | undefined>;
+    if (!win[CKEDITOR_PLUGIN_LOADERS_KEY]) {
+        win[CKEDITOR_PLUGIN_LOADERS_KEY] = {};
+    }
+    return win[CKEDITOR_PLUGIN_LOADERS_KEY]!;
+}
+
+/**
+ * 登记自定义插件的**按需加载器**：只有编辑器的插件列表含该名称时才调用，适合用 `() => import('./x')`
+ * 把插件放进单独的 chunk（Vite 能静态分析这种 import，`withImportPath` 的路径则不能在生产构建中解析）。
+ * 优先级：{@link registerCKEditorPlugin} 登记的类 > 加载器 > `importPath` 动态导入。
+ *
+ * @example
+ * ```ts
+ * registerCKEditorPluginLoader('MyPlugin', () => import('./my-plugin'));
+ * ```
+ */
+export function registerCKEditorPluginLoader(name: string, loader: CKEditorPluginLoader): void {
+    getPluginLoaders()[name] = loader;
+}
+
+/** 移除 {@link registerCKEditorPluginLoader} 登记的加载器。 */
+export function unregisterCKEditorPluginLoader(name: string): boolean {
+    const loaders = getPluginLoaders();
+    if (Object.prototype.hasOwnProperty.call(loaders, name)) {
+        delete loaders[name];
+        return true;
+    }
+    return false;
+}
+
 /**
  * Register a plugin unless the application already registered one under the same name.
  * Used for the add-on's own registry plugins (e.g. `VaadinWordCount`) so that an application module that
@@ -618,11 +689,21 @@ export class PluginResolver {
         );
 
         // Load standard plugins from registry; names that are not CKEditor plugins fall back to the
-        // global registry (registerCKEditorPlugin), so a registered plugin can be referenced from Java
-        // without an import path (CustomPlugin.fromRegistry). Built-in names keep precedence.
+        // global registry (registerCKEditorPlugin), then to a lazy loader (registerCKEditorPluginLoader),
+        // so a registered plugin can be referenced from Java without an import path
+        // (CustomPlugin.fromRegistry). Built-in names keep precedence.
         const globalRegistry = getGlobalPluginRegistry();
         for (const pluginConfig of standardPluginsToLoad) {
-            const plugin = PLUGIN_REGISTRY[pluginConfig.name] ?? globalRegistry[pluginConfig.name];
+            let plugin: unknown;
+            try {
+                plugin = PLUGIN_REGISTRY[pluginConfig.name] ?? globalRegistry[pluginConfig.name]
+                    ?? await this.loadViaLoader(pluginConfig);
+            } catch (error) {
+                const errorMsg = `Failed to load plugin ${pluginConfig.name} via loader`;
+                this.logger.error(errorMsg + ':', error);
+                this.loadErrors.push(errorMsg);
+                continue;
+            }
             if (plugin) {
                 resolvedPlugins.push(plugin);
             } else {
@@ -691,6 +772,13 @@ export class PluginResolver {
                 return;
             }
 
+            // Then a lazy loader (bundled as a separate chunk, loaded only when the plugin is used)
+            const loaded = await this.loadViaLoader(pluginConfig);
+            if (loaded) {
+                resolvedPlugins.push(loaded);
+                return;
+            }
+
             // Otherwise, try dynamic import
             this.logger.debug(`Loading custom plugin: ${pluginConfig.name} from ${pluginConfig.importPath}`);
             const customModule = await import(/* @vite-ignore */ pluginConfig.importPath!);
@@ -707,6 +795,23 @@ export class PluginResolver {
             this.logger.error(errorMsg + ':', error);
             this.loadErrors.push(errorMsg);
         }
+    }
+
+    /**
+     * 经 {@link registerCKEditorPluginLoader} 登记的加载器取插件：加载结果可以是插件类、带 default 导出的模块，
+     * 或以插件名导出的模块。未登记加载器时返回 undefined；加载失败的异常交给调用方记录。
+     */
+    private async loadViaLoader(pluginConfig: PluginConfig): Promise<unknown> {
+        const loader = getPluginLoaders()[pluginConfig.name];
+        if (!loader) {
+            return undefined;
+        }
+        const loaded = await loader() as Record<string, unknown> | null;
+        const plugin = loaded?.[pluginConfig.name] ?? loaded?.default ?? loaded;
+        if (plugin) {
+            this.logger.debug(`Loaded plugin via loader: ${pluginConfig.name}`);
+        }
+        return plugin ?? undefined;
     }
 
     /**

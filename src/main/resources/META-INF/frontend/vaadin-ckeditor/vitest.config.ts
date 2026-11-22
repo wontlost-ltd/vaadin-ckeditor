@@ -33,6 +33,7 @@ export default defineConfig({
                 'fallback-renderer.ts',
                 'editor-config-normalizer.ts',
                 'comment-permission-enforcer.ts',
+                'code-block-highlighting.ts',
             ],
             exclude: [
                 '**/*.test.ts',

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **代码块编辑时语法高亮**（opt-in，[ckeditor/ckeditor5#5769](https://github.com/ckeditor/ckeditor5/issues/5769)）：
+  `VaadinCKEditor#setCodeBlockHighlighting(boolean)` / `setCodeBlockHighlightTheme(CodeHighlightTheme)`、
+  `VaadinCKEditorBuilder#withCodeBlockHighlighting(boolean | CodeHighlightTheme)`。以 add-on 自带的自定义插件
+  `VaadinCodeBlockHighlighting` 实现，只在启用后加入插件列表，插件模块与 highlight.js（common 语言包）是独立
+  chunk、未启用时不下载；在已显示的编辑器上首次启用会以当前内容重建编辑器一次。按代码块的 `codeBlock.languages` 语言着色；只改编辑视图（逐行对齐的 `hljs-*` 属性元素），
+  模型不变：`getValue()` 不含高亮 span、撤销栈与值变更事件不受影响。配色 `AUTO`（随编辑器明暗切换 github /
+  github-dark）、`GITHUB`、`GITHUB_DARK`、`ATOM_ONE_LIGHT`、`ATOM_ONE_DARK`、`NONE`（只输出类名，自带样式），
+  可在运行期切换；颜色为 `--ck-code-hl-*` CSS 变量。新增 npm 依赖 `highlight.js@11.11.1`（未启用时不下载）。
+  见 User Guide「Code block syntax highlighting」（含性能数据）。
+- **自定义插件机制的扩展**（向后兼容，见 User Guide「Custom Plugins」）：
+  - `CustomPlugin.Builder#withConfig(String, JsonNode)`：把 Java 端配置以 `config[key]` 传给插件；
+  - 连接器 `registerCKEditorPluginLoader(name, () => import(...))` / `unregisterCKEditorPluginLoader`：按需加载的插件
+    （独立 chunk），优先级在 `registerCKEditorPlugin` 之后、`withImportPath` 动态导入之前；不带 importPath 的
+    `CustomPlugin.fromRegistry` 插件同样回退到加载器；
+  - 编辑器显示后插件列表变化：只有配置变化时更新 `editor.config` 并在编辑器上触发 `vaadin:pluginConfig`(key, value)，
+    增删插件时以当前内容重建编辑器（此前该变化被忽略）。
 - **实时字数 / 字符数与上限校验**（[#70](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/70)，上游 ckeditor5#2573）：
   `addWordCountChangeListener`（`WordCountChangeEvent#getWords` / `getCharacters`，数值来自 CKEditor WordCount 插件，
   需要时自动加载；每 500 ms 至多上报一次、数值不变不上报，另有一次初始计数）、`setWordCountVisible`（编辑器下方显示计数，

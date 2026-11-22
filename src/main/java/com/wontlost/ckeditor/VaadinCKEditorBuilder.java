@@ -488,6 +488,34 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Enable or disable syntax highlighting of code blocks while editing.
+     *
+     * @param enabled true to highlight code blocks
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCodeBlockHighlighting(boolean)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCodeBlockHighlighting(boolean enabled) {
+        editor.setCodeBlockHighlighting(enabled);
+        return this;
+    }
+
+    /**
+     * Enable syntax highlighting of code blocks while editing, with the given color theme.
+     *
+     * @param theme the color theme, not null
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCodeBlockHighlighting(boolean)
+     * @see VaadinCKEditor#setCodeBlockHighlightTheme(CodeHighlightTheme)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCodeBlockHighlighting(CodeHighlightTheme theme) {
+        editor.setCodeBlockHighlightTheme(theme);
+        editor.setCodeBlockHighlighting(true);
+        return this;
+    }
+
+    /**
      * Set the page width used in fullscreen mode. Defaults to {@link FullscreenPage#A4_FIT}.
      *
      * @param page the page width, not null

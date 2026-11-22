@@ -98,6 +98,7 @@ import static com.wontlost.ckeditor.JsonUtil.*;
 @JsModule("./vaadin-ckeditor/vaadin-ckeditor.ts")
 @NpmPackage(value = "ckeditor5", version = "49.1.0")
 @NpmPackage(value = "lit", version = "^3.3.3")
+@NpmPackage(value = "highlight.js", version = "11.11.1")
 public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel, HasValidator<String> {
 
     private static final Logger logger = Logger.getLogger(VaadinCKEditor.class.getName());
@@ -152,6 +153,13 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     private UploadHandler.UploadConfig uploadConfig;
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
     private FullscreenPage fullscreenPage = FullscreenPage.A4_FIT;
+    /** 代码块高亮插件名，与连接器 addon-plugins.ts 中的登记一致。 */
+    static final String CODE_HIGHLIGHT_PLUGIN = "VaadinCodeBlockHighlighting";
+    private static final String CODE_HIGHLIGHT_IMPORT_PATH = "./vaadin-ckeditor/code-block-highlighting";
+    /** initialize() 之后插件列表才下发到客户端；之前的改动随 initialize 一次性下发。 */
+    private boolean initialized = false;
+    private boolean codeBlockHighlighting = false;
+    private CodeHighlightTheme codeBlockHighlightTheme = CodeHighlightTheme.AUTO;
 
     /**
      * The add-on's word count bridge plugin ({@code word-count-plugin.ts}), registered in the browser's
@@ -242,6 +250,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
 
         // Set plugin list
         getElement().setPropertyJson("plugins", buildPluginsJson());
+        initialized = true;
 
         // Set toolbar
         if (toolbar != null && toolbar.length > 0) {
@@ -354,6 +363,10 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
             pluginObj.put("premium", plugin.isPremium());
             if (plugin.getImportPath() != null) {
                 pluginObj.put("importPath", plugin.getImportPath());
+            }
+            if (plugin.getConfigKey() != null) {
+                pluginObj.put("configKey", plugin.getConfigKey());
+                pluginObj.set("config", plugin.getConfig());
             }
             arr.add(pluginObj);
         }
@@ -596,6 +609,87 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
         return fullscreenPage;
     }
 
+    /**
+     * Enable syntax highlighting of code blocks while editing (opt-in, off by default).
+     *
+     * <p>Needs the {@link CKEditorPlugin#CODE_BLOCK} plugin (part of the {@code FULL}, {@code AI_DOCUMENT} and
+     * {@code NOTION} presets; otherwise add it with {@code addPlugin(CKEditorPlugin.CODE_BLOCK)}).
+     * It is a custom plugin shipped with the add-on ({@code VaadinCodeBlockHighlighting}, see
+     * {@link CustomPlugin}): it is added to the editor only once highlighting is enabled, and its module
+     * and highlight.js (the "common" bundle of about 36 languages) are downloaded only then. Enabling
+     * it on an editor that is already displayed recreates the editor once with its current content
+     * (undo history is reset); after that, switching on/off and changing the theme apply immediately.
+     * Highlighting applies to the editing view only: the model is not changed, undo/redo is not
+     * affected, and the HTML returned by {@link #getValue()} contains no highlight markup. Each code
+     * block is highlighted according to its language from {@code codeBlock.languages}; plain text and
+     * languages unknown to highlight.js stay unhighlighted.</p>
+     *
+     * @param enabled true to highlight code blocks
+     * @since 6.2.0
+     * @see #setCodeBlockHighlightTheme(CodeHighlightTheme)
+     */
+    public void setCodeBlockHighlighting(boolean enabled) {
+        this.codeBlockHighlighting = enabled;
+        syncCodeBlockHighlighting();
+    }
+
+    /**
+     * @return whether code block syntax highlighting is enabled
+     * @since 6.2.0
+     */
+    public boolean isCodeBlockHighlighting() {
+        return codeBlockHighlighting;
+    }
+
+    /**
+     * Set the color theme for code block syntax highlighting. Defaults to
+     * {@link CodeHighlightTheme#AUTO}, which follows the editor's light/dark theme.
+     * Takes effect immediately.
+     *
+     * @param theme the theme, not null
+     * @since 6.2.0
+     */
+    public void setCodeBlockHighlightTheme(CodeHighlightTheme theme) {
+        this.codeBlockHighlightTheme = Objects.requireNonNull(theme, "theme");
+        syncCodeBlockHighlighting();
+    }
+
+    /**
+     * @return the code block highlighting theme, {@link CodeHighlightTheme#AUTO} unless changed
+     * @since 6.2.0
+     */
+    public CodeHighlightTheme getCodeBlockHighlightTheme() {
+        return codeBlockHighlightTheme;
+    }
+
+    /**
+     * 代码块高亮以 add-on 自带的自定义插件实现（连接器 addon-plugins.ts 登记的按需加载器）：
+     * 从未启用过就不加入插件列表（不下载插件与 highlight.js）；启用后插件留在列表中，开关与配色经
+     * 插件配置 {@code codeBlockHighlighting: {enabled, theme}} 传递，编辑器显示中改变也不重建。
+     */
+    private void syncCodeBlockHighlighting() {
+        boolean registered = customPlugins.stream().anyMatch(p -> CODE_HIGHLIGHT_PLUGIN.equals(p.getJsName()));
+        if (!codeBlockHighlighting && !registered) {
+            return;
+        }
+        ObjectNode pluginConfig = createObjectNode();
+        pluginConfig.put("enabled", codeBlockHighlighting);
+        pluginConfig.put("theme", codeBlockHighlightTheme.getJsName());
+        customPlugins.removeIf(p -> CODE_HIGHLIGHT_PLUGIN.equals(p.getJsName()));
+        customPlugins.add(CustomPlugin.builder(CODE_HIGHLIGHT_PLUGIN)
+            .withImportPath(CODE_HIGHLIGHT_IMPORT_PATH)
+            .withConfig("codeBlockHighlighting", pluginConfig)
+            .build());
+        syncPluginsToClient();
+    }
+
+    /** initialize() 之后插件列表的变化重新下发；之前的变化随 initialize 一次性下发。 */
+    private void syncPluginsToClient() {
+        if (initialized) {
+            getElement().setPropertyJson("plugins", buildPluginsJson());
+        }
+    }
+
     private void syncFullscreenPage() {
         getElement().setProperty("fullscreenPage", fullscreenPage.getMode());
         getElement().setProperty("fullscreenPageWidth",
@@ -818,8 +912,9 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
      * the add-on's {@link #WORD_COUNT_PLUGIN} custom plugin, added automatically by this method and by
      * {@link #setWordCountVisible(boolean)}.
      * Events arrive at most once per 500 ms, only when a count changed, plus once with the initial counts.
-     * Register the listener (or turn the counter on) before the editor is attached so the plugin is loaded,
-     * or add {@link #WORD_COUNT_PLUGIN} with {@code addCustomPlugin} up front.</p>
+     * Register the listener (or turn the counter on) before the editor is attached, or add
+     * {@link #WORD_COUNT_PLUGIN} with {@code addCustomPlugin} up front: on an editor that is already displayed,
+     * adding the plugin recreates the editor once with its current content (undo history starts anew).</p>
      *
      * @param listener the listener
      * @return registration for removing the listener
@@ -835,11 +930,12 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     }
 
     /**
-     * 以自定义插件机制加载字数桥接插件；插件列表在 initialize() 后变化时重新下发（编辑器创建前生效）。
+     * 以自定义插件机制加载字数桥接插件；插件列表在 initialize() 后变化时重新下发
+     * （已显示的编辑器由连接器以当前内容重建一次）。
      */
     private void requireWordCountPlugin() {
-        if (customPlugins.add(WORD_COUNT_PLUGIN) && getElement().hasProperty("plugins")) {
-            getElement().setPropertyJson("plugins", buildPluginsJson());
+        if (customPlugins.add(WORD_COUNT_PLUGIN)) {
+            syncPluginsToClient();
         }
     }
 
