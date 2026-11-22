@@ -15,7 +15,7 @@ node_modules/
 .vite/
 *.vite-cache
 vite.generated.ts
-vite.config.ts
+# vite.config.ts 已提交：CKEDITOR_PREMIUM_STUB=1 时注入 premium 替身（见文件内说明）
 tsconfig.json
 types.d.ts
 

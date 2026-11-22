@@ -392,7 +392,29 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChatBalloon")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorConfig")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ProposedChanges")).isTrue();
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isTrue();
+    }
+
+    @Test
+    @DisplayName("CKBox 由开源 ckeditor5 包导出、属 premium feature：不在 premium 包清单中，isPremiumFeature，带上 CloudServices")
+    void ckboxIsALicensedPluginOfTheCkeditor5PackageWithCloudServices() {
+        assertThat(CKEditorPlugin.getPremiumFeaturePlugins())
+            .contains(CKEditorPlugin.CKBOX, CKEditorPlugin.CKBOX_IMAGE_EDIT, CKEditorPlugin.TABLE_LAYOUT);
+        for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
+            // 需要 license 的内置插件绝不会出现在 premium 包清单里（加载通道不同）
+            assertThat(plugin.isPremium()).isFalse();
+            if (plugin.isPremiumFeature()) {
+                assertThat(CKEditorPluginDependencies.getKnownPremiumPlugins()).doesNotContain(plugin.getJsName());
+            }
+        }
+        assertThat(CKEditorPlugin.BOLD.isPremiumFeature()).isFalse();
+        assertThat(CKEditorPluginDependencies.getKnownPremiumPlugins()).doesNotContain("CKBox", "CKBoxImageEdit");
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("CKBox")).isFalse();
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.CKBOX))
+            .contains(CKEditorPlugin.CLOUD_SERVICES, CKEditorPlugin.IMAGE_UPLOAD);
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.CKBOX_IMAGE_EDIT))
+            .containsExactly(CKEditorPlugin.CKBOX);
+        assertThat(CKEditorPluginDependencies.resolve(Set.of(CKEditorPlugin.CKBOX_IMAGE_EDIT)))
+            .contains(CKEditorPlugin.CKBOX, CKEditorPlugin.CLOUD_SERVICES);
     }
 
     @Test
@@ -561,7 +583,7 @@ class CKEditorPluginDependenciesTest {
     }
 
     @Test
-    @DisplayName("TableLayout ships in the free umbrella (license-gated) and depends on Table + TableColumnResize")
+    @DisplayName("TableLayout (premium feature exported by the open-source ckeditor5 package) depends on Table + TableColumnResize")
     void tableLayoutShouldResolveTableDependencies() {
         Set<CKEditorPlugin> resolved = CKEditorPluginDependencies.resolve(Set.of(CKEditorPlugin.TABLE_LAYOUT));
 

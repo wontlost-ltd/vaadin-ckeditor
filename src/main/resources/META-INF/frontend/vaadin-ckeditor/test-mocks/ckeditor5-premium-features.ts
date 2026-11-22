@@ -8,8 +8,6 @@ class MockPlugin {
     static pluginName = 'MockPlugin';
 }
 
-export const CKBox = class extends MockPlugin { static pluginName = 'CKBox'; };
-export const CKBoxImageEdit = class extends MockPlugin { static pluginName = 'CKBoxImageEdit'; };
 export const Comments = class extends MockPlugin { static pluginName = 'Comments'; };
 export const ExportPdf = class extends MockPlugin { static pluginName = 'ExportPdf'; };
 export const ExportWord = class extends MockPlugin { static pluginName = 'ExportWord'; };

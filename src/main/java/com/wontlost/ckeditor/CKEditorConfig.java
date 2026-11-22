@@ -316,11 +316,10 @@ public class CKEditorConfig implements java.io.Serializable {
      * 启用/禁用嵌入媒体（视频等）的拖拽缩放（issue #71）。
      *
      * <p>启用后，选中嵌入媒体会显示四角缩放手柄，可按比例调整宽度。底层由 CKEditor 的
-     * {@code MediaEmbedResize} 插件实现——前端按需从 umbrella {@code ckeditor5} 包取用
-     * （实测 48.4.0 与 48.5.0 的 umbrella 产物中均不含该符号，届时静默降级为不可缩放），
-     * 但属功能性 premium（其 {@code MediaEmbedResizeEditing} 依赖 {@code isPremiumPlugin=true}），
-     * 故前端在启用时才按需从 {@code ckeditor5} 动态加载，加载失败（如缺商业 license）静默降级，
-     * 无需消费端额外配置。缩放数据以 {@code media_resized} class + 内联
+     * {@code MediaEmbedResize} 插件实现——前端在启用时才按需从开源 {@code ckeditor5} 包动态加载
+     * （49.1.0 导出它；加载失败时静默降级为不可缩放），无需消费端额外配置。CKEditor 文档把它标为
+     * premium feature：内核对 {@code 'GPL'} key 跳过插件 license 检查，GPL 下可运行；商业使用需要 CKEditor 标明的 plan，
+     * 见 <a href="https://ckeditor.com/docs/ckeditor5/latest/features/media-embed/media-embed-resize.html">docs</a>。缩放数据以 {@code media_resized} class + 内联
      * width 写入 {@code <figure>}，与 {@code previewsInData} 设置无关。</p>
      *
      * @param resizable true 启用拖拽缩放

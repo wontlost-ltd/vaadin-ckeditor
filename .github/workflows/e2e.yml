@@ -49,6 +49,9 @@ jobs:
 
       - name: Build sample app (production)
         working-directory: examples/spring-boot-sample
+        # premium 包替换为同 API 形状的替身（见 e2e/README.md），collaboration-bridge.spec.ts 据此运行
+        env:
+          CKEDITOR_PREMIUM_STUB: "1"
         run: mvn -B -ntp -DskipTests package -Pproduction
 
       - name: Install Playwright dependencies
@@ -62,6 +65,7 @@ jobs:
         working-directory: e2e
         env:
           CI: "true"
+          CKEDITOR_PREMIUM_STUB: "1"
         run: npx playwright test
 
       - name: Regenerate visual baselines

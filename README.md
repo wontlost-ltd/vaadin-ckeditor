@@ -7,7 +7,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 
 ## Features
 
-- **70+ Free Plugins** - All plugins from the official `ckeditor5` npm package
+- **70+ Plugins** - The plugins of the open-source `ckeditor5` npm package; CKEditor marks some of them as premium features (see [Premium features exported by the `ckeditor5` package](docs/PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package))
 - **Premium Plugin Support** - Easy integration with `ckeditor5-premium-features`
 - **Multiple Editor Types** - Classic, Inline, Balloon, and Decoupled editors
 - **Theme Integration** - Auto-sync with Vaadin's Lumo theme (light/dark)
@@ -203,6 +203,12 @@ In your Vaadin project's frontend directory:
 npm install ckeditor5-premium-features
 ```
 
+> **Licensing with this add-on.** The add-on is a *self-hosted* (npm) distribution of CKEditor. CKEditor's
+> [License key and activation](https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html) guide says the self-hosted channel "requires contact with our sales team and a
+> custom plan". Commercial keys of the cloud-hosted Free, Essential and Professional plans are rejected in self-hosted
+> builds, so commercial use needs a **Custom plan** (or a 14-day trial key). The default `GPL` key works only with
+> self-hosted builds. See [Licensing for self-hosted (npm) builds](docs/PREMIUM_INTEGRATION.md#licensing-for-self-hosted-npm-builds).
+
 ### Step 2: Configure License Key
 
 > **🔐 Security Note**: CKEditor 5 license keys are designed to be used in frontend code. To protect your license key from unauthorized use, configure **Approved Hosts Whitelisting** in the [CKEditor Customer Portal](https://dashboard.ckeditor.com/):
@@ -228,31 +234,54 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 
 ### Available Premium Plugins
 
-| Plugin | Description | Toolbar Item |
-|--------|-------------|--------------|
-| `ExportPdf` | Export to PDF | `exportPdf` |
-| `ExportWord` | Export to Word | `exportWord` |
-| `ImportWord` | Import from Word | `importWord` |
-| `FormatPainter` | Copy formatting | `formatPainter` |
-| `SlashCommand` | Slash commands | - |
-| `TableOfContents` | Table of contents | `tableOfContents` |
-| `DocumentOutline` | Document outline | - |
-| `Template` | Content templates | `insertTemplate` |
-| `CaseChange` | Change text case | `caseChange` |
-| `MergeFields` | Mail merge fields | `mergeFields` |
-| `Pagination` | Page breaks | `pageBreak` |
-| `AIAssistant` | AI writing assistant | `aiAssistant` |
-| `AIChat` | AI chat sidebar | `toggleAi` |
-| `AIQuickActions` | AI quick actions | `aiQuickActions` |
-| `AIEditorIntegration` | AI editor integration | - |
-| `AIReviewMode` | AI review mode | - |
-| `AITranslate` | AI translation | - |
-| `AIChatBalloon` | Balloon UI for AI Chat (49.1+) | - |
-| `AIEditorConfig` | Register custom plugins with the AI agent (49.1+) | - |
-| `ProposedChanges` | Editing Toolkit: compare versions, apply differences (49.1+) | - |
-| `RealTimeContentFetcher` | Real-time collaboration content fetcher (49.1+) | - |
+Load any of them with `CustomPlugin.fromPremium("<Plugin>")`. *Included in* names the CKEditor plans that include the
+feature on [ckeditor.com/pricing](https://ckeditor.com/pricing) (2026-11-22); *Essential+* = Essential, Professional and
+Custom. **With this self-hosted add-on the licence key must be a Custom-plan (or trial) key**, see the note above. The
+[Premium Integration Guide](docs/PREMIUM_INTEGRATION.md#premium-plugin-catalogue) links each feature's docs.
 
-> `TableLayout` ships in the free `ckeditor5` umbrella but is license-gated: use `CKEditorPlugin.TABLE_LAYOUT` (toolbar `insertTableLayout`) together with a commercial license key.
+| Plugin | Description | Toolbar Item | Included in |
+|--------|-------------|--------------|------|
+| `ExportPdf` | Export to PDF | `exportPdf` | All plans (monthly quota) |
+| `ExportWord` | Export to Word | `exportWord` | All plans (monthly quota) |
+| `ImportWord` | Import from Word | `importWord` | Professional, Custom |
+| `PasteFromOfficeEnhanced` | Enhanced paste from Word / Excel / Google Docs | - | Essential+ |
+| `FormatPainter` | Copy formatting | `formatPainter` | Essential+ |
+| `CaseChange` | Change text case | `caseChange` | Essential+ |
+| `SlashCommand` | Slash commands | - | Essential+ |
+| `Template` | Content templates | `insertTemplate` | Essential+ |
+| `MergeFields` | Mail merge fields | `insertMergeField` | Essential+ |
+| `TableOfContents` | Table of contents | `tableOfContents` | Essential+ |
+| `DocumentOutline` | Document outline | - | Essential+ |
+| `Footnotes` | Footnotes | `insertFootnote` | Essential+ |
+| `MultiLevelList` | Multi-level lists | `multiLevelList` | Essential+ |
+| `LineHeight` | Line height | `lineHeight` | Essential+ |
+| `Pagination` | Page boundaries for PDF / Word export | `previousPage`, `nextPage`, `pageNavigation` | Custom only |
+| `EmailConfigurationHelper` | Email editor configuration helper | - | Essential+ |
+| `ExportInlineStyles` | Inline styles for email clients | - | Essential+ |
+| `SourceEditingEnhanced` | Source editing with HTML validation | `sourceEditingEnhanced` | Essential+ |
+| `Uploadcare` / `UploadcareImageEdit` | Image upload, optimization and editing (needs `uploadcare.pubkey`) | `uploadcare`, `uploadcareImageEdit` | Image Optimizer add-on |
+| `AIChat` | AI chat sidebar | `toggleAi` | CKEditor AI add-on |
+| `AIQuickActions` | AI quick actions | `aiQuickActions` | CKEditor AI add-on |
+| `AIEditorIntegration` | AI editor integration | - | CKEditor AI add-on |
+| `AIReviewMode` | AI review mode | - | CKEditor AI add-on |
+| `AITranslate` | AI translation | - | CKEditor AI add-on |
+| `AIChatBalloon` | Balloon UI for AI Chat (49.1+) | - | CKEditor AI add-on |
+| `AIEditorConfig` | Register custom plugins with the AI agent (49.1+) | - | CKEditor AI add-on |
+| `AIAssistant` | AI writing assistant (deprecated) | `aiAssistant` | CKEditor AI add-on |
+| `ProposedChanges` + `DocumentCompare` | Editing Toolkit: compare documents, propose changes (49.1+; load both) | - | Custom-plan add-on |
+| `Comments` | Comments | `comment` | Collaboration add-on (Professional), Custom |
+| `TrackChanges` / `TrackChangesData` / `TrackChangesPreview` | Track changes | `trackChanges` | Collaboration add-on |
+| `RevisionHistory` | Revision history | `revisionHistory` | Collaboration add-on |
+| `RealTimeCollaborativeEditing` / `…Comments` / `…TrackChanges` / `…RevisionHistory`, `RealTimeContentFetcher`, `PresenceList` | Real-time collaboration (CKEditor Cloud Services) | - | Collaboration add-on |
+
+> **Premium features exported by the open-source `ckeditor5` package.** CKEditor's docs mark 20 plugins that the add-on
+> loads through `CKEditorPlugin` as premium features (`isPremiumFeature()` returns true). Some, such as `IMAGE_RESIZE`,
+> `PASTE_FROM_OFFICE` and `FIND_AND_REPLACE`, are in the add-on's presets. The paid services among them are
+> `CKBOX` / `CKBOX_IMAGE_EDIT` (the CKBox add-on, which also needs the CKBox JS library) and `CKFINDER`. Two facts apply:
+> CKEditor's core skips plugin licence checks for the `'GPL'` key, so they run under GPL; and CKEditor's docs and
+> pricing mark them as premium, so commercial use needs the plan CKEditor states. They are not part of
+> `ckeditor5-premium-features`, so `fromPremium(...)` cannot load them. See
+> [the full list](docs/PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package).
 
 ### Collaboration Features
 
@@ -265,6 +294,27 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .addCustomPlugin(CustomPlugin.fromPremium("RevisionHistory"))
     .build();
 ```
+
+**Persist comments and suggestions on your server, without CKEditor Cloud** (since 6.2.0): implement
+`CollaborationStore` (or start with `InMemoryCollaborationStore`) and attach a `CollaborationBridge`. Authors,
+timestamps and permissions are decided on the server.
+
+```java
+CollaborationBridge bridge = CollaborationBridge.builder(store, "document-42",
+        new CollaborationUser(user.getId(), user.getName())).build();
+
+VaadinCKEditor editor = VaadinCKEditor.create()
+    .withType(CKEditorType.DECOUPLED)
+    .withLicenseKey(System.getenv("CKEDITOR_LICENSE_KEY"))
+    .addCustomPlugin(CustomPlugin.fromPremium("Comments"))
+    .addCustomPlugin(CustomPlugin.fromPremium("TrackChanges"))
+    .withCollaborationBridge(bridge)
+    .build();
+```
+
+Built against the documented CKEditor 49.x adapter API and tested with mock plugins only, without a licence. See
+[Comments and Track Changes Without CKEditor Cloud](docs/PREMIUM_INTEGRATION.md#comments-and-track-changes-without-ckeditor-cloud)
+for what still needs checking with a licensed key.
 
 ---
 

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **评论 / 修订建议持久化桥 `CollaborationBridge`**（`com.wontlost.ckeditor.collaboration`，不依赖 CKEditor Cloud）：
+  按 CKEditor 49.x 的 adapter 集成，把 `CommentsRepository` / `TrackChanges` 的 adapter 调用经 Vaadin RPC 转到服务端
+  `CollaborationStore`（异步 `CompletableFuture`，镜像 `addCommentThread`、`addComment`、`addSuggestion` 等），
+  启动时加载用户（`Users#addUser` / `defineMe`）、权限（`Permissions#setPermissions`）、线程与建议。作者、时间、
+  `resolvedBy` 由服务端决定，权限与归属（自己的评论 / 线程、`comment:modify_all`、`comment:admin`、拆分建议沿用原作者）
+  在服务端校验。附 `InMemoryCollaborationStore` 参考实现。浏览器端是 add-on 的自定义插件 `VaadinCollaborationBridge`
+  （经 `registerCKEditorPlugin` 登记，与 `CustomPlugin.fromPremium("Comments")` 组合）；`comment-permission-enforcer`
+  读取服务端授予的权限。**未使用 CKEditor license**：以文档形状的 mock 插件测试，真实 premium 行为仍需用 license 验证，
+  见 Premium Integration Guide「Comments and Track Changes Without CKEditor Cloud」。
+- **`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`**：CKBox 是 **premium feature**（付费 CKBox 附加服务，可先 14 天试用，
+  见 [CKBox 文档](https://ckeditor.com/docs/ckeditor5/latest/features/file-management/ckbox.html)）。插件类由开源的
+  `ckeditor5` 包导出（不属于 `ckeditor5-premium-features`），因此以 `CKEditorPlugin` 常量加载；运行还需要
+  `ckbox.tokenUrl` 与 CKBox JS 库（`https://cdn.ckbox.io/ckbox/<版本>/ckbox.js` 或 npm 包 `ckbox`，插件检查
+  `window.CKBox`）。自动带上 CloudServices 与 ImageUpload。
+- **`CKEditorPlugin#isPremiumFeature()` / `getPremiumFeaturePlugins()`**：CKEditor 文档标为 premium feature、
+  由开源 `ckeditor5` 包导出的 20 个插件（ckeditor5 49.1.0 中带 `licenseFeatureCode` 的 17 个枚举插件，另加 CKBox、
+  CKBoxImageEdit、CKFinder；测试对照真实包校验）。`isPremium()` 含义不变：是否经 `ckeditor5-premium-features` 加载。
+  GPL key 下使用这些插件时 builder 记录一次 INFO 日志（不是警告），陈述两点事实：CKEditor 内核对 `'GPL'` key 跳过插件
+  license 检查，因此它们可运行；CKEditor 文档与定价把它们标为 premium，商业使用需要 CKEditor 标明的 plan。
+- **`PremiumPlugin.FOOTNOTES` / `FOOTNOTES_PROPERTIES` / `UPLOADCARE` / `UPLOADCARE_IMAGE_EDIT` / `DOCUMENT_COMPARE`**
+  及其依赖登记（Uploadcare：Image、ImageUpload、ImageInsert；PictureEditing 由 Uploadcare 自身加载；配置键 `uploadcare.pubkey`）。
 - **代码块编辑时语法高亮**（opt-in，[ckeditor/ckeditor5#5769](https://github.com/ckeditor/ckeditor5/issues/5769)）：
   `VaadinCKEditor#setCodeBlockHighlighting(boolean)` / `setCodeBlockHighlightTheme(CodeHighlightTheme)`、
   `VaadinCKEditorBuilder#withCodeBlockHighlighting(boolean | CodeHighlightTheme)`。以 add-on 自带的自定义插件
@@ -51,7 +72,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
   键中不能含字面量点号：CKEditor 创建编辑器时会在每一层按 `.` 拆分键，无法转义；空段（`a..b`）抛 `IllegalArgumentException`。
 
+### Changed
+- **`PremiumPlugin.PAGINATION` 的工具栏项**改为 `previousPage`、`nextPage`、`pageNavigation`（此前的 `pagination` 并不存在）；
+  Pagination 仅 Custom plan 提供。
+
 ### Fixed
+- **CKBox 的加载通道错误**：`CKEditorPluginDependencies` 把 `CKBox` / `CKBoxImageEdit` 登记为从 `ckeditor5-premium-features`
+  加载，但该包不导出它们，`CustomPlugin.fromPremium("CKBox")` 从未能加载。CKBox 是由开源 `ckeditor5` 包导出的
+  premium feature，现改用 `CKEditorPlugin.CKBOX`；新增测试保证经 premium 包加载的名称都不是 `ckeditor5` 包导出的插件。
+- **MediaEmbedResize 注释**：它由 49.1.0 的 `ckeditor5` 导出；此前"GPL 下加载会报 license 错误"的说法不对（内核对 GPL 跳过插件检查）。
 - **`setInvalid` / `setErrorMessage` 在编辑器上没有任何显示**：`vaadin-ckeditor` 元素此前不处理 CustomField 写入的
   `invalid` / `errorMessage` 属性。现在无效时编辑区显示错误色边框、下方显示错误消息（`role="alert"`），
   可编辑区设置 `aria-invalid`。
@@ -64,6 +93,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `withFontSizes` / `withImageUploadUrl`；改为可编译的写法（`PREMIUM_INTEGRATION.md` 中旧的 AI Assistant 示例另由 #170 处理）。
 - **点号键不被连接器识别**：此前即使通过 `set(key, JsonNode)` 写入 `"collaboration.channelId"` 之类的字面量键，
   CKEditor 自己能展开，但连接器读取 `collaboration.channelId`、`ai.container` 等嵌套配置的逻辑看不到它；现在服务端即写成嵌套对象。
+
+### Documentation
+- Premium Integration Guide 新增「Licensing for self-hosted (npm) builds」：本 add-on 属自托管（npm）分发，CKEditor 的
+  license 指南写明自托管"requires contact with our sales team and a custom plan"，Free / Essential / Professional 的商业 key
+  仅限云端、在自托管构建中会被拒绝，商业使用需要 Custom plan（或试用 key）；README 与 `VaadinCKEditorPremium` Javadoc
+  同步说明（"Enterprise" 改为 "Custom"）。由 `ckeditor5` 包导出的 premium feature 列出完整清单（含 licence feature code
+  与文档链接），并说明 CKBox 需要 CKBox JS 库。
+- Premium Integration Guide 重写套餐表（ckeditor.com/pricing，2026-11-22），新增全部 premium 插件目录（工具栏项、所需套餐、
+  功能文档链接），补上 README 缺少的 Footnotes、Uploadcare、MultiLevelList、PasteFromOfficeEnhanced、
+  EmailConfigurationHelper、ExportInlineStyles、SourceEditingEnhanced，并说明 premium 插件与自定义插件的组合方式。
 
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。
@@ -185,8 +224,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **运行期编辑器错误上报**：CKEditor 49 移除 Watchdog 与崩溃自动重启，连接器改用 `onEditorError()`
   观察逃逸出编辑器的错误，并以 `EDITOR_RUNTIME_ERROR`（severity `ERROR`、recoverable）触发既有的
   `EditorErrorEvent`；编辑器销毁时自动退订。
-- **`CKEditorPlugin.TABLE_LAYOUT`**（`insertTableLayout`）：预设表格布局。该插件由免费 `ckeditor5`
-  umbrella 导出，但 `TableLayoutEditing` 带商业 license 门控，使用时仍需 license key。
+- **`CKEditorPlugin.TABLE_LAYOUT`**（`insertTableLayout`）：预设表格布局。premium feature，需商业 plan 与
+  license key；由开源 `ckeditor5` umbrella 包导出（不属于 `ckeditor5-premium-features`），`TableLayoutEditing` 带 license 门控。
 - **`PremiumPlugin` 新增** CKEditor 49.1 的 `AIChatBalloon`、`AIEditorConfig`、`ProposedChanges`、
   `RealTimeContentFetcher`，并补齐 CloudServices 依赖登记。
 

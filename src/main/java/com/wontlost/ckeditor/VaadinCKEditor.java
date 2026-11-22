@@ -3,6 +3,8 @@ package com.wontlost.ckeditor;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.vaadin.flow.component.ClientCallable;
+import com.wontlost.ckeditor.collaboration.CollaborationBridge;
+import com.wontlost.ckeditor.collaboration.CollaborationException;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.HasAriaLabel;
 import com.vaadin.flow.component.Tag;
@@ -153,6 +155,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     private UploadHandler.UploadConfig uploadConfig;
     private FallbackMode fallbackMode = FallbackMode.TEXTAREA;
     private FullscreenPage fullscreenPage = FullscreenPage.A4_FIT;
+    private CollaborationBridge collaborationBridge;
     /** 代码块高亮插件名，与连接器 addon-plugins.ts 中的登记一致。 */
     static final String CODE_HIGHLIGHT_PLUGIN = "VaadinCodeBlockHighlighting";
     private static final String CODE_HIGHLIGHT_IMPORT_PATH = "./vaadin-ckeditor/code-block-highlighting";
@@ -1489,6 +1492,96 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
         cancelUpload(uploadId);
     }
 
+    // ==================== Comments / track changes persistence ====================
+
+    /**
+     * Persist CKEditor comments and track-changes suggestions through a server-side store, without CKEditor
+     * Cloud. Adds the custom plugin {@link CollaborationBridge#PLUGIN_NAME} which installs the
+     * {@code CommentsRepository} and {@code TrackChanges} adapters in the browser; load the premium plugins
+     * themselves with {@code CustomPlugin.fromPremium("Comments")} / {@code fromPremium("TrackChanges")} and a
+     * licence key. Set it before the editor is shown (with the builder or before attaching): on a displayed
+     * editor, adding or removing the plugin recreates the editor once with its current content (undo history
+     * starts anew).
+     *
+     * @param bridge the bridge, or {@code null} to remove it
+     * @since 6.2.0
+     * @see CollaborationBridge
+     */
+    public void setCollaborationBridge(CollaborationBridge bridge) {
+        customPlugins.removeIf(p -> CollaborationBridge.PLUGIN_NAME.equals(p.getJsName()));
+        this.collaborationBridge = bridge;
+        if (bridge != null) {
+            customPlugins.add(bridge.toCustomPlugin());
+            getElement().setProperty("collaborationTimeoutMs", bridge.getRequestTimeout().toMillis());
+        }
+        syncPluginsToClient();
+    }
+
+    /**
+     * @return the collaboration bridge, or {@code null}
+     * @since 6.2.0
+     */
+    public CollaborationBridge getCollaborationBridge() {
+        return collaborationBridge;
+    }
+
+    /**
+     * One adapter call of the {@code VaadinCollaborationBridge} plugin. The answer is delivered as a
+     * {@code vaadin-ckeditor-collaboration} DOM event on this element.
+     */
+    @ClientCallable
+    private void collaborationRequest(String requestId, String operation, String payloadJson) {
+        handleCollaborationRequest(requestId, operation, payloadJson);
+    }
+
+    /** {@link #collaborationRequest} 的实现：处理完成后在 UI 线程以 DOM 事件应答。 */
+    private void handleCollaborationRequest(String requestId, String operation, String payloadJson) {
+        collaborationResponse(collaborationBridge, operation, payloadJson).thenAccept(response ->
+            getUI().ifPresent(ui -> ui.access(() ->
+                respondToCollaborationRequest(requestId, response.resultJson(), response.error()))));
+    }
+
+    /** 一次协作请求的应答：成功时 {@code resultJson} 非空，失败时 {@code error} 为可展示给用户的消息。 */
+    record CollaborationResponse(String resultJson, String error) {
+    }
+
+    /**
+     * 处理一次协作请求（package-private 测试缝隙）。{@link CollaborationException} 的消息原样回给浏览器；
+     * 其他失败只回通用消息，详情记录在服务端日志，避免泄露内部信息。返回的 future 总是正常完成。
+     */
+    static java.util.concurrent.CompletableFuture<CollaborationResponse> collaborationResponse(
+            CollaborationBridge bridge, String operation, String payloadJson) {
+        if (bridge == null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                new CollaborationResponse(null, "No collaboration bridge configured"));
+        }
+        java.util.concurrent.CompletableFuture<tools.jackson.databind.JsonNode> result;
+        try {
+            result = bridge.handle(operation, JsonUtil.getMapper().readTree(payloadJson == null ? "null" : payloadJson));
+        } catch (RuntimeException e) {
+            result = java.util.concurrent.CompletableFuture.failedFuture(
+                new CollaborationException(CollaborationException.Reason.INVALID_REQUEST, "Invalid request"));
+        }
+        return result.handle((value, error) -> {
+            if (error == null) {
+                return new CollaborationResponse(String.valueOf(value), null);
+            }
+            Throwable cause = CollaborationBridge.unwrap(error);
+            if (cause instanceof CollaborationException) {
+                return new CollaborationResponse(null, cause.getMessage());
+            }
+            logger.log(Level.WARNING, "Collaboration request " + operation + " failed", cause);
+            return new CollaborationResponse(null, "Collaboration request failed");
+        });
+    }
+
+    private void respondToCollaborationRequest(String requestId, String resultJson, String error) {
+        getElement().executeJs(
+            "this.dispatchEvent(new CustomEvent('vaadin-ckeditor-collaboration', "
+                + "{detail: {requestId: $0, result: $1, error: $2}}))",
+            requestId, resultJson, error);
+    }
+
     // ==================== Package-Private Methods for Builder ====================
     // These methods are used by VaadinCKEditorBuilder to configure the editor
 
@@ -1512,6 +1605,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     void setEditorDataInternal(String data) { this.editorData = data != null ? data : ""; }
     void setReadOnlyInternal(boolean readOnly) { this.readOnly = readOnly; }
     void setLicenseKeyInternal(String licenseKey) { this.licenseKey = licenseKey; }
+    String getLicenseKeyInternal() { return this.licenseKey; }
     void setToolbarInternal(String[] toolbar) { this.toolbar = toolbar != null ? toolbar.clone() : null; }
     void setConfigInternal(CKEditorConfig config) { this.config = config; }
     CKEditorConfig getConfigInternal() { return this.config; }

@@ -184,7 +184,13 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Tables:**
 - `TABLE`, `TABLE_TOOLBAR`, `TABLE_PROPERTIES`, `TABLE_CELL_PROPERTIES`
-- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`；免费包导出但运行时需商业 license key）
+- `TABLE_CAPTION`, `TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`（预设表格布局，`insertTableLayout`）
+
+Some of these plugins are premium features according to CKEditor's docs (for example `IMAGE_RESIZE`, `TABLE_PROPERTIES`,
+`TABLE_COLUMN_RESIZE`, `TABLE_LAYOUT`, `PASTE_FROM_OFFICE`, `FIND_AND_REPLACE` and `WORD_COUNT`). `CKEditorPlugin#isPremiumFeature()`
+identifies them, and the [Premium Integration Guide](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package)
+lists them all. They run under the default `'GPL'` key, because CKEditor's core skips plugin licence checks for it.
+Commercial use needs the plan CKEditor states.
 
 **Media & Code:**
 - `MEDIA_EMBED`, `AUTO_MEDIA_EMBED`, `MEDIA_EMBED_STYLE`, `MEDIA_EMBED_TOOLBAR`, `HTML_EMBED`, `CODE_BLOCK`
@@ -838,7 +844,9 @@ binder.forField(editor).bind(Post::getBody, Post::setBody);   // the limits are 
   applies through `Binder`. `getWordCount()` / `getCharacterCount()` keep their old estimate and can differ.
 - Show only one number with `config.set("wordCount", Map.of("displayCharacters", false))` (needs the
   dotted-path `set` overloads) or the equivalent `JsonNode`.
-- Commercial license keys must include the WordCount feature; the `GPL` key works.
+- `WordCount` is a CKEditor premium feature (`CKEditorPlugin.WORD_COUNT.isPremiumFeature()`, see the
+  [Premium Integration Guide](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package)):
+  the `GPL` key works; commercial license keys must include the WordCount feature.
 
 ### Autosave
 
@@ -1286,7 +1294,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `ExportPdf` - Export to PDF
 - `ExportWord` - Export to Word
 - `ImportWord` - Import from Word
-- `Pagination` - Page breaks and pagination
+- `Pagination` - Page boundaries for PDF / Word export (Custom plan; toolbar `previousPage`, `nextPage`, `pageNavigation`)
 - `FormatPainter` - Copy formatting
 - `SlashCommand` - Slash command menu
 - `Template` - Content templates
@@ -1301,6 +1309,25 @@ VaadinCKEditor editor = VaadinCKEditor.create()
 - `RealTimeContentFetcher` - Real-time collaboration content fetcher (CKEditor 49.1+)
 - `AIReviewMode` - AI review mode
 - `AITranslate` - AI translation
+- `Footnotes`, `MultiLevelList`, `LineHeight`, `PasteFromOfficeEnhanced`, `Uploadcare`, `EmailConfigurationHelper`,
+  `ExportInlineStyles`, `SourceEditingEnhanced`, `TrackChangesData`, `TrackChangesPreview`, `PresenceList`, …
+
+The [Premium Plugin Catalogue](PREMIUM_INTEGRATION.md#premium-plugin-catalogue) lists every plugin with its toolbar item,
+the plans that include it and its feature documentation. This add-on is a self-hosted (npm) build, so commercial use
+needs a **Custom-plan** key: see [Licensing for self-hosted (npm) builds](PREMIUM_INTEGRATION.md#licensing-for-self-hosted-npm-builds).
+`CKBox`, `TableLayout` and 18 other `CKEditorPlugin` entries are premium features exported by the open-source `ckeditor5`
+package rather than `ckeditor5-premium-features` (`isPremiumFeature()` is true); see
+[that list](PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package).
+
+### Persisting Comments and Suggestions (no CKEditor Cloud)
+
+`VaadinCKEditorBuilder#withCollaborationBridge(CollaborationBridge)` connects the comments and track changes plugins to a
+server-side `CollaborationStore`: users, permissions, threads and suggestions are loaded when the editor starts, and every
+change is checked and saved on the server (authors and timestamps are set there, never taken from the browser). The bridge
+is the add-on's custom plugin `VaadinCollaborationBridge`, combined with `CustomPlugin.fromPremium("Comments")` /
+`fromPremium("TrackChanges")`. Setup, API, security rules and the verification status (mock-tested; real premium behaviour
+needs a licensed key) are in
+[Comments and Track Changes Without CKEditor Cloud](PREMIUM_INTEGRATION.md#comments-and-track-changes-without-ckeditor-cloud).
 
 ---
 

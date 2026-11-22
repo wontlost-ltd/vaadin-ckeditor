@@ -9,6 +9,8 @@
  *
  * 使用方式：在 Java 端调用 setCommentPermissionEnforcerEnabled(true)，
  * 或在 annotationSidebarEnabled=true 时自动启用。
+ * 与 CollaborationBridge（collaboration-bridge.ts）同用时，当前用户与权限来自服务端：
+ * 持 comment:modify_all 的用户不隐藏菜单。
  *
  * DOM 结构说明：
  * - 评论元素同时拥有 .ck-comment 和 .ck-annotation 两个 class（在同一元素上，非嵌套）
@@ -52,6 +54,13 @@ export default class CommentPermissionEnforcer extends Plugin {
             return;
         }
         if (!currentUserId) return;
+
+        // 与持久化桥（collaboration-bridge.ts）联动：服务端授予 comment:modify_all 的用户可以编辑 / 删除
+        // 他人的评论，此时不隐藏菜单。权限的最终裁决在服务端（CollaborationBridge），这里只让 UI 与之一致。
+        if (editor.plugins.has?.('VaadinCollaborationBridge')) {
+            const bridge = editor.plugins.get('VaadinCollaborationBridge') as { canModifyAllComments?: boolean };
+            if (bridge.canModifyAllComments) return;
+        }
 
         // 获取侧栏容器（兼容多种 DOM 结构）
         const domRoot = editor.editing.view.getDomRoot();

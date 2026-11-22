@@ -38,7 +38,7 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>DocumentOutline</td><td>-</td><td>Document structure outline</td></tr>
  *   <tr><td>Template</td><td>insertTemplate</td><td>Content templates</td></tr>
  *   <tr><td>MergeFields</td><td>insertMergeField</td><td>Mail merge fields</td></tr>
- *   <tr><td>Pagination</td><td>-</td><td>Page breaks and pagination</td></tr>
+ *   <tr><td>Pagination</td><td>previousPage, nextPage, pageNavigation</td><td>Page boundaries for export (Custom plan)</td></tr>
  *   <tr><td>AIAssistant</td><td>aiCommands, aiAssistant</td><td>AI-powered writing assistant (deprecated, use modular AI plugins)</td></tr>
  *   <tr><td>AIChat</td><td>toggleAi</td><td>AI chat sidebar panel (v47.5.0+)</td></tr>
  *   <tr><td>AIEditorIntegration</td><td>-</td><td>AI editor integration core (v47.5.0+)</td></tr>
@@ -54,18 +54,33 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>ExportInlineStyles</td><td>-</td><td>Inline style export for email compatibility (v47.5.0+)</td></tr>
  *   <tr><td>AIChatBalloon</td><td>-</td><td>Balloon UI for AI Chat (v49.1.0+)</td></tr>
  *   <tr><td>AIEditorConfig</td><td>-</td><td>Register custom plugins with the AI agent (v49.1.0+)</td></tr>
- *   <tr><td>ProposedChanges</td><td>-</td><td>Editing Toolkit: compare versions and apply differences (v49.1.0+)</td></tr>
+ *   <tr><td>ProposedChanges</td><td>-</td><td>Editing Toolkit: propose changes (Custom plan add-on; add DocumentCompare too)</td></tr>
+ *   <tr><td>DocumentCompare</td><td>-</td><td>Editing Toolkit: document comparison API (Custom plan add-on)</td></tr>
  *   <tr><td>RealTimeContentFetcher</td><td>-</td><td>Real-time collaboration content fetcher (v49.1.0+)</td></tr>
+ *   <tr><td>Footnotes</td><td>insertFootnote</td><td>Footnotes</td></tr>
+ *   <tr><td>FootnotesProperties</td><td>footnotesStyle</td><td>Footnote list style and start number</td></tr>
+ *   <tr><td>Uploadcare</td><td>uploadcare</td><td>Image upload and optimization (Image Optimizer add-on)</td></tr>
+ *   <tr><td>UploadcareImageEdit</td><td>uploadcareImageEdit</td><td>Uploadcare image editing (Image Optimizer add-on)</td></tr>
+ *   <tr><td>MultiLevelList</td><td>multiLevelList</td><td>Multi-level lists</td></tr>
+ *   <tr><td>PasteFromOfficeEnhanced</td><td>-</td><td>Enhanced paste from Word / Excel / Google Docs</td></tr>
  * </table>
  *
- * <p>{@code TableLayout} is exported by the free {@code ckeditor5} umbrella (license-gated at runtime);
- * use {@link CKEditorPlugin#TABLE_LAYOUT} instead of this enum.</p>
+ * <p>{@code TableLayout}, {@code CKBox} and {@code CKBoxImageEdit} are premium features too (commercial plan and licence
+ * key; CKBox also needs the CKBox add-on), but they are exported by the open-source {@code ckeditor5} package, not by
+ * {@code ckeditor5-premium-features}: use {@link CKEditorPlugin#TABLE_LAYOUT}, {@link CKEditorPlugin#CKBOX} and
+ * {@link CKEditorPlugin#CKBOX_IMAGE_EDIT} (see {@link CKEditorPlugin#isPremiumFeature()}) instead of this enum. The plan each plugin needs is listed in
+ * {@code docs/PREMIUM_INTEGRATION.md}.</p>
  *
  * <h2>License:</h2>
- * <p>Premium features require a commercial license. You can:</p>
+ * <p>Premium features require a commercial licence key. This add-on is a self-hosted (npm) distribution of CKEditor,
+ * and CKEditor's licence guide states that the self-hosted channel "requires contact with our sales team and a custom
+ * plan": commercial keys of the cloud-hosted Free, Essential and Professional plans are rejected in self-hosted builds.
+ * You can:</p>
  * <ul>
  *   <li>Start a 14-day free trial at <a href="https://ckeditor.com/pricing">ckeditor.com/pricing</a></li>
- *   <li>Purchase a subscription (Essential, Professional, or Enterprise plans)</li>
+ *   <li>Get a <b>Custom</b> plan that includes the features you use (see
+ *       <a href="https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html">License
+ *       key and activation</a> and {@code docs/PREMIUM_INTEGRATION.md}, "Licensing for self-hosted (npm) builds")</li>
  * </ul>
  *
  * <h2>Best Practices:</h2>
@@ -220,9 +235,12 @@ public final class VaadinCKEditorPremium {
         MERGE_FIELDS("MergeFields", "insertMergeField"),
 
         /**
-         * Page breaks and pagination support (A4/Letter page layout).
+         * Pagination: shows page boundaries as they will appear in exported PDF / Word documents (toolbar
+         * {@code previousPage}, {@code nextPage}, {@code pageNavigation}). Custom plan only
+         * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/pagination/pagination.html">docs</a>). A different feature from
+         * {@code PageBreak} ({@link CKEditorPlugin#PAGE_BREAK}, toolbar {@code pageBreak}).
          */
-        PAGINATION("Pagination", "pagination"),
+        PAGINATION("Pagination", "previousPage", "nextPage", "pageNavigation"),
 
         /**
          * AI-powered writing assistant (bundled).
@@ -323,11 +341,36 @@ public final class VaadinCKEditorPremium {
         /** 向 AI agent 登记自定义编辑器插件，使其能生成并保留这些插件的内容（v49.1.0+） */
         AI_EDITOR_CONFIG("AIEditorConfig"),
 
-        /** Editing Toolkit：比较两个文档版本并把差异作为建议应用到编辑器（v49.1.0+） */
+        /**
+         * Editing Toolkit 的 Proposed changes（Custom plan 附加服务，v49.1.0+）：文档要求与 {@link #DOCUMENT_COMPARE} 一起加载
+         * （<a href="https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-proposing-changes.html">docs</a>）。
+         */
         PROPOSED_CHANGES("ProposedChanges"),
 
+        /**
+         * Editing Toolkit 的文档比较 API {@code DocumentCompare}（Custom plan 附加服务，v49.1.0+），
+         * {@link #PROPOSED_CHANGES} 需要它（<a href="https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/editing-toolkit-overview.html">docs</a>）。
+         */
+        DOCUMENT_COMPARE("DocumentCompare"),
+
         /** 实时协作内容拉取（v49.1.0+） */
-        REAL_TIME_CONTENT_FETCHER("RealTimeContentFetcher");
+        REAL_TIME_CONTENT_FETCHER("RealTimeContentFetcher"),
+
+        /** 脚注（toolbar {@code insertFootnote}，<a href="https://ckeditor.com/docs/ckeditor5/latest/features/footnotes.html">docs</a>）。 */
+        FOOTNOTES("Footnotes", "insertFootnote"),
+
+        /** 脚注列表样式与起始编号（toolbar {@code footnotesStyle}），与 {@link #FOOTNOTES} 一起使用。 */
+        FOOTNOTES_PROPERTIES("FootnotesProperties", "footnotesStyle"),
+
+        /**
+         * Uploadcare 图片上传与优化（Image Optimizer 付费附加服务，toolbar {@code uploadcare}）；配置 {@code uploadcare.pubkey}，
+         * 依赖 Image、ImageUpload、ImageInsert、PictureEditing（<a href="https://ckeditor.com/docs/ckeditor5/latest/features/file-management/uploadcare.html">docs</a>）。
+         * add-on 自动补上前三个；PictureEditing 由 UploadcareEditing 自身 {@code requires}（ckeditor5-uploadcare 49.1.0），自动加载。
+         */
+        UPLOADCARE("Uploadcare", "uploadcare"),
+
+        /** Uploadcare 图片编辑（toolbar {@code uploadcareImageEdit}，放在 {@code image.toolbar}），需要 {@link #UPLOADCARE}。 */
+        UPLOADCARE_IMAGE_EDIT("UploadcareImageEdit", "uploadcareImageEdit");
 
         private final String pluginName;
         private final String[] toolbarItems;

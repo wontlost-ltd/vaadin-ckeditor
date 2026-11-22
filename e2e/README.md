@@ -22,6 +22,7 @@ in a real browser to catch issues that unit tests miss.
 | `sticky-toolbar.spec.ts` | AppLayout + 铺满 TabSheet（滚动容器在 shadow DOM 中）的 `/sticky-toolbar` 夹具：聚焦后滚动，工具栏贴住滚动容器顶部，滚动事件当帧与稳定后都没有 CKEditor 粘性占位块、工具栏不被设为 `fixed`（#157） |
 | `heading-options.spec.ts` | `/heading` 夹具：同级别两个标题选项（独立 model + view 类名）时编辑器正常初始化，`<h1 class>` / `<h4 class>` 往返不丢类名，从下拉应用变体时内容带上类名（#158 / #159） |
 | `fullscreen-overflow.spec.ts` | `/fullscreen-doc` 夹具（1366×768）：`custom(1200px)` 与 `html` 覆盖 1200px（A4_FIT / FULL_WIDTH）× {无侧栏、minimap、大纲、两者}——页面与侧栏按边界框互不重叠，放不下时全屏区域横向滚动、两侧侧栏滚到可见，minimap 在可横向滚动时仍同步并驱动滚动；放得下的 `custom(60%)` / A4_FIT / FULL_WIDTH 不出现横向滚动（#156） |
+| `collaboration-bridge.spec.ts` | `/collab-bridge` 夹具：真实连接器 + `VaadinCollaborationBridge` 插件 ↔ Java `CollaborationBridge` / 内存 store 的往返——启动加载用户、权限、线程、建议；伪造 `authorId` 被服务端覆盖；编辑他人评论与评论者提建议被拒绝；拆分建议沿用原作者；接受建议；新建与解决线程；重新加载后数据回到编辑器。需要以 `CKEDITOR_PREMIUM_STUB=1` 构建 sample（premium 包替换为同 API 形状的替身，见下文），否则跳过 |
 | `code-block-highlighting.spec.ts` | `/code-highlight` 夹具：代码块着色、纯文本块不着色，输入后新代码着色且服务端 `getValue()` 不含高亮 span，撤销 / 重做，切换代码块语言重新着色，运行期开关与换配色，暗色编辑器下 `AUTO` 用 github-dark；Chromium 上测量 100 / 500 / 1500 行代码块的首次着色、按键与重新着色耗时（与未启用对比） |
 | `word-count.spec.ts` | `/word-count` 夹具（BASIC 预设，自动加载 WordCount；限 5 词 / 40 字符，显示计数，Binder 绑定）：输入时计数显示、`WordCountChangeEvent` 与服务端计数一致；事件每 500 ms 至多一次；超限时字段 `invalid`、错误消息、计数变红、`aria-invalid`，不阻止输入，Binder 校验失败，删回上限内恢复；服务端计数与浏览器中插件对一批内容（列表、标题、引用、软换行、NBSP、CJK、emoji）逐条一致（#70） |
 | `html-support.spec.ts` | `/html-support` 夹具：`HtmlSupport` 规则下 `<section class>`、段落类名与样式、`<details open>` / `<summary>`、仅 YouTube `src` 的 iframe 往返保留，其它 iframe 的 `src`、`on*` 属性与 `<script>` 被默认 disallow 去掉（脚本不执行），STANDARD 预设自动加载 GeneralHtmlSupport；编辑后 `<details>` 随服务端值往返；`setHtmlSupport(true)` 保留类名与 `data-*`，去掉脚本、iframe、事件属性 |
@@ -126,6 +127,20 @@ The sample app jar is started/stopped automatically by Playwright's `webServer`
 configuration (`playwright.config.ts`). To run the server on a non-default
 port, set `E2E_PORT=9090 npm test`; Playwright forwards it to Spring Boot via
 `--server.port`.
+
+## Premium plugin stand-ins (`CKEDITOR_PREMIUM_STUB=1`)
+
+Comments and track changes are CKEditor premium features; without a licence the real plugins lock the editor. To test
+the persistence bridge end to end anyway, build the sample with `CKEDITOR_PREMIUM_STUB=1`: the committed
+[`vite.config.ts`](../examples/spring-boot-sample/vite.config.ts) then aliases `ckeditor5-premium-features` to
+[`src/main/frontend/premium-stub/`](../examples/spring-boot-sample/src/main/frontend/premium-stub/index.ts), stand-ins
+with the 49.x API shape of `Users`, `Permissions`, `CommentsRepository`, `Comments` and `TrackChanges`. CI builds the
+sample this way; specs that need the real premium package (`E2E_PREMIUM=1`) are skipped there anyway.
+
+```bash
+cd examples/spring-boot-sample && CKEDITOR_PREMIUM_STUB=1 mvn -Pproduction -DskipTests package
+cd ../../e2e && CKEDITOR_PREMIUM_STUB=1 npx playwright test collaboration-bridge
+```
 
 ## Visual regression baselines
 

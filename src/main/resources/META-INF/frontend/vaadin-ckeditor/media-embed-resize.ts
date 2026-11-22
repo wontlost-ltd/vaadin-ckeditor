@@ -1,14 +1,13 @@
 /**
  * 嵌入媒体缩放插件的按需加载（issue #71）。
  *
- * MediaEmbedResize 需从 umbrella `ckeditor5` 包按需取用。
- * 实测 48.4.0 与 48.5.0 的 umbrella 产物中均**不含**该符号（`dist/index.d.ts` 与
- * `dist/ckeditor5.js` 两层皆无），因此 `loadMediaEmbedResizePlugin()` 的
- * `?? null` 分支是常态而非异常路径——启用该特性时会静默降级为不可缩放。
- * 但它是**功能性 premium**：其依赖 `MediaEmbedResizeEditing` 的 `isPremiumPlugin === true`，
- * 在 GPL license 下加载会触发 CKEditor 的 license 校验报错。因此不能并入免费 PLUGIN_REGISTRY，
- * 而是把"是否需要加载"的判断抽成纯函数便于单测，并仅在用户显式 setMediaEmbedResizable(true) 时
- * 才从 umbrella 动态 import——既避免无谓打包，又把 premium license 失败隔离为静默跳过。
+ * MediaEmbedResize 由开源 `ckeditor5` umbrella 包导出（49.1.0 的 `@ckeditor/ckeditor5-media-embed` 导出它；
+ * 48.4/48.5 的 umbrella 产物中曾缺少该符号，`?? null` 分支保留作兼容降级）。
+ * CKEditor 文档把它标为 premium feature（licence feature code `MER`）：内核对 `'GPL'` key 跳过插件 license 检查，
+ * 所以它在 GPL 下可运行；商业 key 的 plan 不含它时会被拦截，商业使用需要 CKEditor 标明的 plan
+ * （https://ckeditor.com/docs/ckeditor5/latest/features/media-embed/media-embed-resize.html）。
+ * "是否需要加载"的判断抽成纯函数便于单测，仅在用户显式 setMediaEmbedResizable(true) 时才从 umbrella
+ * 动态 import，避免无谓打包；加载失败时静默跳过。
  * 从 umbrella（而非子包）import 也消除了"静态 umbrella + 动态子包"双入口可能解析到不同类实例的风险。
  */
 

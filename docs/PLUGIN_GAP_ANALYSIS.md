@@ -1,5 +1,12 @@
 # CKEditor 插件差集分析报告（ckeditor5 48.2.0）
 
+> **已被取代（2026-11-22，ckeditor5 49.1.0）**：本报告中关于 license 的判断有误，以
+> [Premium Integration Guide](PREMIUM_INTEGRATION.md#licensing-for-self-hosted-npm-builds) 为准。
+> CKEditor 内核（`@ckeditor/ckeditor5-core` 的 `checkPluginsAllowedByLicenseKey`）对 `'GPL'` key 直接返回、不做插件
+> license 检查；拦截依据是插件的 `licenseFeatureCode`，且只针对商业 key。因此 `MediaEmbedResize`、`TableLayout` 等
+> 在 GPL 下**不会**报 license 错误；CKEditor 文档把它们标为 premium feature，商业使用需要 CKEditor 标明的 plan。
+> `isPremiumPlugin` 只用于用量统计。下文 §2.1 等处的"GPL 下会报错"说法保留仅作历史记录。
+
 > **版本说明（2026-09-24 更新）**：本库依赖已升级至 **48.5.2**。本报告的全部结论与
 > 核验数据均基于分析当时的 48.2.0，为保持证据链可追溯，正文中的版本号一律保留不改。
 > 升级到 48.4.0、48.5.0、48.5.2 后均已用 `tsc --noEmit` 复核：`plugin-resolver.ts` 导入的
@@ -54,8 +61,7 @@
 ### 2.1 "功能性 premium" 概念
 
 部分插件的 **glue 类**本身 `isPremiumPlugin === false`（看起来免费），但其 `requires` 依赖链上的
-`*Editing` 子插件 `isPremiumPlugin === true`。CKEditor 的 license 校验按依赖链整体判定：在 GPL license 下
-加载这类插件会触发 license 报错。`MediaEmbedResize`、`TableLayout` 即属此类——**umbrella 可 import，但功能需商业 license**。
+`*Editing` 子插件 `isPremiumPlugin === true`。（**更正**：此句原称"GPL 下加载会触发 license 报错"，不对——内核对 GPL 跳过插件检查，见文首说明。）`MediaEmbedResize`、`TableLayout` 即属此类——**umbrella 可 import，CKEditor 文档标为 premium feature**。
 
 ### 2.2 `MediaEmbedResize` 真相
 
@@ -64,7 +70,8 @@
 
 - `ckeditor5@48.2.0/dist/index.d.ts` 与 `dist/ckeditor5.js` 通过 `export * from '@ckeditor/ckeditor5-media-embed'`
   把整个子包（含 `MediaEmbedResize`/`MediaEmbedStyle`）透传到 umbrella，`import { MediaEmbedResize } from 'ckeditor5'` 可解析。
-- 但它是功能性 premium（`MediaEmbedResizeEditing.isPremiumPlugin === true`），不是免费 GPL。
+- CKEditor 文档把它标为 premium feature（licence feature code `MER`）；内核对 `'GPL'` key 跳过插件检查，GPL 下可运行
+  （此处原写"不是免费 GPL"，已按文首说明更正）。
 
 **结论**：保留"按需隔离加载 + 失败静默"的设计（正确，避免无 license 用户崩溃），但
 （a）订正注释，（b）import 源由子包改为 umbrella `ckeditor5`，消除"静态 umbrella + 动态子包"双入口可能解析到
@@ -97,7 +104,7 @@ Workflow confirmedGaps 列出 60 个"umbrella 有、本库 registry 无"的导�
 | Essentials 成员 | `Enter`、`ShiftEnter`、`Delete`、`Input`、`Typing` | `Essentials`（registry 已有）自动加载二者 |
 | ContextPlugin / 工具类 | `PendingActions`、`ClipboardPipeline`、`ClipboardMarkersUtils`、`*Utils` | 多被其他插件依赖自动加载，单独登记价值低 |
 | Legacy 废弃类 | `LegacyList`、`LegacyListProperties`、`LegacyTodoList` | 废弃，不应暴露 |
-| 功能性 premium | `CKBox`、`CKBoxImageEdit` 系列 | 类在 umbrella，但功能需商业 license + 另装 `ckbox` 包；走 premium/custom 通道，不进免费 registry |
+| 功能性 premium | `CKBox`、`CKBoxImageEdit` 系列 | 类在 umbrella，但属 premium feature（商业 plan + CKBox 附加服务 + license key，另装 `ckbox` 包）；6.2.0 起以 `CKEditorPlugin.CKBOX` 登记（`isPremiumFeature()`） |
 
 > 设计原则：免费 registry 只登记**用户需显式选择的 glue plugin**，不登记会被自动加载的子组件
 > （"消灭特殊情况"，避免 registry 膨胀）。
@@ -131,8 +138,8 @@ Workflow confirmedGaps 列出 60 个"umbrella 有、本库 registry 无"的导�
 
 `CKBox` / `CKBoxImageEdit` 是"类在 umbrella `ckeditor5`、但功能 premium 且运行时另需 `ckbox` 服务包"的特性。
 它们**不**从 `ckeditor5-premium-features` 导出，所以 `fromPremium` 对其**无效**。正确用法：
-`CustomPlugin.of("CKBox", ...)`（从 umbrella `ckeditor5` 取）+ 用户自行 `npm i ckbox` + 商业 license。
-此为文档澄清问题，非代码差集。
+6.2.0 起：`CKEditorPlugin.CKBOX` / `CKBOX_IMAGE_EDIT`（`isPremiumFeature()` 为 true）+ 商业 plan 与 CKBox 附加服务的
+license key + `ckbox.tokenUrl`；npm 自托管还需 `npm i ckbox`。
 
 ---
 

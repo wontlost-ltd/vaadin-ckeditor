@@ -285,7 +285,7 @@ class CollaborationFeaturesTest {
         expected.put(PremiumPlugin.REAL_TIME_COLLABORATIVE_REVISION_HISTORY,
             new ExpectedPlugin("RealTimeCollaborativeRevisionHistory", new String[0]));
         expected.put(PremiumPlugin.PRESENCE_LIST, new ExpectedPlugin("PresenceList", new String[0]));
-        expected.put(PremiumPlugin.PAGINATION, new ExpectedPlugin("Pagination", new String[]{"pagination"}));
+        expected.put(PremiumPlugin.PAGINATION, new ExpectedPlugin("Pagination", new String[]{"previousPage", "nextPage", "pageNavigation"}));
         expected.put(PremiumPlugin.DOCUMENT_OUTLINE, new ExpectedPlugin("DocumentOutline", new String[0]));
         return expected;
     }

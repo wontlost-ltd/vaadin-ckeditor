@@ -100,6 +100,8 @@ public class VaadinCKEditorBuilder {
      * Toolbar separator
      */
     private static final String TOOLBAR_SEPARATOR = "|";
+    private static final java.util.logging.Logger LOGGER =
+        java.util.logging.Logger.getLogger(VaadinCKEditorBuilder.class.getName());
 
     private final VaadinCKEditor editor;
     private boolean built = false;
@@ -488,6 +490,19 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * Persist comments and track-changes suggestions through a server-side store (no CKEditor Cloud).
+     *
+     * @param bridge the bridge
+     * @return this builder for chaining
+     * @see VaadinCKEditor#setCollaborationBridge(com.wontlost.ckeditor.collaboration.CollaborationBridge)
+     * @since 6.2.0
+     */
+    public VaadinCKEditorBuilder withCollaborationBridge(com.wontlost.ckeditor.collaboration.CollaborationBridge bridge) {
+        editor.setCollaborationBridge(bridge);
+        return this;
+    }
+
+    /**
      * Enable or disable syntax highlighting of code blocks while editing.
      *
      * @param enabled true to highlight code blocks
@@ -736,6 +751,8 @@ public class VaadinCKEditorBuilder {
             editor.setAllowConfigRequiredPlugins(true);
         }
 
+        logPremiumFeaturesOnce(premiumFeaturesUnderGpl(finalPlugins, editor.getLicenseKeyInternal()));
+
         // Initialize
         editor.initialize();
 
@@ -745,6 +762,36 @@ public class VaadinCKEditorBuilder {
         }
 
         return editor;
+    }
+
+    /** 已记录过的插件集合（每种组合只记录一次，避免每次建编辑器都输出）。 */
+    private static final Set<Set<CKEditorPlugin>> LOGGED_PREMIUM_FEATURE_SETS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * 在 GPL（或空）license key 下使用的 premium feature 插件（{@link CKEditorPlugin#isPremiumFeature()}）。
+     */
+    static Set<CKEditorPlugin> premiumFeaturesUnderGpl(Set<CKEditorPlugin> plugins, String licenseKey) {
+        boolean gpl = licenseKey == null || licenseKey.isBlank() || "GPL".equalsIgnoreCase(licenseKey.trim());
+        Set<CKEditorPlugin> result = EnumSet.noneOf(CKEditorPlugin.class);
+        if (gpl) {
+            for (CKEditorPlugin plugin : plugins) {
+                if (plugin.isPremiumFeature()) {
+                    result.add(plugin);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** 信息日志（非警告）：陈述两点事实并给出文档链接，不下法律结论。 */
+    static void logPremiumFeaturesOnce(Set<CKEditorPlugin> plugins) {
+        if (plugins.isEmpty() || !LOGGED_PREMIUM_FEATURE_SETS.add(Set.copyOf(plugins))) {
+            return;
+        }
+        LOGGER.info(() -> "Plugins " + plugins + " run under the 'GPL' licence key (CKEditor's core skips plugin licence "
+            + "checks for it); CKEditor's documentation marks them as premium features, and commercial use needs the plan "
+            + "CKEditor states. See https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-key-and-activation.html "
+            + "and docs/PREMIUM_INTEGRATION.md of vaadin-ckeditor.");
     }
 
     /**
