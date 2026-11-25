@@ -223,6 +223,11 @@ class HtmlSupportTest {
             .hasMessageContaining("character class intersection");
         // \s 在 JS 中还匹配 Unicode 空白（NBSP 等），Java 默认只匹配 ASCII 空白：按浏览器语义接受（见类文档），不拒绝
         HtmlSupport.Rule.element(Pattern.compile("^a\\s+b$"));
+        // \b 与 \w 在 Java 19+ 与 JS 中都只认 ASCII 单词字符：非 ASCII 字母两边行为一致，接受
+        Pattern boundary = Pattern.compile("a\\bé");
+        assertThat(boundary.matcher("aé").find()).isTrue();
+        assertThat(Pattern.compile("\\bé").matcher("é").find()).isFalse();
+        HtmlSupport.Rule.element(boundary);
         // 两边含义相同的写法照常通过
         for (String common : new String[] {
                 "^(?:h[1-6]|p)$", "^[a-z+.-]+$", "\\d{2,4}", "(?<year>\\d{4})-\\k<year>", "(?<=a)b", "(?<!a)b", "a&&b",

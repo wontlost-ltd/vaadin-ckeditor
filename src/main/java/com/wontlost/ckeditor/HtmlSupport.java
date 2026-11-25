@@ -47,7 +47,9 @@ import static com.wontlost.ckeditor.JsonUtil.createObjectNode;
  * {@code \v}, {@code \R}, {@code \A}, {@code \Z}, {@code \z}, {@code \G} and similar escapes. The browser's
  * semantics apply to everything else: notably {@code \s} also matches Unicode whitespace (such as the non-breaking
  * space) in JavaScript but only ASCII whitespace in Java without {@code UNICODE_CHARACTER_CLASS}. It is accepted
- * because {@code [\s\S]} and {@code \s+} are common and the wider match is what a browser-side rule usually wants. Supported
+ * because {@code [\s\S]} and {@code \s+} are common and the wider match is what a browser-side rule usually wants.
+ * {@code \w}, {@code \d} and {@code \b} are ASCII-only in both (Java's {@code \b} follows {@code \w} since JDK 19,
+ * and the add-on needs Java 21). Supported
  * flags: {@link Pattern#CASE_INSENSITIVE} ({@code i}), {@link Pattern#MULTILINE} ({@code m}),
  * {@link Pattern#DOTALL} ({@code s}).</p>
  */
