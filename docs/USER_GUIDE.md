@@ -435,7 +435,9 @@ config.setHtmlSupport(HtmlSupport.create()
   JavaScript reads differently, throw `IllegalArgumentException` when the rule is built: character-class
   intersections (`[a-z&&[^e]]`, two literal `&` in JavaScript) and nested classes, `\p{...}` / `\P{...}`,
   `\h`, `\v`, `\R`, `\X`, `\A`, `\Z`, `\z`, `\G`, `\Q...\E`, `\x{...}`, octal `\0`, atomic groups `(?>...)`,
-  inline flags `(?i)`, possessive quantifiers, and `]` as the first character of a class.
+  inline flags `(?i)`, possessive quantifiers, and `]` as the first character of a class. Everything else
+  follows the browser's semantics: `\s`, for example, also matches Unicode whitespace such as the
+  non-breaking space in JavaScript, while Java's default `\s` matches ASCII whitespace only.
 - The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
   `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`).
 - **Full page HTML.** `fullPageAllowRenderStylesFromHead(true)` is read by CKEditor's

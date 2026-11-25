@@ -221,6 +221,8 @@ class HtmlSupportTest {
         }
         assertThatThrownBy(() -> HtmlSupport.Rule.element("p").classes(Pattern.compile("^[a-z&&[^x]]+$")))
             .hasMessageContaining("character class intersection");
+        // \s 在 JS 中还匹配 Unicode 空白（NBSP 等），Java 默认只匹配 ASCII 空白：按浏览器语义接受（见类文档），不拒绝
+        HtmlSupport.Rule.element(Pattern.compile("^a\\s+b$"));
         // 两边含义相同的写法照常通过
         for (String common : new String[] {
                 "^(?:h[1-6]|p)$", "^[a-z+.-]+$", "\\d{2,4}", "(?<year>\\d{4})-\\k<year>", "(?<=a)b", "(?<!a)b", "a&&b",

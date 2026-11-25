@@ -44,7 +44,10 @@ import static com.wontlost.ckeditor.JsonUtil.createObjectNode;
  * evaluated by the browser. Java-only constructs, or ones JavaScript reads differently, are rejected with an
  * {@link IllegalArgumentException}: {@code \Q...\E}, possessive quantifiers, atomic groups, inline flags,
  * character-class intersections ({@code [a-z&&[^e]]}) and nested classes, {@code \p{...}}, {@code \h},
- * {@code \v}, {@code \R}, {@code \A}, {@code \Z}, {@code \z}, {@code \G} and similar escapes. Supported
+ * {@code \v}, {@code \R}, {@code \A}, {@code \Z}, {@code \z}, {@code \G} and similar escapes. The browser's
+ * semantics apply to everything else: notably {@code \s} also matches Unicode whitespace (such as the non-breaking
+ * space) in JavaScript but only ASCII whitespace in Java without {@code UNICODE_CHARACTER_CLASS}. It is accepted
+ * because {@code [\s\S]} and {@code \s+} are common and the wider match is what a browser-side rule usually wants. Supported
  * flags: {@link Pattern#CASE_INSENSITIVE} ({@code i}), {@link Pattern#MULTILINE} ({@code m}),
  * {@link Pattern#DOTALL} ({@code s}).</p>
  */
