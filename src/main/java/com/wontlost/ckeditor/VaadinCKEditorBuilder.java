@@ -716,6 +716,17 @@ public class VaadinCKEditorBuilder {
         if (config != null && config.hasHtmlSupportOptions() && dependencyMode != DependencyMode.MANUAL) {
             initialPlugins.add(CKEditorPlugin.GENERAL_HTML_SUPPORT);
         }
+        // htmlSupport.fullPage.* 只由 FullPage 插件读取
+        if (config != null && config.hasFullPageOptions() && dependencyMode != DependencyMode.MANUAL) {
+            initialPlugins.add(CKEditorPlugin.FULL_PAGE);
+        }
+        addPremiumPluginDependencies();
+        if (CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(customPlugins)) {
+            LOGGER.warning("AIAssistant needs a text adapter plugin: add "
+                + "VaadinCKEditorPremium.PremiumPlugin.OPENAI_TEXT_ADAPTER (config ai.assistant.adapter.openAI.*) or your "
+                + "own AITextAdapter subclass as a custom plugin. See "
+                + "https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html");
+        }
 
         // Process plugins based on dependency mode
         Set<CKEditorPlugin> finalPlugins = processPluginDependencies(initialPlugins);
@@ -795,6 +806,19 @@ public class VaadinCKEditorBuilder {
     }
 
     /**
+     * 自动解析模式下补上 premium 插件需要的其它 premium 插件（如 ProposedChanges → DocumentCompare）；
+     * STRICT 只校验（见 {@link #validateDependenciesStrict}），MANUAL 不动用户的选择。
+     */
+    private void addPremiumPluginDependencies() {
+        if (dependencyMode != DependencyMode.AUTO_RESOLVE && dependencyMode != DependencyMode.AUTO_RESOLVE_WITH_RECOMMENDED) {
+            return;
+        }
+        CKEditorPluginDependencies.validatePremiumPluginDependencies(customPlugins).values().stream()
+            .flatMap(Set::stream)
+            .forEach(name -> customPlugins.add(CustomPlugin.fromPremium(name)));
+    }
+
+    /**
      * Process plugin dependencies based on the configured mode.
      * This method handles both standard CKEditorPlugin dependencies and
      * premium plugin dependencies (e.g., ExportPdf requires CloudServices).
@@ -850,8 +874,10 @@ public class VaadinCKEditorBuilder {
         // Validate premium plugin dependencies
         Map<String, Set<CKEditorPlugin>> premiumMissing =
             CKEditorPluginDependencies.validatePremiumDependencies(plugins, customPlugins);
+        Map<String, Set<String>> premiumPluginsMissing =
+            CKEditorPluginDependencies.validatePremiumPluginDependencies(customPlugins);
 
-        if (!missing.isEmpty() || !premiumMissing.isEmpty()) {
+        if (!missing.isEmpty() || !premiumMissing.isEmpty() || !premiumPluginsMissing.isEmpty()) {
             StringBuilder message = new StringBuilder("Missing plugin dependencies:\n");
 
             // Standard plugin dependencies
@@ -875,6 +901,8 @@ public class VaadinCKEditorBuilder {
                 message.setLength(message.length() - 2); // Remove trailing ", "
                 message.append("\n");
             }
+            premiumPluginsMissing.forEach((name, deps) -> message.append("  - [Premium] ").append(name)
+                .append(" requires premium plugins: ").append(String.join(", ", deps)).append("\n"));
 
             throw new IllegalStateException(message.toString());
         }

@@ -7,7 +7,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 
 ## Features
 
-- **70+ Plugins** - The plugins of the open-source `ckeditor5` npm package; CKEditor marks some of them as premium features (see [Premium features exported by the `ckeditor5` package](docs/PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package))
+- **70+ Plugins** - The plugins of the open-source `ckeditor5` npm package. All of them run under the default `GPL` licence key, but CKEditor marks 18 of them as premium features (a commercial licence key needs a plan that includes them), and CKBox and CKFinder need paid services (see [Premium features exported by the `ckeditor5` package](docs/PREMIUM_INTEGRATION.md#premium-features-exported-by-the-ckeditor5-package))
 - **Premium Plugin Support** - Easy integration with `ckeditor5-premium-features`
 - **Multiple Editor Types** - Classic, Inline, Balloon, and Decoupled editors
 - **Theme Integration** - Auto-sync with Vaadin's Lumo theme (light/dark)

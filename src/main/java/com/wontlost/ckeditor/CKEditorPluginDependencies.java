@@ -12,6 +12,12 @@ import java.util.stream.Collectors;
  * ensuring that when a plugin is added, all its required dependencies are also included.
  * Dependencies are gathered from the official CKEditor 5 documentation.</p>
  *
+ * <p>An entry is either part of the plugin's real {@code requires} chain in the {@code ckeditor5} /
+ * {@code ckeditor5-premium-features} 49.1.0 packages, or a plugin that CKEditor's documentation loads together
+ * with it (e.g. {@code ImageToolbar} with {@code Image}). {@code plugin-dependencies.test.ts} checks every entry
+ * against the installed packages; entries that change the editor's data output only when not really needed
+ * (General HTML Support) are never forced, only recommended.</p>
+ *
  * <p>Usage example:</p>
  * <pre>
  * Set&lt;CKEditorPlugin&gt; plugins = new HashSet&lt;&gt;();
@@ -65,6 +71,18 @@ public final class CKEditorPluginDependencies {
      */
     private static final Set<String> CLOUD_SERVICES_REQUIRED_PLUGINS;
 
+    /**
+     * premium 插件 → 它需要的其它 premium 插件（名称）。与 {@link #PREMIUM_DEPENDENCIES}（premium → 内置插件）分开，
+     * 因为后者的值是 {@link CKEditorPlugin}。
+     */
+    private static final Map<String, Set<String>> PREMIUM_PLUGIN_DEPENDENCIES;
+
+    /**
+     * AI Assistant（legacy）可用的内置文本适配器。它至少需要一个适配器插件；也可以是应用自己的 {@code AITextAdapter}
+     * 子类（自定义插件），所以无法强制或自动补上，只能提示。
+     */
+    static final Set<String> AI_ASSISTANT_ADAPTERS = Set.of("OpenAITextAdapter", "AWSTextAdapter");
+
     static {
         // Initialize dependency map
         Map<CKEditorPlugin, Set<CKEditorPlugin>> deps = new EnumMap<>(CKEditorPlugin.class);
@@ -111,18 +129,10 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.SPECIAL_CHARACTERS_ESSENTIALS, Set.of(CKEditorPlugin.SPECIAL_CHARACTERS));
 
         // ==================== HTML Support Dependencies ====================
-        // Style plugin requires GeneralHtmlSupport to apply CSS classes
+        // Style 的 StyleEditing 在 requires 中声明了 GeneralHtmlSupport（ckeditor5 49.1.0）
         deps.put(CKEditorPlugin.STYLE, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
-        // HtmlComment requires GeneralHtmlSupport
-        deps.put(CKEditorPlugin.HTML_COMMENT, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
-
-        // ==================== Media Dependencies ====================
-        // HtmlEmbed works better with GeneralHtmlSupport
-        deps.put(CKEditorPlugin.HTML_EMBED, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
-
-        // ==================== Source Editing Dependencies ====================
-        // SourceEditing works best with GeneralHtmlSupport to preserve HTML
-        deps.put(CKEditorPlugin.SOURCE_EDITING, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
+        // HtmlComment、HtmlEmbed、SourceEditing 都不 requires GeneralHtmlSupport（分别为无、Widget、PendingActions）。
+        // 强制加载 GHS 会改变 getData() 的输出（保留原本会被丢弃的元素与属性），所以只列为推荐项（见 RECOMMENDED）。
 
         // ==================== Upload Adapter Dependencies ====================
         // Upload adapters are typically used with Image plugins
@@ -134,12 +144,10 @@ public final class CKEditorPluginDependencies {
         // as a soft dependency. These are handled in PREMIUM_DEPENDENCIES map below.
         // Minimap requires DecoupledEditor (handled at editor type level)
 
-        // ==================== Block Toolbar Dependencies ====================
-        // BlockToolbar requires WidgetToolbarRepository for block-level widget interaction
-        deps.put(CKEditorPlugin.BLOCK_TOOLBAR, Set.of(CKEditorPlugin.WIDGET, CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY));
-
-        // ==================== Restricted Editing Dependencies ====================
-        deps.put(CKEditorPlugin.STANDARD_EDITING_MODE, Set.of(CKEditorPlugin.RESTRICTED_EDITING_MODE));
+        // BlockToolbar、Minimap 的 requires 为空，文档的安装示例也只加载它们自身：不在此表。
+        // StandardEditingMode 与 RestrictedEditingMode 是两种互斥的编辑模式（文档分别单独安装），不能互为依赖：
+        // 前端只保留互斥组中的第一个，曾因此把用户选的 StandardEditingMode 丢掉
+        // （https://ckeditor.com/docs/ckeditor5/latest/features/restricted-editing.html）。
 
         // ==================== Cloud Services Dependencies ====================
         // CloudServicesUploadAdapter requires CloudServices
@@ -155,13 +163,8 @@ public final class CKEditorPluginDependencies {
         deps.put(CKEditorPlugin.CKBOX, Set.of(CKEditorPlugin.CLOUD_SERVICES, CKEditorPlugin.IMAGE_UPLOAD));
         deps.put(CKEditorPlugin.CKBOX_IMAGE_EDIT, Set.of(CKEditorPlugin.CKBOX));
 
-        // ==================== Minimap Dependencies ====================
-        // Minimap requires Widget
-        deps.put(CKEditorPlugin.MINIMAP, Set.of(CKEditorPlugin.WIDGET));
-
-        // ==================== Emoji Dependencies ====================
-        // EmojiPicker requires Emoji
-        deps.put(CKEditorPlugin.EMOJI_PICKER, Set.of(CKEditorPlugin.EMOJI));
+        // EmojiPicker 不依赖 Emoji（反过来 Emoji requires EmojiPicker 与 EmojiMention）：文档允许只加载其中一个子插件
+        // （https://ckeditor.com/docs/ckeditor5/latest/features/emoji.html）。
 
         // ==================== Special Characters Dependencies ====================
         // All special character categories require SpecialCharacters
@@ -214,6 +217,9 @@ public final class CKEditorPluginDependencies {
             CKEditorPlugin.GENERAL_HTML_SUPPORT,
             CKEditorPlugin.HTML_EMBED
         ));
+        // GHS 让 HTML 注释 / 嵌入块周围的其它 HTML 也得以保留；它会改变输出，所以只推荐、不强制
+        rec.put(CKEditorPlugin.HTML_COMMENT, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
+        rec.put(CKEditorPlugin.HTML_EMBED, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
 
         // Style feature recommendations
         rec.put(CKEditorPlugin.STYLE, Set.of(CKEditorPlugin.GENERAL_HTML_SUPPORT));
@@ -221,10 +227,7 @@ public final class CKEditorPluginDependencies {
         // Indent works better with IndentBlock for paragraphs
         rec.put(CKEditorPlugin.INDENT, Set.of(CKEditorPlugin.INDENT_BLOCK));
 
-        // Cloud services recommendations
-        rec.put(CKEditorPlugin.CLOUD_SERVICES, Set.of(
-            CKEditorPlugin.CLOUD_SERVICES_UPLOAD_ADAPTER
-        ));
+        // CloudServices 不再推荐 CloudServicesUploadAdapter：它是已弃用的 Easy Image 上传通道，会接管图片上传
 
         // Emoji recommendations
         rec.put(CKEditorPlugin.EMOJI, Set.of(CKEditorPlugin.EMOJI_PICKER));
@@ -250,19 +253,24 @@ public final class CKEditorPluginDependencies {
         premDeps.put("ExportWord", cloudServicesDeps);
         premDeps.put("ImportWord", cloudServicesDeps);
 
-        // AI Assistant requires CloudServices for AI features
-        premDeps.put("AIAssistant", cloudServicesDeps);
+        // AI Assistant（legacy）不需要 CloudServices，而需要一个文本适配器插件（OpenAITextAdapter 或自定义的
+        // AITextAdapter 子类）；适配器有多种选择，无法自动补上，见 AI_ASSISTANT_ADAPTERS
+        // （https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html）。
+        premDeps.put("AIAssistant", Set.of());
 
-        // 模块化 AI 插件（v47.5.0+）— 需要 CloudServices
+        // CKEditor AI（v47.5.0+）：AIChat、AIQuickActions、AIReviewMode、AITranslate 的 requires 链上有 CloudServices
         premDeps.put("AIChat", cloudServicesDeps);
-        premDeps.put("AIEditorIntegration", cloudServicesDeps);
         premDeps.put("AIQuickActions", cloudServicesDeps);
         premDeps.put("AIReviewMode", cloudServicesDeps);
         premDeps.put("AITranslate", cloudServicesDeps);
-        // CKEditor 49.1 新增：AI Chat 气泡、AI 自定义插件登记、Editing Toolkit 的 ProposedChanges
-        premDeps.put("AIChatBalloon", cloudServicesDeps);
-        premDeps.put("AIEditorConfig", cloudServicesDeps);
-        premDeps.put("ProposedChanges", cloudServicesDeps);
+        // 以下三个的 requires 链上没有 CloudServices（它们与 AIChat 一起使用时由 AIChat 带上）
+        premDeps.put("AIEditorIntegration", Set.of());
+        premDeps.put("AIChatBalloon", Set.of());
+        premDeps.put("AIEditorConfig", Set.of());
+        // Editing Toolkit（Custom plan 附加服务）：ProposedChanges 需要 DocumentCompare（premium 插件，见
+        // PREMIUM_PLUGIN_DEPENDENCIES），不需要 CloudServices
+        premDeps.put("ProposedChanges", Set.of());
+        premDeps.put("DocumentCompare", Set.of());
 
         // Pagination — 独立插件，无外部依赖
         premDeps.put("Pagination", Set.of());
@@ -303,12 +311,24 @@ public final class CKEditorPluginDependencies {
         premDeps.put("Uploadcare", Set.of(CKEditorPlugin.IMAGE, CKEditorPlugin.IMAGE_UPLOAD, CKEditorPlugin.IMAGE_INSERT));
         premDeps.put("UploadcareImageEdit", Set.of(CKEditorPlugin.IMAGE, CKEditorPlugin.IMAGE_TOOLBAR));
 
+        // MergeFields 在底层使用 Mention（文档：“uses the mentions feature under the hood”）；SlashCommand 的 requires
+        // 含 Mention（CKEditor 会自动加载，这里列出以便插件集合与文档一致）
+        premDeps.put("MergeFields", Set.of(CKEditorPlugin.MENTION));
+        premDeps.put("SlashCommand", Set.of(CKEditorPlugin.MENTION));
+
         // Email 相关 premium 插件
         premDeps.put("EmailConfigurationHelper", Set.of());
         premDeps.put("SourceEditingEnhanced", Set.of());
         premDeps.put("ExportInlineStyles", Set.of());
 
         PREMIUM_DEPENDENCIES = Collections.unmodifiableMap(premDeps);
+
+        // premium 插件之间的依赖（都经 ckeditor5-premium-features 加载）
+        PREMIUM_PLUGIN_DEPENDENCIES = Map.of(
+            // https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-proposing-changes.html：
+            // “add the DocumentCompare and ProposedChanges plugins to your plugin list”
+            "ProposedChanges", Set.of("DocumentCompare")
+        );
 
         // Derive CLOUD_SERVICES_REQUIRED_PLUGINS from PREMIUM_DEPENDENCIES:
         // any premium plugin whose dependencies include CLOUD_SERVICES
@@ -649,6 +669,58 @@ public final class CKEditorPluginDependencies {
      */
     public static Set<CKEditorPlugin> getPremiumDependencies(String premiumPluginName) {
         return PREMIUM_DEPENDENCIES.getOrDefault(premiumPluginName, Collections.emptySet());
+    }
+
+    /**
+     * Premium plugins (loaded from {@code ckeditor5-premium-features}) that a premium plugin needs, e.g.
+     * {@code ProposedChanges} needs {@code DocumentCompare}. The builder adds them in the auto-resolve modes.
+     *
+     * @param premiumPluginName the JavaScript name of the premium plugin
+     * @return names of the premium plugins it needs (never null, may be empty)
+     * @since 6.2.0
+     */
+    public static Set<String> getPremiumPluginDependencies(String premiumPluginName) {
+        return PREMIUM_PLUGIN_DEPENDENCIES.getOrDefault(premiumPluginName, Collections.emptySet());
+    }
+
+    /**
+     * Premium plugins needed by the given custom plugins but not among them.
+     *
+     * @param customPlugins the custom / premium plugins of an editor
+     * @return premium plugin name → missing premium plugin names (empty if none is missing)
+     * @since 6.2.0
+     */
+    public static Map<String, Set<String>> validatePremiumPluginDependencies(Collection<CustomPlugin> customPlugins) {
+        Map<String, Set<String>> missing = new LinkedHashMap<>();
+        if (customPlugins == null) {
+            return missing;
+        }
+        Set<String> present = customPlugins.stream().map(CustomPlugin::getJsName).collect(Collectors.toSet());
+        for (String name : present) {
+            Set<String> absent = new TreeSet<>(getPremiumPluginDependencies(name));
+            absent.removeAll(present);
+            if (!absent.isEmpty()) {
+                missing.put(name, absent);
+            }
+        }
+        return missing;
+    }
+
+    /**
+     * Whether {@code AIAssistant} is used without one of CKEditor's text adapter plugins
+     * ({@code OpenAITextAdapter}, {@code AWSTextAdapter}). The assistant needs an adapter; it may also be an
+     * application's own {@code AITextAdapter} subclass, so this is a hint, not an error.
+     *
+     * @param customPlugins the custom / premium plugins of an editor
+     * @return true if AIAssistant is present and no built-in adapter is
+     * @since 6.2.0
+     */
+    public static boolean isAiAssistantWithoutBuiltInAdapter(Collection<CustomPlugin> customPlugins) {
+        if (customPlugins == null) {
+            return false;
+        }
+        Set<String> names = customPlugins.stream().map(CustomPlugin::getJsName).collect(Collectors.toSet());
+        return names.contains("AIAssistant") && names.stream().noneMatch(AI_ASSISTANT_ADAPTERS::contains);
     }
 
     /**

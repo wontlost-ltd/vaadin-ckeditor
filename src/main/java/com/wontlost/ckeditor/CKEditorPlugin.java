@@ -35,7 +35,7 @@ public enum CKEditorPlugin {
     /** Clipboard support */
     CLIPBOARD("Clipboard", Category.CORE),
 
-    /** Input handling */
+    /** Input handling. {@code Essentials} already loads it; listing it explicitly is harmless. */
     TYPING("Typing", Category.CORE),
 
     /** Select all content */
@@ -95,10 +95,9 @@ public enum CKEditorPlugin {
     /** Block quotes */
     BLOCK_QUOTE("BlockQuote", Category.PARAGRAPH, "blockQuote"),
 
-    // 注意：LineHeight 在 ckeditor5 48.x 属 premium，仅由 ckeditor5-premium-features 导出
-    // （其类 isPremiumPlugin=true），umbrella ckeditor5 包不导出。请改用
-    // CustomPlugin.fromPremium("LineHeight") 并配置商业 license key。
-    // 此处不再作为免费内置插件登记。
+    // 注意：LineHeight 在 ckeditor5 49.1.0 仍属 premium（Essential+），仅由 ckeditor5-premium-features 导出，
+    // umbrella ckeditor5 包不导出。请改用 VaadinCKEditorPremium.PremiumPlugin.LINE_HEIGHT
+    // （即 CustomPlugin.fromPremium("LineHeight")）。此处不作为内置插件登记。
 
     // ==================== Lists ====================
 
@@ -290,7 +289,12 @@ public enum CKEditorPlugin {
     /** Word/character count */
     WORD_COUNT("WordCount", Category.DOCUMENT),
 
-    /** Document title placeholder */
+    /**
+     * Document title: the first block of the content becomes a title ({@code <h1>}) separate from the body
+     * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/title.html">docs</a>). Needs no configuration
+     * (placeholders are optional). Before 6.2.0 the connector dropped it as "requires configuration", so it never
+     * loaded; it now loads when listed.
+     */
     TITLE("Title", Category.DOCUMENT),
 
     /** Paste from Office */
@@ -306,6 +310,18 @@ public enum CKEditorPlugin {
 
     /** Style attribute support - applies CSS classes to elements */
     STYLE("Style", Category.HTML, "style"),
+
+    /**
+     * <b>Premium feature</b> (licence feature code {@code FPH}): <a href="https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html">Full
+     * page HTML</a> keeps {@code <html>}, {@code <head>} ({@code <title>}, {@code <meta>}, {@code <style>}) and
+     * {@code <body>} of the content, so {@link VaadinCKEditor#getValue()} returns a whole HTML document. Exported by
+     * the open-source {@code ckeditor5} package; it runs under the {@code GPL} key, and a commercial key needs a plan
+     * that includes it (see {@link #isPremiumFeature()}). Options: {@link HtmlSupport#fullPageAllowRenderStylesFromHead(boolean)};
+     * setting it loads this plugin automatically (except in {@code DependencyMode.MANUAL}).
+     *
+     * @since 6.2.0
+     */
+    FULL_PAGE("FullPage", Category.HTML),
 
     // ==================== Restricted Editing ====================
 
@@ -380,12 +396,24 @@ public enum CKEditorPlugin {
     /** Cloud Services core */
     CLOUD_SERVICES_CORE("CloudServicesCore", Category.UPLOAD),
 
-    /** Cloud Services upload adapter */
+    /**
+     * Cloud Services upload adapter (Easy Image).
+     *
+     * @deprecated Easy Image is a legacy service: ckeditor5 49.1.0 still exports the plugin, but it is absent from
+     *     CKEditor's feature documentation and pricing, which point to CKBox instead ({@link #CKBOX}).
+     */
+    @Deprecated(since = "6.2.0")
     CLOUD_SERVICES_UPLOAD_ADAPTER("CloudServicesUploadAdapter", Category.UPLOAD),
 
     // ==================== Easy Image ====================
 
-    /** Cloud-based image upload (requires CloudServices) */
+    /**
+     * Cloud-based image upload (requires CloudServices).
+     *
+     * @deprecated Easy Image is a legacy service: ckeditor5 49.1.0 still exports the plugin, but it is absent from
+     *     CKEditor's feature documentation and pricing, which point to CKBox instead ({@link #CKBOX}).
+     */
+    @Deprecated(since = "6.2.0")
     EASY_IMAGE("EasyImage", Category.IMAGE),
 
     // ==================== Minimap ====================
@@ -500,7 +528,7 @@ public enum CKEditorPlugin {
     private static final Set<CKEditorPlugin> PREMIUM_FEATURES = Collections.unmodifiableSet(EnumSet.of(
         BOOKMARK, FIND_AND_REPLACE, HTML_EMBED, IMAGE_RESIZE, LIST_PROPERTIES, PAGE_BREAK, PASTE_FROM_OFFICE,
         REMOVE_FORMAT, RESTRICTED_EDITING_MODE, SPECIAL_CHARACTERS, TABLE_PROPERTIES, TABLE_CELL_PROPERTIES,
-        TABLE_COLUMN_RESIZE, TABLE_LAYOUT, BASE64_UPLOAD_ADAPTER, SIMPLE_UPLOAD_ADAPTER, WORD_COUNT,
+        TABLE_COLUMN_RESIZE, TABLE_LAYOUT, BASE64_UPLOAD_ADAPTER, SIMPLE_UPLOAD_ADAPTER, WORD_COUNT, FULL_PAGE,
         CKBOX, CKBOX_IMAGE_EDIT, CKFINDER));
 
     /**

@@ -98,6 +98,8 @@ import {
     Autosave,
     WordCount,
     Title,
+    // Core typing (Essentials 已加载，显式列出也无妨)
+    Typing,
     PasteFromOffice,
     Markdown,
     PasteFromMarkdownExperimental,
@@ -105,6 +107,7 @@ import {
     GeneralHtmlSupport,
     HtmlComment,
     Style,
+    FullPage,
     // Restricted editing
     RestrictedEditingMode,
     StandardEditingMode,
@@ -295,6 +298,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'Autosave': Autosave,
     'WordCount': WordCount,
     'Title': Title,
+    'Typing': Typing,
     'PasteFromOffice': PasteFromOffice,
     'Markdown': Markdown,
     'PasteFromMarkdownExperimental': PasteFromMarkdownExperimental,
@@ -302,6 +306,8 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
     'GeneralHtmlSupport': GeneralHtmlSupport,
     'HtmlComment': HtmlComment,
     'Style': Style,
+    // premium feature（licence feature code FPH，GPL 下可运行），由开源 ckeditor5 包导出
+    'FullPage': FullPage,
     // Restricted editing
     'RestrictedEditingMode': RestrictedEditingMode,
     'StandardEditingMode': StandardEditingMode,
@@ -339,7 +345,7 @@ export const PLUGIN_REGISTRY: Record<string, PluginConstructor> = {
  * Mutually exclusive plugin groups - only one plugin from each group can be enabled.
  * These plugins conflict with each other and will cause CKEditor errors if both are loaded.
  */
-const MUTUALLY_EXCLUSIVE_PLUGINS: readonly string[][] = [
+export const MUTUALLY_EXCLUSIVE_PLUGINS: readonly (readonly string[])[] = [
     ['RestrictedEditingMode', 'StandardEditingMode'],
 ];
 
@@ -347,9 +353,8 @@ const MUTUALLY_EXCLUSIVE_PLUGINS: readonly string[][] = [
  * Plugins that require special configuration and should be excluded from "select all".
  * These plugins will cause errors if loaded without proper configuration.
  */
-const PLUGINS_REQUIRING_CONFIG: readonly string[] = [
+export const PLUGINS_REQUIRING_CONFIG: readonly string[] = [
     'Minimap',
-    'Title',
     'CloudServices',
     'CloudServicesCore',
     'CloudServicesUploadAdapter',
@@ -362,16 +367,7 @@ const PLUGINS_REQUIRING_CONFIG: readonly string[] = [
     'CKBoxImageEdit',
 ];
 
-/**
- * Plugins that are not available in the standard CKEditor 5 build.
- * These are either internal plugins or require separate packages.
- */
-const UNAVAILABLE_PLUGINS: readonly string[] = [
-    'Typing',
-];
-
 // Pre-computed lookup sets for O(1) access
-const UNAVAILABLE_PLUGINS_SET = new Set(UNAVAILABLE_PLUGINS);
 const PLUGINS_REQUIRING_CONFIG_SET = new Set(PLUGINS_REQUIRING_CONFIG);
 
 // Map each plugin to its exclusive group for O(1) conflict detection
@@ -516,7 +512,7 @@ export interface FilterOptions {
      * ⚠️ Note the inverted sense of this flag (kept for backward compatibility):
      * `strictPluginLoading = true` actually means "load everything verbatim, do NOT
      * filter". When true, conflicting plugins, plugins requiring special configuration,
-     * and unavailable plugins are all left in the list, which may cause runtime errors
+     * are left in the list, which may cause runtime errors
      * if not properly configured. The default (`false`) applies the safety filtering.
      *
      * In short: `false` = filtered/safe (default), `true` = unfiltered/raw.
@@ -544,7 +540,7 @@ export interface FilterOptions {
 }
 
 /**
- * Filter out conflicting plugins, unavailable plugins, and plugins requiring special configuration.
+ * Filter out conflicting plugins and plugins requiring special configuration.
  * When multiple plugins from a mutually exclusive group are present, only the first one is kept.
  *
  * Time complexity: O(n) where n is the number of plugins.
@@ -575,13 +571,6 @@ export function filterConflictingPlugins(
     const firstPluginInGroup = new Map<readonly string[], string>();
 
     for (const name of pluginNames) {
-        // O(1) check for unavailable plugins (always filter these)
-        if (UNAVAILABLE_PLUGINS_SET.has(name)) {
-            removed.push(name);
-            logger.debug(`Plugin '${name}' is not available in standard CKEditor 5 build - skipping`);
-            continue;
-        }
-
         // O(1) check for plugins requiring configuration (can be bypassed)
         if (!allowConfigRequiredPlugins && !configuredSet.has(name) && PLUGINS_REQUIRING_CONFIG_SET.has(name)) {
             removed.push(name);
@@ -638,6 +627,42 @@ function filterMutuallyExclusiveOnly(pluginNames: string[], logger: Logger): Fil
 }
 
 /**
+ * 按名称取 `ckeditor5` 包的导出（`CustomPlugin.fromCKEditor5(name)`），不是类时返回 undefined。
+ *
+ * 字面量 `import('ckeditor5')` 由 Vite 静态解析；连接器已静态导入该包，所以它不会拆出单独的 chunk，
+ * 但以变量名取导出会让 Rollup 保留整个包（不能再按导出 tree-shake）。生产构建的体积影响见 USER_GUIDE「Custom Plugins」。
+ */
+export async function loadCKEditor5Export(name: string): Promise<unknown> {
+    return classExport(await import('ckeditor5') as Record<string, unknown>, name);
+}
+
+/** 对象自身的属性（不取原型链上的 toString、constructor 等）。 */
+function ownExport(source: Record<string, unknown>, name: string): unknown {
+    return Object.prototype.hasOwnProperty.call(source, name) ? source[name] : undefined;
+}
+
+/** 模块中名为 name 的类导出；不是函数（如 `version` 字符串）时返回 undefined。 */
+function classExport(module: Record<string, unknown>, name: string): unknown {
+    const exported = ownExport(module, name);
+    return typeof exported === 'function' ? exported : undefined;
+}
+
+/**
+ * importPath 为 `ckeditor5` 或 `ckeditor5-premium-features` 的插件：从已打包的模块取导出。
+ * 不是这两个包时返回 null（交给通用的动态导入），是但找不到该导出时返回 undefined。
+ */
+async function loadBundledPackageExport(pluginConfig: PluginConfig): Promise<unknown> {
+    if (pluginConfig.importPath === 'ckeditor5') {
+        return loadCKEditor5Export(pluginConfig.name);
+    }
+    if (pluginConfig.importPath !== 'ckeditor5-premium-features') {
+        return null;
+    }
+    await import('ckeditor5-premium-features/ckeditor5-premium-features.css');
+    return classExport(await import('ckeditor5-premium-features') as Record<string, unknown>, pluginConfig.name);
+}
+
+/**
  * Plugin Resolver class for managing CKEditor plugin resolution.
  */
 export class PluginResolver {
@@ -681,7 +706,7 @@ export class PluginResolver {
             effectiveOptions
         );
         if (removed.length > 0) {
-            this.logger.debug(`Removed ${removed.length} conflicting/unavailable plugins:`, removed);
+            this.logger.debug(`Removed ${removed.length} conflicting/config-required plugins:`, removed);
         }
 
         // Separate plugins by type (use Set for O(1) lookup)
@@ -696,16 +721,17 @@ export class PluginResolver {
             p => filteredSet.has(p.name) && p.importPath
         );
 
-        // Load standard plugins from registry; names that are not CKEditor plugins fall back to the
+        // Load standard plugins from registry; names that are not in it fall back to the
         // global registry (registerCKEditorPlugin), then to a lazy loader (registerCKEditorPluginLoader),
         // so a registered plugin can be referenced from Java without an import path
-        // (CustomPlugin.fromRegistry). Built-in names keep precedence.
+        // (CustomPlugin.fromRegistry), and finally to any export of the ckeditor5 package with that name
+        // (CustomPlugin.fromCKEditor5). Built-in names keep precedence.
         const globalRegistry = getGlobalPluginRegistry();
         for (const pluginConfig of standardPluginsToLoad) {
             let plugin: unknown;
             try {
-                plugin = PLUGIN_REGISTRY[pluginConfig.name] ?? globalRegistry[pluginConfig.name]
-                    ?? await this.loadViaLoader(pluginConfig);
+                plugin = ownExport(PLUGIN_REGISTRY, pluginConfig.name) ?? ownExport(globalRegistry, pluginConfig.name)
+                    ?? await this.loadViaLoader(pluginConfig) ?? await loadCKEditor5Export(pluginConfig.name);
             } catch (error) {
                 const errorMsg = `Failed to load plugin ${pluginConfig.name} via loader`;
                 this.logger.error(errorMsg + ':', error);
@@ -717,7 +743,7 @@ export class PluginResolver {
             } else {
                 // review: 缺失的 standard plugin 此前只 warn，不进 loadErrors，
                 // 与 premium/custom 失败的报告方式不一致。统一记入 loadErrors。
-                const errorMsg = `Plugin not found in registry: ${pluginConfig.name}`;
+                const errorMsg = `Plugin not found in registry or the ckeditor5 package: ${pluginConfig.name}`;
                 this.logger.warn(errorMsg);
                 this.loadErrors.push(errorMsg);
             }
@@ -774,8 +800,9 @@ export class PluginResolver {
         try {
             // First, check the global registry
             const globalRegistry = getGlobalPluginRegistry();
-            if (globalRegistry[pluginConfig.name]) {
-                resolvedPlugins.push(globalRegistry[pluginConfig.name]);
+            const registered = ownExport(globalRegistry, pluginConfig.name);
+            if (registered) {
+                resolvedPlugins.push(registered);
                 this.logger.debug(`Loaded custom plugin from global registry: ${pluginConfig.name}`);
                 return;
             }
@@ -784,6 +811,20 @@ export class PluginResolver {
             const loaded = await this.loadViaLoader(pluginConfig);
             if (loaded) {
                 resolvedPlugins.push(loaded);
+                return;
+            }
+
+            // 包名是 ckeditor5 / ckeditor5-premium-features 时从已打包的模块取导出：下面的 @vite-ignore 动态导入
+            // 在生产构建中无法解析裸模块名（浏览器报 "Failed to resolve module specifier"）
+            const bundled = await loadBundledPackageExport(pluginConfig);
+            if (bundled !== null) {
+                if (bundled) {
+                    resolvedPlugins.push(bundled);
+                } else {
+                    const errorMsg = `Plugin ${pluginConfig.name} is not exported by ${pluginConfig.importPath}`;
+                    this.logger.warn(errorMsg);
+                    this.loadErrors.push(errorMsg);
+                }
                 return;
             }
 
@@ -810,7 +851,7 @@ export class PluginResolver {
      * 或以插件名导出的模块。未登记加载器时返回 undefined；加载失败的异常交给调用方记录。
      */
     private async loadViaLoader(pluginConfig: PluginConfig): Promise<unknown> {
-        const loader = getPluginLoaders()[pluginConfig.name];
+        const loader = ownExport(getPluginLoaders(), pluginConfig.name) as CKEditorPluginLoader | undefined;
         if (!loader) {
             return undefined;
         }

@@ -2,6 +2,8 @@ package com.wontlost.ckeditor;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -274,11 +276,64 @@ class CKEditorPluginDependenciesTest {
         assertThat(resolved).hasSize(2);
     }
 
-    @Test
-    @DisplayName("SourceEditing should depend on GeneralHtmlSupport")
-    void sourceEditingShouldDependOnGeneralHtmlSupport() {
-        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.SOURCE_EDITING))
+    // W13：SourceEditing / HtmlComment / HtmlEmbed 的 requires 都不含 GeneralHtmlSupport；强制加载 GHS 会改变数据输出
+    @ParameterizedTest
+    @EnumSource(value = CKEditorPlugin.class, names = {"SOURCE_EDITING", "HTML_COMMENT", "HTML_EMBED"})
+    @DisplayName("SourceEditing, HtmlComment and HtmlEmbed recommend GeneralHtmlSupport but do not force it")
+    void htmlPluginsDoNotForceGeneralHtmlSupport(CKEditorPlugin plugin) {
+        assertThat(CKEditorPluginDependencies.getDependencies(plugin)).doesNotContain(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        assertThat(CKEditorPluginDependencies.resolve(EnumSet.of(plugin))).doesNotContain(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        assertThat(CKEditorPluginDependencies.getRecommended(plugin)).contains(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+        assertThat(CKEditorPluginDependencies.resolveWithRecommended(EnumSet.of(plugin)))
             .contains(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+    }
+
+    @Test
+    @DisplayName("Style still depends on GeneralHtmlSupport (StyleEditing requires it)")
+    void styleDependsOnGeneralHtmlSupport() {
+        assertThat(CKEditorPluginDependencies.resolve(EnumSet.of(CKEditorPlugin.STYLE)))
+            .contains(CKEditorPlugin.GENERAL_HTML_SUPPORT);
+    }
+
+    // StandardEditingMode 与 RestrictedEditingMode 互斥；前端只保留互斥组的第一个，曾把用户选的 StandardEditingMode 丢掉
+    @Test
+    @DisplayName("StandardEditingMode does not pull in the mutually exclusive RestrictedEditingMode")
+    void standardEditingModeIsStandalone() {
+        assertThat(CKEditorPluginDependencies.resolve(EnumSet.of(CKEditorPlugin.STANDARD_EDITING_MODE)))
+            .contains(CKEditorPlugin.STANDARD_EDITING_MODE)
+            .doesNotContain(CKEditorPlugin.RESTRICTED_EDITING_MODE);
+    }
+
+    @Test
+    @DisplayName("EmojiPicker, Minimap and BlockToolbar have no forced dependencies (empty requires, docs load them alone)")
+    void standalonePlugins() {
+        assertThat(CKEditorPluginDependencies.resolve(EnumSet.of(CKEditorPlugin.EMOJI_PICKER))).doesNotContain(CKEditorPlugin.EMOJI);
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.MINIMAP)).isEmpty();
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.BLOCK_TOOLBAR)).isEmpty();
+        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.FULL_PAGE)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("premium: AIAssistant needs an adapter, not CloudServices; ProposedChanges needs DocumentCompare; MergeFields needs Mention")
+    void premiumDependencyCorrections() {
+        assertThat(CKEditorPluginDependencies.getPremiumDependencies("AIAssistant")).isEmpty();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIAssistant")).isFalse();
+        assertThat(CKEditorPluginDependencies.requiresCloudServices("ProposedChanges")).isFalse();
+        assertThat(CKEditorPluginDependencies.getPremiumPluginDependencies("ProposedChanges")).containsExactly("DocumentCompare");
+        assertThat(CKEditorPluginDependencies.getPremiumDependencies("MergeFields")).containsExactly(CKEditorPlugin.MENTION);
+        assertThat(CKEditorPluginDependencies.getPremiumDependencies("SlashCommand")).containsExactly(CKEditorPlugin.MENTION);
+
+        assertThat(CKEditorPluginDependencies.validatePremiumPluginDependencies(List.of(CustomPlugin.fromPremium("ProposedChanges"))))
+            .containsExactly(Map.entry("ProposedChanges", Set.of("DocumentCompare")));
+        assertThat(CKEditorPluginDependencies.validatePremiumPluginDependencies(
+            List.of(CustomPlugin.fromPremium("ProposedChanges"), CustomPlugin.fromPremium("DocumentCompare")))).isEmpty();
+
+        assertThat(CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(List.of(CustomPlugin.fromPremium("AIAssistant"))))
+            .isTrue();
+        assertThat(CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(List.of(
+            CustomPlugin.fromPremium("AIAssistant"), CustomPlugin.fromPremium("OpenAITextAdapter")))).isFalse();
+        assertThat(CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(List.of(CustomPlugin.fromPremium("AIChat"))))
+            .isFalse();
     }
 
     @Test
@@ -377,10 +432,8 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportPdf")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ExportWord")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("ImportWord")).isTrue();
-        // AI plugins also require CloudServices
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIAssistant")).isTrue();
+        // CKEditor AI plugins whose requires chain includes CloudServices
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChat")).isTrue();
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorIntegration")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIQuickActions")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AIReviewMode")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("AITranslate")).isTrue();
@@ -388,10 +441,10 @@ class CKEditorPluginDependenciesTest {
         assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaboration")).isFalse();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeCollaborativeEditing")).isTrue();
         assertThat(CKEditorPluginDependencies.requiresCloudServices("RealTimeContentFetcher")).isTrue();
-        // CKEditor 49.1 新增的 AI premium 插件
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIChatBalloon")).isTrue();
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("AIEditorConfig")).isTrue();
-        assertThat(CKEditorPluginDependencies.requiresCloudServices("ProposedChanges")).isTrue();
+        // 这些插件的 requires 链上没有 CloudServices（ckeditor5-premium-features 49.1.0，见 plugin-dependencies.test.ts）
+        for (String name : List.of("AIAssistant", "AIEditorIntegration", "AIChatBalloon", "AIEditorConfig", "ProposedChanges")) {
+            assertThat(CKEditorPluginDependencies.requiresCloudServices(name)).as(name).isFalse();
+        }
     }
 
     @Test
@@ -469,13 +522,6 @@ class CKEditorPluginDependenciesTest {
         assertThat(missing).isEmpty();
     }
 
-    @Test
-    @DisplayName("BlockToolbar should depend on Widget and WidgetToolbarRepository")
-    void blockToolbarShouldDependOnWidgetAndWidgetToolbarRepository() {
-        assertThat(CKEditorPluginDependencies.getDependencies(CKEditorPlugin.BLOCK_TOOLBAR))
-            .contains(CKEditorPlugin.WIDGET, CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY);
-    }
-
     // ==================== review: cycle fail-fast + collaboration soft-dep ====================
 
     @Test
@@ -483,14 +529,14 @@ class CKEditorPluginDependenciesTest {
     void topologicalSortIsCompleteForRealGraph() {
         // 真实静态依赖图无环，排序应返回全部输入插件，顺序中依赖先于被依赖者
         Set<CKEditorPlugin> input = EnumSet.of(
-            CKEditorPlugin.BLOCK_TOOLBAR, CKEditorPlugin.WIDGET,
-            CKEditorPlugin.WIDGET_TOOLBAR_REPOSITORY, CKEditorPlugin.ESSENTIALS);
+            CKEditorPlugin.TABLE_LAYOUT, CKEditorPlugin.TABLE,
+            CKEditorPlugin.TABLE_COLUMN_RESIZE, CKEditorPlugin.ESSENTIALS);
         List<CKEditorPlugin> sorted = CKEditorPluginDependencies.topologicalSort(input);
 
         assertThat(sorted).containsExactlyInAnyOrderElementsOf(input);
         // 依赖必须排在被依赖者之前
-        assertThat(sorted.indexOf(CKEditorPlugin.WIDGET))
-            .isLessThan(sorted.indexOf(CKEditorPlugin.BLOCK_TOOLBAR));
+        assertThat(sorted.indexOf(CKEditorPlugin.TABLE_COLUMN_RESIZE))
+            .isLessThan(sorted.indexOf(CKEditorPlugin.TABLE_LAYOUT));
     }
 
     @Test

@@ -40,8 +40,11 @@ import static com.wontlost.ckeditor.JsonUtil.createObjectNode;
  * attributes on every element. CKEditor has no full XSS filter: anything allowed here ends up in
  * {@code getValue()}. Always sanitize on the server as well; see the User Guide.</p>
  *
- * <p>Regular expressions are Java {@link Pattern}s using the syntax common to Java and JavaScript (no
- * {@code \Q...\E}, possessive quantifiers or inline flags); they are evaluated by the browser. Supported
+ * <p>Regular expressions are Java {@link Pattern}s using the syntax common to Java and JavaScript; they are
+ * evaluated by the browser. Java-only constructs, or ones JavaScript reads differently, are rejected with an
+ * {@link IllegalArgumentException}: {@code \Q...\E}, possessive quantifiers, atomic groups, inline flags,
+ * character-class intersections ({@code [a-z&&[^e]]}) and nested classes, {@code \p{...}}, {@code \h},
+ * {@code \v}, {@code \R}, {@code \A}, {@code \Z}, {@code \z}, {@code \G} and similar escapes. Supported
  * flags: {@link Pattern#CASE_INSENSITIVE} ({@code i}), {@link Pattern#MULTILINE} ({@code m}),
  * {@link Pattern#DOTALL} ({@code s}).</p>
  */
@@ -196,14 +199,14 @@ public final class HtmlSupport implements Serializable {
     /**
      * {@code htmlSupport.fullPage.allowRenderStylesFromHead}, read by CKEditor's
      * <a href="https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html">{@code FullPage}</a>
-     * plugin (a plan-gated feature; the {@code GPL} key works).
+     * plugin ({@link CKEditorPlugin#FULL_PAGE}, a plan-gated feature; the {@code GPL} key works): {@code true} moves
+     * the {@code <style>} elements of the content's {@code <head>} into the page and renders them.
      *
-     * <p><b>Not supported yet:</b> the add-on cannot load {@code FullPage} today. It is not a
-     * {@link CKEditorPlugin} and is missing from the connector's plugin registry, and
-     * {@code CustomPlugin.fromCKEditor5("FullPage")} only resolves names that are already in that registry,
-     * so this option has no effect until a follow-up adds the plugin. It is kept so configurations are ready
-     * for that. <b>Security risk:</b> CKEditor recommends a {@code sanitizeCss} callback, which cannot be
-     * passed from Java; styles from {@code <head>} would be rendered unsanitized.</p>
+     * <p>Setting this option makes the builder load {@link CKEditorPlugin#FULL_PAGE} (except in
+     * {@code DependencyMode.MANUAL}), so {@code getValue()} returns the whole document, {@code <html>} and
+     * {@code <head>} included. <b>Security risk:</b> the styles come from the content. CKEditor recommends a
+     * {@code sanitizeCss} callback, which cannot be passed from Java; with {@code true}, styles from
+     * {@code <head>} are rendered unsanitized, so use it only for trusted content.</p>
      *
      * @param allow whether styles from {@code <head>} are rendered in the editor
      * @return this
@@ -253,17 +256,76 @@ public final class HtmlSupport implements Serializable {
     }
 
     /**
-     * Java 专有、JavaScript RegExp 不支持或含义不同的写法：引用块 \\Q..\\E、\\A / \\Z / \\z 锚点、
-     * 内联标志 (?i)、占有量词 *+ ++ ?+ }+。在服务端尽早拒绝，而不是等到浏览器创建编辑器时报错。
+     * 字符类之外、在 Java 与 JavaScript 中含义不同或 JavaScript 不支持的转义（反斜杠后的字符）：
+     * \\Q..\\E 引用块，\\A \\Z \\z \\G 锚点，\\R \\X \\h \\H \\V（Java 的类，JS 中是字面字母），
+     * \\v（Java 是竖直空白类，JS 只是 \\x0B），\\e \\a，\\p{..} \\P{..}（JS 不带 u 标志时是字面量），
+     * \\N{..}、\\0 八进制、\\x{..}、\\b{..}。
      */
-    private static final Pattern JAVA_ONLY_SYNTAX =
-        Pattern.compile("\\\\[QEAZz]|\\(\\?[a-zA-Z-]+[):]|[*+?}]\\+");
+    private static final String JAVA_ONLY_ESCAPES = "QEAZzGRXhHVveapPN0";
+
+    /**
+     * 拒绝 Java 专有、JavaScript RegExp 不支持或含义不同的写法，在服务端尽早报错，而不是让浏览器按另一种含义匹配：
+     * 上面的转义；字符类里的交集 {@code &&} 与嵌套 / 并集 {@code [a[b]]}（JS 中 {@code [} 在类里是字面量，
+     * {@code &&} 是两个 {@code &}）；字符类开头的 {@code ]}；原子组 {@code (?>..)}；内联标志 {@code (?i)}；占有量词 {@code *+ ++ ?+ }+}。
+     */
+    static void requireBrowserCompatible(String source) {
+        // 当前字符类内容的起始下标（"[" 或 "[^" 之后）；-1 表示不在字符类中
+        int classContent = -1;
+        for (int i = 0; i < source.length(); i++) {
+            char c = source.charAt(i);
+            String problem;
+            if (c == '\\') {
+                problem = escapeProblem(source, ++i);
+            } else if (classContent >= 0) {
+                problem = classProblem(source, i, classContent);
+                classContent = c == ']' ? -1 : classContent;
+            } else {
+                problem = groupOrQuantifierProblem(source, i);
+                classContent = c == '[' ? (source.startsWith("^", i + 1) ? i + 2 : i + 1) : -1;
+            }
+            if (problem != null) {
+                throw new IllegalArgumentException("Pattern uses " + problem + ", which browsers do not support or "
+                    + "read differently (JavaScript RegExp): " + source);
+            }
+        }
+    }
+
+    private static String escapeProblem(String source, int i) {
+        if (i >= source.length()) {
+            return null;
+        }
+        char e = source.charAt(i);
+        if (JAVA_ONLY_ESCAPES.indexOf(e) >= 0) {
+            return "the Java-only escape \\" + e;
+        }
+        return (e == 'x' || e == 'b') && source.startsWith("{", i + 1) ? "the Java-only escape \\" + e + "{...}" : null;
+    }
+
+    private static String classProblem(String source, int i, int classContent) {
+        if (source.startsWith("&&", i)) {
+            return "a character class intersection (&&)";
+        }
+        if (source.charAt(i) == '[') {
+            return "a nested character class / class union ([a[b]])";
+        }
+        // JS 中 [] 是空类、[^] 匹配任意字符；Java 则把开头的 ] 当字面量或报错
+        return source.charAt(i) == ']' && i == classContent ? "']' as the first character of a class" : null;
+    }
+
+    private static String groupOrQuantifierProblem(String source, int i) {
+        if (source.startsWith("(?>", i)) {
+            return "an atomic group (?>...)";
+        }
+        if (source.startsWith("(?", i) && i + 2 < source.length() && Character.isLetter(source.charAt(i + 2))
+                || source.startsWith("(?-", i)) {
+            return "inline flags (?flags)";
+        }
+        boolean quantifier = "*+?}".indexOf(source.charAt(i)) >= 0;
+        return quantifier && source.startsWith("+", i + 1) ? "a possessive quantifier" : null;
+    }
 
     static ObjectNode regexp(Pattern pattern) {
-        if (JAVA_ONLY_SYNTAX.matcher(pattern.pattern()).find()) {
-            throw new IllegalArgumentException("Pattern uses Java-only syntax that browsers do not support: "
-                + pattern.pattern());
-        }
+        requireBrowserCompatible(pattern.pattern());
         ObjectNode node = createObjectNode();
         node.put(REGEXP_KEY, pattern.pattern());
         node.put(FLAGS_KEY, jsFlags(pattern.flags()));

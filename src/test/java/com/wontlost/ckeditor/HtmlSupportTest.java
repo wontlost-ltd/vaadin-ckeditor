@@ -182,6 +182,53 @@ class HtmlSupportTest {
         assertThat(manual.getPluginsInternal()).doesNotContain(CKEditorPlugin.GENERAL_HTML_SUPPORT);
     }
 
+    // #169 文档写明 fullPageAllowRenderStylesFromHead 无效（FullPage 无法加载）；现在设置它会加载 FullPage
+    @Test
+    @DisplayName("fullPageAllowRenderStylesFromHead loads the FullPage plugin (except in MANUAL mode)")
+    void builderAddsFullPagePlugin() {
+        CKEditorConfig config = new CKEditorConfig().setHtmlSupport(HtmlSupport.create().fullPageAllowRenderStylesFromHead(true));
+        VaadinCKEditor editor = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC).withConfig(config).build();
+        assertThat(editor.getPluginsInternal()).contains(CKEditorPlugin.FULL_PAGE);
+        assertThat(config.toJson().at("/htmlSupport/fullPage/allowRenderStylesFromHead").asBoolean()).isTrue();
+
+        VaadinCKEditor rulesOnly = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .withConfig(new CKEditorConfig().setHtmlSupport(true)).build();
+        assertThat(rulesOnly.getPluginsInternal()).doesNotContain(CKEditorPlugin.FULL_PAGE);
+
+        VaadinCKEditor manual = VaadinCKEditor.create()
+            .withPlugins(CKEditorPlugin.ESSENTIALS, CKEditorPlugin.PARAGRAPH)
+            .withDependencyMode(VaadinCKEditorBuilder.DependencyMode.MANUAL)
+            .withConfig(config).build();
+        assertThat(manual.getPluginsInternal()).doesNotContain(CKEditorPlugin.FULL_PAGE);
+
+        // 也可以直接列出插件，不设置该选项
+        VaadinCKEditor explicit = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .withPlugins(CKEditorPlugin.FULL_PAGE).build();
+        assertThat(explicit.getPluginsInternal()).contains(CKEditorPlugin.FULL_PAGE);
+        assertThat(CKEditorPlugin.fromJsName("FullPage")).isEqualTo(CKEditorPlugin.FULL_PAGE);
+    }
+
+    // Codex（#169 review）：Java 字符类交集 [a&&b] 等写法在 JS 中含义不同，曾被原样传给浏览器
+    @Test
+    @DisplayName("Java-only regex constructs are rejected: class intersection, nested classes, \\p{..}, \\h, \\v, atomic groups ...")
+    void javaOnlyRegexConstructsAreRejected() {
+        for (String javaOnly : new String[] {
+                "[a-z&&[^e]]", "[\\w&&\\D]", "[a[bc]]", "\\p{Lu}+", "\\P{L}", "[\\p{L}]", "\\h", "\\v", "\\R", "\\X",
+                "\\Gabc", "\\e", "\\a", "\\x{41}", "\\0101", "(?>ab)", "(?-i)x", "(?s:x)", "[]a]", "[^]a]", "\\N{LATIN SMALL LETTER A}"}) {
+            assertThatThrownBy(() -> HtmlSupport.Rule.element(Pattern.compile(javaOnly)))
+                .as(javaOnly).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("browsers do not support or read differently");
+        }
+        assertThatThrownBy(() -> HtmlSupport.Rule.element("p").classes(Pattern.compile("^[a-z&&[^x]]+$")))
+            .hasMessageContaining("character class intersection");
+        // 两边含义相同的写法照常通过
+        for (String common : new String[] {
+                "^(?:h[1-6]|p)$", "^[a-z+.-]+$", "\\d{2,4}", "(?<year>\\d{4})-\\k<year>", "(?<=a)b", "(?<!a)b", "a&&b",
+                "[&]", "\\[a&&b\\]", "[\\[]", "\\bword\\b", "\\x41\\u0041", "a{2}?", "\\++", "[\\]]"}) {
+            HtmlSupport.Rule.element(Pattern.compile(common));
+        }
+    }
+
     @Test
     @DisplayName("the server-side HtmlSanitizer is independent: it still strips what GHS allows unless its safelist allows it")
     void sanitizerIsIndependent() {

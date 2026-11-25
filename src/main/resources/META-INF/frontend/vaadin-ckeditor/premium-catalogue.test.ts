@@ -44,8 +44,8 @@ describe('premium 插件清单', () => {
             if (hasCode(ctor)) expected.add(constant);
         }
         expect([...flagged].sort()).toEqual([...expected].sort());
-        // 17 个带 licenseFeatureCode 的枚举插件 + CKBox、CKBoxImageEdit、CKFinder
-        expect(flagged.size).toBe(20);
+        // 18 个带 licenseFeatureCode 的枚举插件（含 6.2.0 新增的 FULL_PAGE）+ CKBox、CKBoxImageEdit、CKFinder
+        expect(flagged.size).toBe(21);
         for (const constant of flagged) {
             const jsName = constants.get(constant)!;
             expect(PLUGIN_REGISTRY[jsName], jsName).toBe((umbrella as unknown as Record<string, unknown>)[jsName]);

@@ -51,7 +51,7 @@ editor.setHtmlSanitizer(HtmlSanitizer.withPolicy(SanitizationPolicy.STRICT));
 1. **富文本内容** —— 见上文。默认不净化。
 2. **文件上传** —— 组件支持图片上传适配器。上传目标、大小限制与类型校验由
    使用方配置；组件不代替你做访问控制，也不校验文件内容是否与其声称的类型相符。
-3. **CKEditor 5 自身与其插件** —— 70+ 免费插件与可选的 premium 插件都在浏览器中
+3. **CKEditor 5 自身与其插件** —— 开源 `ckeditor5` 包的 70+ 插件与可选的 premium 插件都在浏览器中
    执行。其漏洞会传递给使用本组件的应用。我们通过 Dependabot 跟踪 `ckeditor5`
    的版本。
 4. **`ckeditor5` 与 `ckeditor5-premium-features` 必须同版本** —— 版本错配曾导致

@@ -1588,6 +1588,7 @@ public class VaadinCKEditor extends CustomField<String> implements HasAriaLabel,
     void clearPlugins() { plugins.clear(); }
     void addPluginsInternal(Collection<CKEditorPlugin> p) { plugins.addAll(p); }
     void addCustomPluginsInternal(Collection<CustomPlugin> p) { customPlugins.addAll(p); }
+    Set<CustomPlugin> getCustomPluginsInternal() { return new LinkedHashSet<>(customPlugins); }
     boolean hasPlugins() { return !plugins.isEmpty(); }
     Set<CKEditorPlugin> getPluginsInternal() { return new LinkedHashSet<>(plugins); }
 
