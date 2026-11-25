@@ -44,23 +44,24 @@ describe('filterConflictingPlugins', () => {
             expect(result.removed).toEqual([]);
         });
 
-        it('should remove unavailable plugins', () => {
+        // W14：ckeditor5 49.1.0 导出 Typing（CKEditorPlugin.TYPING），此前被当作“不可用”丢掉
+        it('keeps Typing, which ckeditor5 exports', () => {
             const plugins = ['Bold', 'Typing', 'Italic'];
             const result = filterConflictingPlugins(plugins, logger);
 
-            expect(result.filtered).toEqual(['Bold', 'Italic']);
-            expect(result.removed).toEqual(['Typing']);
-            expect(logger.debug).toHaveBeenCalled();
+            expect(result.filtered).toEqual(['Bold', 'Typing', 'Italic']);
+            expect(result.removed).toEqual([]);
+            expect(PLUGIN_REGISTRY['Typing']).toBeTypeOf('function');
         });
 
-        it('should remove plugins requiring configuration', () => {
+        // W15：Title 只 requires Paragraph，不需要配置
+        it('should remove plugins requiring configuration, but not Title', () => {
             const plugins = ['Bold', 'Minimap', 'Title', 'Italic'];
             const result = filterConflictingPlugins(plugins, logger);
 
-            expect(result.filtered).toEqual(['Bold', 'Italic']);
-            expect(result.removed).toContain('Minimap');
-            expect(result.removed).toContain('Title');
-            expect(logger.warn).toHaveBeenCalledTimes(2);
+            expect(result.filtered).toEqual(['Bold', 'Title', 'Italic']);
+            expect(result.removed).toEqual(['Minimap']);
+            expect(logger.warn).toHaveBeenCalledTimes(1);
         });
 
         it('should remove CKFinder by default (requires uploadUrl/server config)', () => {
@@ -104,8 +105,7 @@ describe('filterConflictingPlugins', () => {
             const options: FilterOptions = { strictPluginLoading: true };
             const result = filterConflictingPlugins(plugins, logger, options);
 
-            // Should include Minimap and Title (config-required)
-            // Should include Typing (unavailable) - strict mode doesn't filter these
+            // Should include Minimap (config-required) - strict mode doesn't filter it
             expect(result.filtered).toContain('Minimap');
             expect(result.filtered).toContain('Title');
             expect(result.filtered).toContain('Typing');
@@ -126,19 +126,12 @@ describe('filterConflictingPlugins', () => {
 
     describe('configuredPlugins option（issue #137）', () => {
         it('只放行列出的插件，其余需配置的插件仍被剔除', () => {
-            const plugins = ['Bold', 'Minimap', 'Title'];
+            const plugins = ['Bold', 'Minimap', 'CKFinder'];
             const result = filterConflictingPlugins(plugins, logger, { configuredPlugins: ['Minimap'] });
 
             expect(result.filtered).toContain('Minimap');
-            expect(result.filtered).not.toContain('Title');
-            expect(result.removed).toEqual(['Title']);
-        });
-
-        it('不影响不可用插件的剔除', () => {
-            const result = filterConflictingPlugins(['Typing', 'Minimap'], logger, { configuredPlugins: ['Typing', 'Minimap'] });
-
-            expect(result.filtered).toEqual(['Minimap']);
-            expect(result.removed).toEqual(['Typing']);
+            expect(result.filtered).not.toContain('CKFinder');
+            expect(result.removed).toEqual(['CKFinder']);
         });
     });
 
@@ -151,15 +144,6 @@ describe('filterConflictingPlugins', () => {
             expect(result.filtered).toContain('Minimap');
             expect(result.filtered).toContain('Title');
             expect(result.removed).toEqual([]);
-        });
-
-        it('should still filter unavailable plugins', () => {
-            const plugins = ['Bold', 'Typing', 'Minimap'];
-            const options: FilterOptions = { allowConfigRequiredPlugins: true };
-            const result = filterConflictingPlugins(plugins, logger, options);
-
-            expect(result.filtered).toContain('Minimap');
-            expect(result.removed).toContain('Typing');
         });
     });
 
@@ -361,7 +345,7 @@ describe('PluginResolver', () => {
 
             expect(plugins).toHaveLength(0);
             expect(logger.warn).toHaveBeenCalledWith(
-                'Plugin not found in registry: UnknownPlugin'
+                'Plugin not found in registry or the ckeditor5 package: UnknownPlugin'
             );
         });
 
@@ -374,8 +358,55 @@ describe('PluginResolver', () => {
             await resolver.resolvePlugins(configs);
 
             expect(resolver.loadErrors).toContain(
-                'Plugin not found in registry: NotARealPlugin'
+                'Plugin not found in registry or the ckeditor5 package: NotARealPlugin'
             );
+        });
+
+        // W16：CustomPlugin.fromCKEditor5(name) 加载 ckeditor5 包的任意导出，而不只是静态插件表里的名称
+        it('resolves any ckeditor5 export by name (fromCKEditor5), not only registry names', async () => {
+            const ckeditor5 = await import('ckeditor5');
+            expect(PLUGIN_REGISTRY['Font']).toBeUndefined();
+            expect(PLUGIN_REGISTRY['TableScroll']).toBeUndefined();
+            const plugins = await resolver.resolvePlugins([
+                { name: 'Font', premium: false },
+                { name: 'TableScroll', premium: false },
+            ]);
+            expect(plugins).toEqual([ckeditor5.Font, ckeditor5.TableScroll]);
+            expect(resolver.loadErrors).toEqual([]);
+        });
+
+        it('an app-registered plugin keeps precedence over a ckeditor5 export of the same name', async () => {
+            class MyFont {}
+            registerCKEditorPlugin('Font', MyFont);
+            try {
+                expect(await resolver.resolvePlugins([{ name: 'Font', premium: false }])).toEqual([MyFont]);
+            } finally {
+                unregisterCKEditorPlugin('Font');
+            }
+        });
+
+        it('does not load a non-class ckeditor5 export or an inherited property', async () => {
+            // version 是字符串导出，toString 是继承属性
+            expect(await resolver.resolvePlugins([
+                { name: 'version', premium: false },
+                { name: 'toString', premium: false },
+            ])).toEqual([]);
+            expect(resolver.loadErrors).toHaveLength(2);
+        });
+
+        it('importPath "ckeditor5" (CustomPlugin.of(name, "ckeditor5")) uses the bundled package, not a runtime import', async () => {
+            const ckeditor5 = await import('ckeditor5');
+            expect(await resolver.resolvePlugins([{ name: 'Font', premium: false, importPath: 'ckeditor5' }]))
+                .toEqual([ckeditor5.Font]);
+            expect(await resolver.resolvePlugins([{ name: 'Nope', premium: false, importPath: 'ckeditor5' }])).toEqual([]);
+            expect(resolver.loadErrors).toContain('Plugin Nope is not exported by ckeditor5');
+        });
+
+        it('importPath "ckeditor5-premium-features" uses the bundled premium package', async () => {
+            const premium = await import('ckeditor5-premium-features') as Record<string, unknown>;
+            const name = Object.keys(premium).find((k) => typeof premium[k] === 'function')!;
+            expect(await resolver.resolvePlugins([{ name, premium: false, importPath: 'ckeditor5-premium-features' }]))
+                .toEqual([premium[name]]);
         });
 
         it('leaves loadErrors empty when all standard plugins resolve', async () => {

@@ -126,8 +126,8 @@ public class CustomPlugin implements java.io.Serializable {
     }
 
     /**
-     * Get import path.
-     * If null, import from ckeditor5 main package.
+     * Get import path. If null, the plugin is resolved by name: the connector's built-in plugins, plugins
+     * registered in the browser, then any export of the {@code ckeditor5} package (see {@link #fromCKEditor5(String)}).
      */
     public String getImportPath() {
         return importPath;
@@ -162,14 +162,27 @@ public class CustomPlugin implements java.io.Serializable {
     }
 
     /**
-     * Quick create custom plugin with import path
+     * Quick create custom plugin with import path. The import paths {@code "ckeditor5"} and
+     * {@code "ckeditor5-premium-features"} are resolved in the modules Vite has already bundled (the same as
+     * {@link #fromCKEditor5(String)} and {@link #fromPremium(String)}); other paths are imported at runtime, which
+     * Vite cannot bundle (see the class documentation).
      */
     public static CustomPlugin of(String jsName, String importPath) {
         return builder(jsName).withImportPath(importPath).build();
     }
 
     /**
-     * Quick create plugin from ckeditor5 main package
+     * A plugin exported by the {@code ckeditor5} package, by its export name: any plugin class, not only the
+     * {@link CKEditorPlugin} constants (for example {@code "TableScroll"}, {@code "PictureEditing"} or
+     * {@code "Font"}). An unknown name is skipped and reported as a load error.
+     *
+     * <p>The connector looks the name up in the bundled {@code ckeditor5} module, which works in production builds.
+     * Because the name is only known at runtime, Vite then bundles the whole {@code ckeditor5} package instead of
+     * tree-shaking it (see the User Guide, "Any ckeditor5 export by name"). Before 6.2.0 only names in the
+     * connector's static plugin table were found.</p>
+     *
+     * @param jsName the export name
+     * @return the plugin definition
      */
     public static CustomPlugin fromCKEditor5(String jsName) {
         return builder(jsName).build();

@@ -206,8 +206,9 @@ Dependencies the add-on adds automatically (for example CloudServices for the co
 | `AIEditorIntegration` | - | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
 | `AIChatBalloon` | - | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-chat.html) |
 | `AIEditorConfig` | - | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
-| `AIAssistant (deprecated)` | `aiAssistant` | CKEditor AI add-on (Essential, Professional), Custom | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ckeditor-ai-overview.html) |
-| `ProposedChanges` | - | Editing Toolkit, a Custom-plan add-on ("Unlock this feature with the Custom Plan"). Load `DocumentCompare` too: the docs' setup is `plugins: [ DocumentCompare, ProposedChanges ]` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-proposing-changes.html) |
+| `AIAssistant (deprecated)` | `aiCommands`, `aiAssistant` | CKEditor AI add-on (Essential, Professional), Custom. Needs a text adapter plugin, not Cloud Services: `OpenAITextAdapter` (`PremiumPlugin.OPENAI_TEXT_ADAPTER`, config `ai.assistant.adapter.openAI.apiUrl` / `requestHeaders`) or your own `AITextAdapter` subclass. The builder logs a warning when `OpenAITextAdapter` is not added (a custom adapter is not detected) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html) |
+| `OpenAITextAdapter` | - | Adapter for `AIAssistant` (`AWSTextAdapter` is not offered: CKEditor removed the Amazon Bedrock integration and it now throws) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html) |
+| `ProposedChanges` | - | Editing Toolkit, a Custom-plan add-on ("Unlock this feature with the Custom Plan"). Needs `DocumentCompare` (the docs' setup is `plugins: [ DocumentCompare, ProposedChanges ]`), not Cloud Services: the builder adds `DocumentCompare` (`AUTO_RESOLVE` modes) or reports it missing (`STRICT`) | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-proposing-changes.html) |
 | `DocumentCompare` | - | Editing Toolkit, Custom-plan add-on | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/editing-toolkit/compare/editing-toolkit-comparing-documents.html) |
 
 ### Collaboration
@@ -249,7 +250,7 @@ Custom plans; with this add-on, that means a Custom plan:
 | `Bookmark` | `BOOKMARK` | `BKM` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/bookmarks.html) |
 | `FindAndReplace` | `FIND_AND_REPLACE` | `FAR` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/find-and-replace.html) |
 | `HtmlEmbed` | `HTML_EMBED` | `HE` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/html/html-embed.html) |
-| `FullPage` | — (not yet a constant) | `FPH` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) |
+| `FullPage` | `FULL_PAGE` (also loaded by `HtmlSupport#fullPageAllowRenderStylesFromHead`) | `FPH` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) |
 | `ImageResize` | `IMAGE_RESIZE` | `IR` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/images/images-resizing.html) |
 | `MediaEmbedResize` | — (`CKEditorConfig#setMediaEmbedResizable(true)`) | `MER` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/media-embed/media-embed-resize.html) |
 | `ListProperties` | `LIST_PROPERTIES` | `LP` | [docs](https://ckeditor.com/docs/ckeditor5/latest/features/lists/lists-properties.html) |

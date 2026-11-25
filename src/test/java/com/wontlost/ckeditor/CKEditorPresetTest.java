@@ -132,11 +132,19 @@ class CKEditorPresetTest {
 
         assertThat(plugins)
             .contains(
-                CKEditorPlugin.TITLE,
                 CKEditorPlugin.WORD_COUNT,
                 CKEditorPlugin.PAGE_BREAK,
                 CKEditorPlugin.AUTOSAVE
             );
+    }
+
+    // Title 以前被前端当作“需配置”丢弃，预设从未真正加载它；现在它会加载，所以预设不再列出它，保持原有输出
+    @Test
+    @DisplayName("no preset lists TITLE (it never loaded before 6.2.0 and would change the document structure)")
+    void noPresetListsTitle() {
+        for (CKEditorPreset preset : CKEditorPreset.values()) {
+            assertThat(preset.getPlugins()).as(preset.name()).doesNotContain(CKEditorPlugin.TITLE);
+        }
     }
 
     @org.junit.jupiter.api.Test

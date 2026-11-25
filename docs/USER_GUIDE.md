@@ -170,7 +170,8 @@ VaadinCKEditor custom = VaadinCKEditor.create()
 
 **Paragraph:**
 - `HEADING`, `ALIGNMENT`, `INDENT`, `INDENT_BLOCK`, `BLOCK_QUOTE`
-- 注：`LINE_HEIGHT` 在 CKEditor 48.x 属 premium，请改用 `CustomPlugin.fromPremium("LineHeight")`（需商业 license）
+- 注：`LineHeight` 在 CKEditor 49.1.0 仍属 premium（Essential+），由 `ckeditor5-premium-features` 导出：请用
+  `VaadinCKEditorPremium.PremiumPlugin.LINE_HEIGHT`（即 `CustomPlugin.fromPremium("LineHeight")`）
 
 **Lists:**
 - `LIST`, `TODO_LIST`, `LIST_PROPERTIES`
@@ -201,6 +202,12 @@ Commercial use needs the plan CKEditor states.
 config.setMediaEmbedToolbar(
     "mediaEmbed:alignLeft", "mediaEmbed:alignCenter", "mediaEmbed:alignRight");
 ```
+
+**HTML:**
+- `GENERAL_HTML_SUPPORT`, `HTML_COMMENT`, `STYLE`, `FULL_PAGE` (whole HTML documents, see [General HTML Support](#general-html-support))
+- `HTML_COMMENT`, `HTML_EMBED` and `SOURCE_EDITING` do not load `GENERAL_HTML_SUPPORT`: CKEditor does not require it,
+  and it changes what `getValue()` returns. They only *recommend* it
+  (`DependencyMode.AUTO_RESOLVE_WITH_RECOMMENDED` adds it). Before 6.2.0 they always loaded it.
 
 **Special:**
 - `HORIZONTAL_LINE`, `PAGE_BREAK`, `SPECIAL_CHARACTERS`
@@ -424,15 +431,23 @@ config.setHtmlSupport(HtmlSupport.create()
   `src` values are not checked for `javascript:` URLs, and `htmlIframeSandbox` only affects the editing
   view, not the data. Sanitize on the server before storing or displaying the HTML (see below).
 - Patterns are Java `Pattern`s in the syntax Java and JavaScript share; they run in the browser.
-  Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported.
+  Flags `CASE_INSENSITIVE`, `MULTILINE`, `DOTALL` are supported. Constructs that are Java-only, or that
+  JavaScript reads differently, throw `IllegalArgumentException` when the rule is built: character-class
+  intersections (`[a-z&&[^e]]`, two literal `&` in JavaScript) and nested classes, `\p{...}` / `\P{...}`,
+  `\h`, `\v`, `\R`, `\X`, `\A`, `\Z`, `\z`, `\G`, `\Q...\E`, `\x{...}`, octal `\0`, atomic groups `(?>...)`,
+  inline flags `(?i)`, possessive quantifiers, and `]` as the first character of a class. Everything else
+  follows the browser's semantics: `\s`, for example, also matches Unicode whitespace such as the
+  non-breaking space in JavaScript, while Java's default `\s` matches ASCII whitespace only.
 - The builder loads `CKEditorPlugin.GENERAL_HTML_SUPPORT` whenever `setHtmlSupport(HtmlSupport)` or
   `setHtmlSupport(true)` is used (not in `DependencyMode.MANUAL`).
-- **`fullPageAllowRenderStylesFromHead` has no effect yet.** It is read by CKEditor's
+- **Full page HTML.** `fullPageAllowRenderStylesFromHead(true)` is read by CKEditor's
   [Full page HTML](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html) plugin
-  `FullPage` (plan-gated, `GPL` works), which the add-on cannot load today: it is not a
-  `CKEditorPlugin`, and `CustomPlugin.fromCKEditor5("FullPage")` only resolves names already in the
-  connector's plugin registry. A follow-up will add it. The `sanitizeCss` callback CKEditor recommends
-  for that option cannot be passed from Java either.
+  `FullPage` (`CKEditorPlugin.FULL_PAGE`, a plan-gated premium feature; the `GPL` key works). Setting the option
+  makes the builder load `FULL_PAGE` (not in `DependencyMode.MANUAL`); you can also add `FULL_PAGE` without the
+  option. With `FullPage`, `getValue()` returns the whole document: `<html>`, `<head>` (`<title>`, `<meta>`,
+  `<style>`) and `<body>`. With the option set to `true`, the `<style>` elements of `<head>` are rendered in the
+  page. **Security risk:** CKEditor recommends a `sanitizeCss` callback for that, which cannot be passed from Java;
+  use it only for trusted content. Before 6.2.0 the add-on could not load `FullPage`, so the option had no effect.
 - `setHtmlSupport(true)` is `HtmlSupport.allowAll()`: every element with all attributes, classes and
   styles, except scripts, iframes and `on*` attributes. Before 6.2.0 it sent the name as the string
   `"/.*/"`, which CKEditor compares literally, so it had no effect.
@@ -1165,20 +1180,44 @@ VaadinCKEditor.create()
 CustomPlugin myPlugin = CustomPlugin.builder("MyPlugin")
     .withImportPath("my-ckeditor-plugin")
     .withToolbarItems("myButton")
-    .withDependencies(CKEditorPlugin.PARAGRAPH)
+    .withDependencies("Paragraph")
     .build();
 
 // From relative path
 CustomPlugin localPlugin = CustomPlugin.of("LocalPlugin", "./my-plugins/local-plugin");
 
-// From CKEditor 5 main package
-CustomPlugin ckPlugin = CustomPlugin.fromCKEditor5("SomePlugin");
+// Any export of the ckeditor5 package, by name (see below)
+CustomPlugin tableScroll = CustomPlugin.fromCKEditor5("TableScroll");
 
-// From premium package
-CustomPlugin premiumPlugin = CustomPlugin.fromPremium("Comments")
-    .premium()
-    .build();
+// From the premium package (ckeditor5-premium-features)
+CustomPlugin comments = CustomPlugin.fromPremium("Comments");
+// ... or with toolbar items
+CustomPlugin template = CustomPlugin.builder("Template").premium().withToolbarItems("insertTemplate").build();
 ```
+
+### Any `ckeditor5` export by name
+
+`CustomPlugin.fromCKEditor5(name)` loads **any** plugin class the `ckeditor5` package exports, not only the
+`CKEditorPlugin` constants, for example `TableScroll`, `PictureEditing`, `ImageSizeAttributes`, `Font` or
+`HeadingButtonsUI`. `CustomPlugin.of(name, "ckeditor5")` is the same. An unknown name is skipped and reported as a
+load error; the editor is still created.
+
+- The connector resolves the name in the `ckeditor5` module that Vite has already bundled, with a literal
+  `import('ckeditor5')`. Before 6.2.0 `fromCKEditor5` only found names in the connector's static plugin table, and
+  `of(name, "ckeditor5")` went through a runtime `import("ckeditor5")` that Vite does not rewrite, so it failed in
+  production builds ("Failed to resolve module specifier"). `e2e/tests/ckeditor5-export.spec.ts` checks both forms
+  against the production build of the sample app.
+- **Bundle size.** Looking an export up by a name known only at runtime means Vite (Rollup) cannot tree-shake
+  the `ckeditor5` package by export. In practice this changes nothing for Vaadin applications: the production
+  build of the sample app already contained the whole package before 6.2.0 (its `ckeditor5` chunk has, for
+  example, `MultiRootEditor` and `TableScroll`, which the add-on never used), and the chunk is the same size with
+  this lookup (1,981,940 bytes before, 1,981,958 after; about 527 KB gzipped).
+- Precedence: the connector's static plugins, then plugins registered with `registerCKEditorPlugin` /
+  `registerCKEditorPluginLoader`, then the `ckeditor5` export of that name.
+- Plugins from other npm packages still need `registerCKEditorPlugin` or `registerCKEditorPluginLoader` in a
+  frontend module (see [Bundling and lazy loading](#bundling-and-lazy-loading)): Vite cannot bundle an import path
+  that is only known at runtime. `CustomPlugin.of(name, "ckeditor5-premium-features")` is resolved like
+  `fromPremium(name)`.
 
 ### Using Custom Plugins
 

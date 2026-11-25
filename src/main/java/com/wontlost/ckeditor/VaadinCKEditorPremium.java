@@ -39,7 +39,8 @@ import com.vaadin.flow.component.dependency.NpmPackage;
  *   <tr><td>Template</td><td>insertTemplate</td><td>Content templates</td></tr>
  *   <tr><td>MergeFields</td><td>insertMergeField</td><td>Mail merge fields</td></tr>
  *   <tr><td>Pagination</td><td>previousPage, nextPage, pageNavigation</td><td>Page boundaries for export (Custom plan)</td></tr>
- *   <tr><td>AIAssistant</td><td>aiCommands, aiAssistant</td><td>AI-powered writing assistant (deprecated, use modular AI plugins)</td></tr>
+ *   <tr><td>AIAssistant</td><td>aiCommands, aiAssistant</td><td>AI Assistant (legacy, use modular AI plugins); needs a text adapter plugin</td></tr>
+ *   <tr><td>OpenAITextAdapter</td><td>-</td><td>OpenAI adapter for AIAssistant ({@code ai.assistant.adapter.openAI.*})</td></tr>
  *   <tr><td>AIChat</td><td>toggleAi</td><td>AI chat sidebar panel (v47.5.0+)</td></tr>
  *   <tr><td>AIEditorIntegration</td><td>-</td><td>AI editor integration core (v47.5.0+)</td></tr>
  *   <tr><td>AIQuickActions</td><td>aiQuickActions</td><td>AI quick actions on text selection (v47.5.0+)</td></tr>
@@ -243,13 +244,27 @@ public final class VaadinCKEditorPremium {
         PAGINATION("Pagination", "previousPage", "nextPage", "pageNavigation"),
 
         /**
-         * AI-powered writing assistant (bundled).
+         * AI Assistant ("AI Assistant (legacy)" in CKEditor's docs). It needs a text adapter plugin, not
+         * CloudServices: {@link #OPENAI_TEXT_ADAPTER} (configured with {@code ai.assistant.adapter.openAI.apiUrl} /
+         * {@code requestHeaders}) or your own {@code AITextAdapter} subclass added as a custom plugin. The builder
+         * logs a warning when {@link #OPENAI_TEXT_ADAPTER} is not added (it cannot detect a custom adapter)
+         * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html">docs</a>).
          * @deprecated Since CKEditor 47.5.0, use modular AI plugins instead:
          *     {@link #AI_CHAT}, {@link #AI_EDITOR_INTEGRATION}, {@link #AI_QUICK_ACTIONS},
          *     {@link #AI_REVIEW_MODE}, {@link #AI_TRANSLATE}.
          */
         @Deprecated
         AI_ASSISTANT("AIAssistant", "aiCommands", "aiAssistant"),
+
+        /**
+         * OpenAI text adapter for {@link #AI_ASSISTANT}; point {@code ai.assistant.adapter.openAI.apiUrl} at your
+         * proxy endpoint (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html">docs</a>).
+         * {@code AWSTextAdapter} is not listed: CKEditor removed the built-in Amazon Bedrock integration, and using it
+         * throws an error.
+         *
+         * @since 6.2.0
+         */
+        OPENAI_TEXT_ADAPTER("OpenAITextAdapter"),
 
         /** AI 聊天侧栏面板（v47.5.0+） */
         AI_CHAT("AIChat", "toggleAi"),

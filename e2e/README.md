@@ -27,6 +27,8 @@ in a real browser to catch issues that unit tests miss.
 | `word-count.spec.ts` | `/word-count` 夹具（BASIC 预设，自动加载 WordCount；限 5 词 / 40 字符，显示计数，Binder 绑定）：输入时计数显示、`WordCountChangeEvent` 与服务端计数一致；事件每 500 ms 至多一次；超限时字段 `invalid`、错误消息、计数变红、`aria-invalid`，不阻止输入，Binder 校验失败，删回上限内恢复；服务端计数与浏览器中插件对一批内容（列表、标题、引用、软换行、NBSP、CJK、emoji）逐条一致（#70） |
 | `html-support.spec.ts` | `/html-support` 夹具：`HtmlSupport` 规则下 `<section class>`、段落类名与样式、`<details open>` / `<summary>`、仅 YouTube `src` 的 iframe 往返保留，其它 iframe 的 `src`、`on*` 属性与 `<script>` 被默认 disallow 去掉（脚本不执行），STANDARD 预设自动加载 GeneralHtmlSupport；编辑后 `<details>` 随服务端值往返；`setHtmlSupport(true)` 保留类名与 `data-*`，去掉脚本、iframe、事件属性 |
 | `config-path.spec.ts` | `/config-path` 夹具：`CKEditorConfig.set("toolbar.items", List)`、`set("toolbar.shouldNotGroupWhenFull", true)`、`set("heading.options", List<Map>)`、`set("ui.viewportOffset.top", 12)` 等点号路径在浏览器中以嵌套对象到达 CKEditor（父对象合并），工具栏与标题下拉按配置渲染 |
+| `ckeditor5-export.spec.ts` | `/ckeditor5-export` 夹具：`CustomPlugin.fromCKEditor5("Font")` 与 `CustomPlugin.of("Font", "ckeditor5")` 在生产构建中加载不在连接器静态插件表里的 `ckeditor5` 导出（工具栏出现字号 / 颜色下拉）；未知名称被跳过、编辑器照常创建 |
+| `full-page.spec.ts` | `/full-page` 夹具：`HtmlSupport.fullPageAllowRenderStylesFromHead(true)` 加载 `FullPage`，`getData()` 与服务端值保留 `<title>` / `<style>`，`<head>` 中的样式渲染到编辑区；只加 `CKEditorPlugin.FULL_PAGE` 时保留 `<head>` 但不渲染其样式 |
 | `visual-regression.spec.ts` | Pixel-level baselines for the 4 EditorTypes + dark theme (Linux/CI only) |
 
 Each spec runs against Chromium and Firefox.

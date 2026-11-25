@@ -19,6 +19,8 @@ Playwright E2E smoke tests under [`e2e/`](../../e2e/). **Not published.**
 | `/theme-showcase` | `ThemeShowcaseView` | 加载 Lumo 样式表，`?theme=dark` 切暗色；split button、书签等交互态（[#149](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/149) / [#150](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/150)） |
 | `/collab-bridge` | `CollaborationBridgeView` | 评论 / 修订建议持久化桥：`?user=alice\|bob`、`?perm=comment:write,…`、`?reset=1` 重新播种共享内存 store；`#btn-refresh` 把 store 投影到 `#store-state`。premium 插件需 license 或以 `CKEDITOR_PREMIUM_STUB=1` 构建（替身） |
 | `/code-highlight` | `CodeHighlightView` | 代码块语法高亮：`?theme=` 配色、`?dark=1` 暗色编辑器、`?off=1` 初始关闭、`?lines=N` 追加 N 行代码块（性能测量）；`#server-value` 投影服务端 `getValue()` |
+| `/ckeditor5-export` | `CKEditor5ExportView` | `CustomPlugin.fromCKEditor5` / `of(name, "ckeditor5")` 加载不在静态插件表中的 `ckeditor5` 导出（`Font`） |
+| `/full-page` | `FullPageView` | Full page HTML：`fullPageAllowRenderStylesFromHead(true)` 与 `CKEditorPlugin.FULL_PAGE` |
 | `/perf` | `PerfView` | 性能套件夹具（[#137](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/137)）：查询参数控制实例数 / 类型 / 预设 / minimap / 文档体积，见 `e2e/README.md`「性能测试」 |
 
 ## Run locally

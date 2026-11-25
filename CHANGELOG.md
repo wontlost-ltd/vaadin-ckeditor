@@ -72,9 +72,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set(String, JsonNode)` 保留。`getJsonNode` / `getString` / `getInt` / `getBoolean` / `hasConfig` 接受同样的路径。
   键中不能含字面量点号：CKEditor 创建编辑器时会在每一层按 `.` 拆分键，无法转义；空段（`a..b`）抛 `IllegalArgumentException`。
 
+- **`CKEditorPlugin.FULL_PAGE`**（[Full page HTML](https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html)，
+  licence feature code `FPH`，GPL key 下可运行）：保留 `<html>`、`<head>`（`<title>`、`<meta>`、`<style>`）与 `<body>`，
+  `getValue()` 返回完整文档。`HtmlSupport#fullPageAllowRenderStylesFromHead` 现在生效：设置它时构建器加载 `FULL_PAGE`
+  （`DependencyMode.MANUAL` 除外），`<head>` 中的样式渲染到页面（#169 时 FullPage 无法加载，该选项无效）。
+  `isPremiumFeature()` 现为 21 个插件（18 个带 licence feature code + CKBox、CKBoxImageEdit、CKFinder）。
+- **`PremiumPlugin.OPENAI_TEXT_ADAPTER`**：AI Assistant（legacy）的 OpenAI 适配器（`ai.assistant.adapter.openAI.*`）。
+- **`CKEditorPluginDependencies#getPremiumPluginDependencies` / `validatePremiumPluginDependencies` /
+  `isAiAssistantWithoutBuiltInAdapter`**：premium 插件之间的依赖（`ProposedChanges` → `DocumentCompare`）。
+- **依赖表防漂移测试**（`plugin-dependencies.test.ts`）：依赖表的每一条都须在真实 `requires` 闭包里，或列出文档依据；
+  `CKEditorPlugin` 每个常量都须是 `ckeditor5` 的导出并在连接器插件表中；premium 依赖对照 `ckeditor5-premium-features`
+  49.1.0 的 requires 快照（`CKEDITOR_PREMIUM_DIR` 时与真实包比对）。
+
 ### Changed
 - **`PremiumPlugin.PAGINATION` 的工具栏项**改为 `previousPage`、`nextPage`、`pageNavigation`（此前的 `pagination` 并不存在）；
   Pagination 仅 Custom plan 提供。
+
+- **⚠️ `CustomPlugin.fromCKEditor5(name)` 加载 `ckeditor5` 包的任意导出**（W16）：此前只能找到连接器静态插件表里的名称，
+  其它名称报 "Plugin not found in registry"；`CustomPlugin.of(name, "ckeditor5")` 走运行期 `import("ckeditor5")`，Vite
+  不改写裸模块名，生产构建中失败（已用 sample 的生产构建验证）。现在两者都从已打包的 `ckeditor5` 模块取导出；
+  `of(name, "ckeditor5-premium-features")` 同理。sample 的生产构建中 `ckeditor5` chunk 大小不变（此前已包含整个包）。
+- **⚠️ `HtmlComment`、`HtmlEmbed`、`SourceEditing` 不再强制加载 `GeneralHtmlSupport`**（W13）：它们的 `requires` 都不含 GHS，
+  而 GHS 会改变 `getValue()` 的输出（保留原本被丢弃的元素与属性）。现在只是推荐项（`AUTO_RESOLVE_WITH_RECOMMENDED` 会加上）；
+  依赖 GHS 保留 HTML 的应用请显式加入 `GENERAL_HTML_SUPPORT` 或使用 `setHtmlSupport(...)`。
+- **⚠️ `TITLE` 现在会加载**（W15）：此前连接器把 `Title` 当作“需要配置”而丢弃（它只 requires Paragraph）。`DOCUMENT` 与
+  `NOTION` 预设因此从未真正加载 Title；为保持它们的输出不变，两个预设不再列出 `TITLE`。显式加入 `TITLE` 时首段成为标题。
+- **`TYPING` 不再被丢弃**（W14）：49.1.0 导出 `Typing`，连接器此前把它当作“不可用”过滤（`Essentials` 本就加载它）。
+- **依赖表对照 49.1.0 的真实 `requires` 修正**：`StandardEditingMode` 不再依赖互斥的 `RestrictedEditingMode`（此前选
+  `STANDARD_EDITING_MODE` 时前端会保留 RestrictedEditingMode、丢掉用户选的模式）；`EmojiPicker` 不再强制 `Emoji`（文档允许单独加载）；
+  `Minimap`、`BlockToolbar` 不再强制 `Widget` / `WidgetToolbarRepository`；`CloudServices` 不再推荐已弃用的
+  `CloudServicesUploadAdapter`。premium：`AIAssistant` 需要文本适配器而不是 CloudServices（W11，缺内置适配器时记录警告）；
+  `ProposedChanges` 需要 `DocumentCompare` 而不是 CloudServices（W12，自动补上，STRICT 报缺失）；`AIEditorIntegration`、
+  `AIChatBalloon`、`AIEditorConfig` 的 requires 链上没有 CloudServices，不再强制；`MergeFields`、`SlashCommand` 带上 `Mention`（W19）。
+- **`HtmlSupport` 的正则拒绝 JavaScript 含义不同的 Java 写法**（#169 review）：字符类交集 `[a-z&&[^e]]`（JS 中是两个 `&`）、
+  嵌套 / 并集字符类、`\p{..}`、`\h`、`\v`、`\R`、`\X`、`\G`、`\e`、`\a`、`\x{..}`、八进制 `\0`、`\N{..}`、原子组、类开头的 `]`，
+  与已有的 `\Q..\E`、锚点、内联标志、占有量词一样在服务端抛出 `IllegalArgumentException`。
+- **连接器插件表按自身属性查找**：`fromCKEditor5("toString")` 之类的名称此前会取到原型链上的函数。
 
 ### Fixed
 - **CKBox 的加载通道错误**：`CKEditorPluginDependencies` 把 `CKBox` / `CKBoxImageEdit` 登记为从 `ckeditor5-premium-features`
@@ -103,6 +136,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Premium Integration Guide 重写套餐表（ckeditor.com/pricing，2026-11-22），新增全部 premium 插件目录（工具栏项、所需套餐、
   功能文档链接），补上 README 缺少的 Footnotes、Uploadcare、MultiLevelList、PasteFromOfficeEnhanced、
   EmailConfigurationHelper、ExportInlineStyles、SourceEditingEnhanced，并说明 premium 插件与自定义插件的组合方式。
+
+- README 第 10 行陈述两点事实：全部插件在默认 `GPL` key 下运行，但 CKEditor 把其中 18 个标为 premium feature（商业 key 需要
+  包含它们的 plan），CKBox / CKFinder 需要付费服务（测试核对该数字）。
+- User Guide：`fromCKEditor5` 的说明与生产构建、包体积数据；`Custom Plugins` 中无法编译的示例
+  （`fromPremium("Comments").premium().build()`、`withDependencies(CKEditorPlugin)`）改为可编译写法（W17）；LineHeight 注释更新到 49.1。
+- `EASY_IMAGE`、`CLOUD_SERVICES_UPLOAD_ADAPTER` 标为 `@Deprecated`：49.1.0 仍导出，但 CKEditor 的功能文档与定价已不再列出 Easy Image。
+- 删除过时的 `docs/PLUGIN_GAP_ANALYSIS.md`（基于 48.2.0，license 结论有误，含不存在的 `CustomPlugin.withImportPath`），
+  由 Premium Integration Guide 与依赖表测试取代。
 
 ### ⚠️ Behaviour change (6.2.0): fullscreen page width
 - **全屏模式默认改为 `FullscreenPage.A4_FIT`**（[#156](https://github.com/wontlost-ltd/vaadin-ckeditor/issues/156)）。

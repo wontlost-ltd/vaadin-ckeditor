@@ -250,7 +250,8 @@ public enum CKEditorPreset {
             CKEditorPlugin.REMOVE_FORMAT,
             // Document
             CKEditorPlugin.WORD_COUNT,
-            CKEditorPlugin.TITLE,
+            // 不含 TITLE：6.2.0 之前连接器把 Title 当作“需配置”而丢弃，预设从未真正加载它；
+            // 现在它会加载并把首段变成标题、改变 getValue() 的结构，所以从预设中移除以保持原有行为
             CKEditorPlugin.PASTE_FROM_OFFICE,
             CKEditorPlugin.AUTOSAVE
         },
@@ -715,7 +716,8 @@ public enum CKEditorPreset {
             // Mention
             CKEditorPlugin.MENTION,
             // Document
-            CKEditorPlugin.TITLE,
+            // 不含 TITLE：6.2.0 之前连接器把 Title 当作“需配置”而丢弃，预设从未真正加载它；
+            // 现在它会加载并把首段变成标题、改变 getValue() 的结构，所以从预设中移除以保持原有行为
             CKEditorPlugin.PASTE_FROM_OFFICE,
             // Block toolbar（Notion 风格块级工具栏）
             CKEditorPlugin.BLOCK_TOOLBAR

@@ -3,6 +3,9 @@ package com.wontlost.ckeditor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.logging.Handler;
@@ -11,6 +14,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * CKEditor 文档标为 premium feature、由开源 ckeditor5 包导出的插件（{@link CKEditorPlugin#isPremiumFeature()}）：
@@ -23,8 +28,8 @@ class PremiumFeaturePluginTest {
     void flags() {
         assertThat(CKEditorPlugin.getPremiumFeaturePlugins()).contains(
             CKEditorPlugin.CKBOX, CKEditorPlugin.CKBOX_IMAGE_EDIT, CKEditorPlugin.TABLE_LAYOUT, CKEditorPlugin.WORD_COUNT,
-            CKEditorPlugin.IMAGE_RESIZE, CKEditorPlugin.PASTE_FROM_OFFICE, CKEditorPlugin.CKFINDER);
-        assertThat(CKEditorPlugin.getPremiumFeaturePlugins()).hasSize(20);
+            CKEditorPlugin.IMAGE_RESIZE, CKEditorPlugin.PASTE_FROM_OFFICE, CKEditorPlugin.CKFINDER, CKEditorPlugin.FULL_PAGE);
+        assertThat(CKEditorPlugin.getPremiumFeaturePlugins()).hasSize(21);
         assertThat(CKEditorPlugin.BOLD.isPremiumFeature()).isFalse();
         for (CKEditorPlugin plugin : CKEditorPlugin.values()) {
             assertThat(plugin.isPremium()).isFalse();
@@ -74,5 +79,18 @@ class PremiumFeaturePluginTest {
         } finally {
             logger.removeHandler(handler);
         }
+    }
+
+    // W4：README 曾写 "70+ Free Plugins"。按维护者的裁定陈述两点事实：都能在 GPL key 下运行，但 CKEditor 把其中若干个标为 premium
+    @Test
+    @DisplayName("README states the number of plugins CKEditor marks as premium (licence feature code) and the GPL fact")
+    void readmeStatesPremiumCount() throws IOException {
+        String readme = Files.readString(Path.of(System.getProperty("basedir", "."), "README.md"));
+        Matcher m = Pattern.compile("CKEditor marks (\\d+) of them as premium features").matcher(readme);
+        assertThat(m.find()).as("README feature line").isTrue();
+        // isPremiumFeature 的集合 = 带 licenceFeatureCode 的插件（premium-catalogue.test.ts 对照真实包）+ 三个付费服务插件
+        Set<CKEditorPlugin> services = EnumSet.of(CKEditorPlugin.CKBOX, CKEditorPlugin.CKBOX_IMAGE_EDIT, CKEditorPlugin.CKFINDER);
+        assertThat(Integer.parseInt(m.group(1))).isEqualTo(CKEditorPlugin.getPremiumFeaturePlugins().size() - services.size());
+        assertThat(readme).contains("run under the default `GPL` licence key").doesNotContain("Free Plugins");
     }
 }

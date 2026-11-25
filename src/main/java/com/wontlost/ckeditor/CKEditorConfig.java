@@ -1635,6 +1635,12 @@ public class CKEditorConfig implements java.io.Serializable {
         return node != null && node.isObject() && !node.isEmpty();
     }
 
+    /** 是否配置了 {@code htmlSupport.fullPage}（构建器据此加载 FullPage 插件，只有它读取该项）。 */
+    boolean hasFullPageOptions() {
+        JsonNode node = configs.get("htmlSupport");
+        return node != null && node.path("fullPage").isObject();
+    }
+
     /** 规则名省略（GHS 视为所有元素）或为匹配一切的正则。 */
     private static boolean matchesEveryElement(JsonNode name) {
         if (name == null) {

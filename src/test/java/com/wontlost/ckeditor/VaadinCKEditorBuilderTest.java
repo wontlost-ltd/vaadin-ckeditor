@@ -916,4 +916,48 @@ class VaadinCKEditorBuilderTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("already been used");
     }
+
+    // W12：ProposedChanges 需要 DocumentCompare（Editing Toolkit），不需要 CloudServices
+    @Test
+    @DisplayName("ProposedChanges brings DocumentCompare (auto modes), not CloudServices; STRICT reports it")
+    void proposedChangesNeedsDocumentCompare() {
+        VaadinCKEditor editor = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .addCustomPlugin(VaadinCKEditorPremium.PremiumPlugin.PROPOSED_CHANGES.toCustomPlugin()).build();
+        assertThat(editor.getCustomPluginsInternal()).extracting(CustomPlugin::getJsName)
+            .contains("ProposedChanges", "DocumentCompare");
+        assertThat(editor.getCustomPluginsInternal()).filteredOn(p -> p.getJsName().equals("DocumentCompare"))
+            .allMatch(CustomPlugin::isPremium);
+        assertThat(editor.getPluginsInternal()).doesNotContain(CKEditorPlugin.CLOUD_SERVICES);
+
+        VaadinCKEditor manual = VaadinCKEditor.create().withPlugins(CKEditorPlugin.ESSENTIALS, CKEditorPlugin.PARAGRAPH)
+            .withDependencyMode(VaadinCKEditorBuilder.DependencyMode.MANUAL)
+            .addCustomPlugin(CustomPlugin.fromPremium("ProposedChanges")).build();
+        assertThat(manual.getCustomPluginsInternal()).extracting(CustomPlugin::getJsName).containsExactly("ProposedChanges");
+
+        VaadinCKEditorBuilder strict = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .withDependencyMode(VaadinCKEditorBuilder.DependencyMode.STRICT)
+            .addCustomPlugin(CustomPlugin.fromPremium("ProposedChanges"));
+        assertThatThrownBy(strict::build).isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("ProposedChanges requires premium plugins: DocumentCompare");
+    }
+
+    // W11：AIAssistant 需要文本适配器插件，不需要 CloudServices
+    @Test
+    @DisplayName("AIAssistant does not bring CloudServices; OPENAI_TEXT_ADAPTER is available")
+    void aiAssistantNeedsAdapterNotCloudServices() {
+        VaadinCKEditor editor = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .addCustomPlugin(CustomPlugin.fromPremium("AIAssistant"))
+            .addCustomPlugin(VaadinCKEditorPremium.PremiumPlugin.OPENAI_TEXT_ADAPTER.toCustomPlugin()).build();
+        assertThat(editor.getPluginsInternal()).doesNotContain(CKEditorPlugin.CLOUD_SERVICES);
+        assertThat(VaadinCKEditorPremium.PremiumPlugin.OPENAI_TEXT_ADAPTER.getPluginName()).isEqualTo("OpenAITextAdapter");
+    }
+
+    // W19：MergeFields 在底层使用 Mention
+    @Test
+    @DisplayName("MergeFields and SlashCommand bring Mention")
+    void mergeFieldsBringMention() {
+        VaadinCKEditor editor = VaadinCKEditor.create().withPreset(CKEditorPreset.BASIC)
+            .addCustomPlugin(CustomPlugin.fromPremium("MergeFields")).build();
+        assertThat(editor.getPluginsInternal()).contains(CKEditorPlugin.MENTION);
+    }
 }
