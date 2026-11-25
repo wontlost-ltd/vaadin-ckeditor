@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-11-26
+
 ### Added
 - **评论 / 修订建议持久化桥 `CollaborationBridge`**（`com.wontlost.ckeditor.collaboration`，不依赖 CKEditor Cloud）：
   按 CKEditor 49.x 的 adapter 集成，把 `CommentsRepository` / `TrackChanges` 的 adapter 调用经 Vaadin RPC 转到服务端
@@ -154,6 +156,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   页面高度随内容增长，不限制宽度。全屏模式下空的侧栏不再占位（A4 模式除外）。CKEditor 全屏只支持 CLASSIC 与
   DECOUPLED，BALLOON / INLINE 编辑器上 `setFullscreenPage` 不起作用。
   **恢复旧观感**：`editor.setFullscreenPage(FullscreenPage.A4)` 或 `builder.withFullscreenPage(FullscreenPage.A4)`。
+
+### ⚠️ Behaviour change (6.2.0): plugin loading, validation and configuration
+以下变更会改变既有应用的输出或校验结果，升级前请核对（详细说明见上下文中的同名条目与 User Guide）：
+- **`setHtmlSupport(true)` 的语义**（#169）：此前不匹配任何元素（什么也不保留），现为 `HtmlSupport.allowAll()`，
+  保留所有元素及其属性、类名、样式，但不含 `<script>`、`<iframe>` 与 `on*` 属性。
+- **字数 / 字符数上限使字段无效**（#168）：`setMaxWords` / `setMaxCharacters` 超限时 `VaadinCKEditor` 标记为 invalid
+  （`HasValidator<String>`，是 Binder 的默认校验器）；输入不被截断。需要旧行为请 `setManualValidation(true)`。
+- **字数统计、代码块高亮、协作插件在已显示的编辑器上开关会重建编辑器**（#166 / #170）：以当前内容重建一次；
+  增删自定义插件同样重建（此前该变化被忽略）。
+- **`HtmlComment`、`HtmlEmbed`、`SourceEditing` 不再强制加载 `GeneralHtmlSupport`**（#171）：依赖 GHS 保留 HTML 的应用
+  请显式加入 `GENERAL_HTML_SUPPORT` 或使用 `setHtmlSupport(...)`。
+- **`STANDARD_EDITING_MODE` 不再带出 `RESTRICTED_EDITING_MODE`**（#171）：两者互斥，此前前端会丢掉用户选的模式。
+- **`TITLE` / `TYPING` 现在会加载，`DOCUMENT` / `NOTION` 预设不再列出 `TITLE`**（#171）：显式加入 `TITLE` 时首段成为标题。
+- **AI 插件不再自动添加 `CloudServices`**（#171）：`AIAssistant` 需要文本适配器（缺内置适配器时记录警告），
+  `AIEditorIntegration` / `AIChatBalloon` / `AIEditorConfig` 不再强制；`ProposedChanges` 改为自动补上 `DocumentCompare`。
+- **BALLOON / INLINE 编辑器不再加载 Fullscreen 插件与按钮**（#164）：连同 `Ctrl+Shift+F`，并从工具栏配置中移除 `fullscreen` 项。
+- **`HtmlSupport` 的正则更严格**（#169 / #171）：服务端拒绝 JavaScript 含义不同的 Java 写法（字符类交集、`\p{..}`、
+  `\Q..\E`、锚点、内联标志、占有量词等），抛出 `IllegalArgumentException`。
 
 ### Added
 - **`FullscreenPage` 与 `VaadinCKEditor#setFullscreenPage` / `getFullscreenPage`、`VaadinCKEditorBuilder#withFullscreenPage`**
@@ -895,7 +915,8 @@ See the [legacy repository](https://github.com/wontlost-ltd/vaadin-ckeditor/tree
 - **MINOR** (0.x.0): New features, backward compatible
 - **PATCH** (0.0.x): Bug fixes, no API changes
 
-[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.1.0...HEAD
+[Unreleased]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.2.0...HEAD
+[6.2.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.1.0...v6.2.0
 [6.1.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.5.0...v6.0.0
 [5.5.0]: https://github.com/wontlost-ltd/vaadin-ckeditor/compare/v5.4.1...v5.5.0

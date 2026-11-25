@@ -33,7 +33,7 @@ A comprehensive CKEditor 5 integration for Vaadin 24+.
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
 </dependency>
 ```
 
@@ -548,7 +548,7 @@ type-safe Vaadin TestBench page object for the `vaadin-ckeditor` component.
 <dependency>
     <groupId>com.wontlost</groupId>
     <artifactId>ckeditor-vaadin-testbench</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
