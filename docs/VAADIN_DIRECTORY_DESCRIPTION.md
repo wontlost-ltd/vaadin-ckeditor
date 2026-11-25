@@ -68,7 +68,7 @@ VaadinCKEditor editor = VaadinCKEditor.create()
     .build();
 ```
 
-Available: ExportPdf, ExportWord, ImportWord, FormatPainter, Comments, TrackChanges, RevisionHistory, RealTimeCollaboration, AIAssistant, AIChat, AIQuickActions, AIEditorIntegration, AIReviewMode, AITranslate, SlashCommand, Template, TableOfContents, CaseChange, Pagination, and more.
+Available: ExportPdf, ExportWord, ImportWord, FormatPainter, Comments, TrackChanges, RevisionHistory, RealTimeCollaborativeEditing, AIAssistant, AIChat, AIQuickActions, AIEditorIntegration, AIReviewMode, AITranslate, SlashCommand, Template, TableOfContents, CaseChange, Pagination, and more.
 
 ## Configuration
 

@@ -247,7 +247,7 @@ public final class VaadinCKEditorPremium {
          * AI Assistant ("AI Assistant (legacy)" in CKEditor's docs). It needs a text adapter plugin, not
          * CloudServices: {@link #OPENAI_TEXT_ADAPTER} (configured with {@code ai.assistant.adapter.openAI.apiUrl} /
          * {@code requestHeaders}) or your own {@code AITextAdapter} subclass added as a custom plugin. The builder
-         * logs a warning when neither built-in adapter is present
+         * logs a warning when {@link #OPENAI_TEXT_ADAPTER} is not added (it cannot detect a custom adapter)
          * (<a href="https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html">docs</a>).
          * @deprecated Since CKEditor 47.5.0, use modular AI plugins instead:
          *     {@link #AI_CHAT}, {@link #AI_EDITOR_INTEGRATION}, {@link #AI_QUICK_ACTIONS},

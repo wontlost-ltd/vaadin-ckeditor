@@ -79,9 +79,10 @@ public final class CKEditorPluginDependencies {
 
     /**
      * AI Assistant（legacy）可用的内置文本适配器。它至少需要一个适配器插件；也可以是应用自己的 {@code AITextAdapter}
-     * 子类（自定义插件），所以无法强制或自动补上，只能提示。
+     * 子类（自定义插件），所以无法强制或自动补上，只能提示。{@code AWSTextAdapter} 不算：CKEditor 已移除 Amazon Bedrock
+     * 集成，使用它会抛错。
      */
-    static final Set<String> AI_ASSISTANT_ADAPTERS = Set.of("OpenAITextAdapter", "AWSTextAdapter");
+    static final Set<String> AI_ASSISTANT_ADAPTERS = Set.of("OpenAITextAdapter");
 
     static {
         // Initialize dependency map
@@ -707,9 +708,10 @@ public final class CKEditorPluginDependencies {
     }
 
     /**
-     * Whether {@code AIAssistant} is used without one of CKEditor's text adapter plugins
-     * ({@code OpenAITextAdapter}, {@code AWSTextAdapter}). The assistant needs an adapter; it may also be an
-     * application's own {@code AITextAdapter} subclass, so this is a hint, not an error.
+     * Whether {@code AIAssistant} is used without CKEditor's working text adapter plugin ({@code OpenAITextAdapter}).
+     * The assistant needs an adapter; it may also be an application's own {@code AITextAdapter} subclass, so this is a
+     * hint, not an error. {@code AWSTextAdapter} does not count: CKEditor removed the Amazon Bedrock integration and
+     * using it throws.
      *
      * @param customPlugins the custom / premium plugins of an editor
      * @return true if AIAssistant is present and no built-in adapter is

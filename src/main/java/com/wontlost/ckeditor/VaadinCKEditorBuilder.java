@@ -722,7 +722,7 @@ public class VaadinCKEditorBuilder {
         }
         addPremiumPluginDependencies();
         if (CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(customPlugins)) {
-            LOGGER.warning("AIAssistant needs a text adapter plugin: add "
+            LOGGER.warning("AIAssistant needs a working text adapter plugin: add "
                 + "VaadinCKEditorPremium.PremiumPlugin.OPENAI_TEXT_ADAPTER (config ai.assistant.adapter.openAI.*) or your "
                 + "own AITextAdapter subclass as a custom plugin. See "
                 + "https://ckeditor.com/docs/ckeditor5/latest/features/ai/ai-assistant/ai-assistant-integration.html");

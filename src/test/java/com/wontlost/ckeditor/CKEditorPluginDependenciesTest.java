@@ -334,6 +334,9 @@ class CKEditorPluginDependenciesTest {
             CustomPlugin.fromPremium("AIAssistant"), CustomPlugin.fromPremium("OpenAITextAdapter")))).isFalse();
         assertThat(CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(List.of(CustomPlugin.fromPremium("AIChat"))))
             .isFalse();
+        // AWSTextAdapter 已不可用（CKEditor 移除了 Amazon Bedrock 集成，使用即抛错），不能消除提示
+        assertThat(CKEditorPluginDependencies.isAiAssistantWithoutBuiltInAdapter(List.of(
+            CustomPlugin.fromPremium("AIAssistant"), CustomPlugin.fromPremium("AWSTextAdapter")))).isTrue();
     }
 
     @Test
