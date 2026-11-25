@@ -475,7 +475,7 @@ export class VaadinCKEditor extends LitElement {
     private appliedPlugins: PluginConfig[] | null = null;
 
     // Version info — keep in sync with VaadinCKEditor.java VERSION constant
-    private readonly version = '6.1.0';
+    private readonly version = '6.2.0';
 
     constructor() {
         super();
