@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- User Guide「Heading options」：说明如何给标题下拉项设样式（#159 追问）。`heading(level, title, className)` 的类名落在
+  下拉项的 `<button>` 上；工具栏位于 CKEditor 的 `.ck-reset_all` 之下，只写 `.style1` 时内容生效、下拉项不生效（与原生
+  CKEditor 5 一致）。须用 `.ck-heading-dropdown .ck-button.style1 .ck-button__label` 这类特异性更高的选择器，`@StyleSheet` 早于 CKEditor 样式
+  加载，同特异性的规则会被覆盖。`/heading` 夹具与 `heading-options.spec.ts` 覆盖该写法。
+
 ## [6.2.0] - 2026-11-26
 
 ### Added
