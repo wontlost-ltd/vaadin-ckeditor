@@ -114,6 +114,27 @@ async function dropdownItemStyle(page: Page, title: string) {
 }
 
 const FIXTURE_COLOR = 'rgb(21, 101, 192)';
+const TARGET = 'H1 článok';
+const DROPDOWN_RULE = '.ck-heading-dropdown .ck-button.style1 .ck-button__label';
+
+/** 启用或停用夹具样式表 heading-options.css（同一页面内切换 <link>） */
+async function setFixtureSheet(page: Page, enabled: boolean): Promise<void> {
+    await page.evaluate((on) => {
+        document.querySelectorAll<HTMLLinkElement>('link[href*="heading-options.css"]').forEach((l) => { l.disabled = !on; });
+    }, enabled);
+}
+
+/** 下拉中每一项（按标题）标签的计算颜色与字号 */
+async function allItemLabelStyles(page: Page): Promise<Record<string, { color: string; fontSize: string }>> {
+    return page.evaluate(() => {
+        const buttons = document.querySelectorAll<HTMLElement>(
+            'vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__panel .ck-list__item > .ck-button');
+        return Object.fromEntries(Array.from(buttons, (b) => {
+            const label = getComputedStyle(b.querySelector('.ck-button__label')!);
+            return [b.textContent!.trim(), { color: label.color, fontSize: label.fontSize }];
+        }));
+    });
+}
 
 test('the dropdown class reaches the list item and app CSS styles it (#159 follow-up)', async ({ page }) => {
     await open(page);
@@ -121,14 +142,24 @@ test('the dropdown class reaches the list item and app CSS styles it (#159 follo
 
     // 第三个参数 style1 落在下拉项的按钮上；编辑器在 light DOM 中，夹具的全局样式表
     // （heading-options.css，经 @StyleSheet 加载、早于 CKEditor 样式）用 .ck-heading-dropdown .ck-button.style1 .ck-button__label 给它着色
-    const variant = await dropdownItemStyle(page, 'H1 článok');
+    const variant = await dropdownItemStyle(page, TARGET);
     expect(variant.classes).toContain('style1');
     expect(variant.inLightDom).toBe(true);
     expect(variant).toMatchObject({ color: FIXTURE_COLOR, fontSize: '20px' });
 
-    // 其它项不受影响；CKEditor 自带的 ck-heading_heading1 仍按其 heading.css 生效
-    expect(await dropdownItemStyle(page, 'Nadpis 2')).not.toMatchObject({ color: FIXTURE_COLOR });
-    expect((await dropdownItemStyle(page, 'Nadpis 1')).fontSize).toBe('20px');
+    // 自定义规则只命中目标项的标签
+    expect(await page.evaluate((sel) => document.querySelectorAll(sel).length, DROPDOWN_RULE)).toBe(1);
+
+    // 其它每一项的标签在样式表启用与停用时计算样式完全相同；只有目标项变化
+    const withSheet = await allItemLabelStyles(page);
+    await setFixtureSheet(page, false);
+    const withoutSheet = await allItemLabelStyles(page);
+    await setFixtureSheet(page, true);
+    expect(Object.keys(withSheet)).toEqual(['Normálny', 'Nadpis 1', 'Nadpis 2', 'Nadpis 3', 'H1 článok', 'H4 článok']);
+    const others = (styles: typeof withSheet) => Object.fromEntries(Object.entries(styles).filter(([t]) => t !== TARGET));
+    expect(others(withSheet)).toEqual(others(withoutSheet));
+    expect(withoutSheet[TARGET]).not.toEqual(withSheet[TARGET]);
+    expect(withoutSheet[TARGET].color).not.toBe(FIXTURE_COLOR);
 
     // 内容中的 <h1 class="style1"> 由同一样式表着色
     await expect(page.locator('vaadin-ckeditor#ckeditor .ck-content h1.style1')).toHaveCSS('color', FIXTURE_COLOR);
@@ -138,14 +169,12 @@ test('a bare class rule styles the content but not the dropdown item, as in plai
     await open(page);
     // 报告者的写法：只写 .style1。先停用夹具样式表，只留这条规则：
     // 内容 <h1 class="style1"> 生效，下拉项被工具栏 .ck-reset_all 的重置与按钮标签规则覆盖
-    await page.evaluate(() => {
-        document.querySelectorAll<HTMLLinkElement>('link[href*="heading-options.css"]').forEach((l) => { l.disabled = true; });
-    });
+    await setFixtureSheet(page, false);
     await page.addStyleTag({ content: '.style1 { color: rgb(255, 0, 0); font-size: 30px; }' });
     await page.locator('vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__button').click();
 
     await expect(page.locator('vaadin-ckeditor#ckeditor .ck-content h1.style1')).toHaveCSS('color', 'rgb(255, 0, 0)');
-    const variant = await dropdownItemStyle(page, 'H1 článok');
+    const variant = await dropdownItemStyle(page, TARGET);
     // 与不带自定义类名的「Normálny」相同，即 CKEditor 的默认样式
     const plain = await dropdownItemStyle(page, 'Normálny');
     expect(variant.classes).toContain('style1');
