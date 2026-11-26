@@ -1,0 +1,17 @@
+/*
+ * /heading 夹具的全局样式（issue #159 追问）。编辑器渲染在 light DOM 中，普通的全局样式表即可作用于它。
+ * 内容中的标题：<h1 class="style1">。
+ */
+.ck-content h1.style1 {
+    color: rgb(21, 101, 192);
+}
+
+/*
+ * 标题下拉中的选项：类名在列表项的 <button> 上，文字在其中的 .ck-button__label 里。
+ * 光写 .style1 不够：工具栏处于 .ck-reset_all 之下，CKEditor 的重置规则会给按钮与标签重设字体与颜色。
+ * 规则须选中标签，且特异性高于 CKEditor 的 .ck.ck-button .ck-button__label（0,3,0），才不依赖样式表的加载顺序。
+ */
+.ck.ck-button.style1 .ck-button__label {
+    color: rgb(21, 101, 192);
+    font-size: 20px;
+}

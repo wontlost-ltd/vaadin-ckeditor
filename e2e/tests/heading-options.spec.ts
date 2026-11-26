@@ -96,3 +96,59 @@ test('heading options with view classes write the classes into the content (#159
     await expect(page.locator('vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__button .ck-button__label'))
         .toHaveText('H1 článok');
 });
+
+/** 标题下拉中标题为 title 的列表项按钮及其标签的类名与计算样式 */
+async function dropdownItemStyle(page: Page, title: string) {
+    return page.evaluate((t) => {
+        const buttons = document.querySelectorAll<HTMLElement>(
+            'vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__panel .ck-list__item > .ck-button');
+        const button = Array.from(buttons).find((b) => b.textContent?.trim() === t)!;
+        const label = getComputedStyle(button.querySelector('.ck-button__label')!);
+        return {
+            classes: Array.from(button.classList),
+            inLightDom: button.getRootNode() === document,
+            color: label.color,
+            fontSize: label.fontSize,
+        };
+    }, title);
+}
+
+const FIXTURE_COLOR = 'rgb(21, 101, 192)';
+
+test('the dropdown class reaches the list item and app CSS styles it (#159 follow-up)', async ({ page }) => {
+    await open(page);
+    await page.locator('vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__button').click();
+
+    // 第三个参数 style1 落在下拉项的按钮上；编辑器在 light DOM 中，夹具的全局样式表
+    // （heading-options.css，经 @StyleSheet 加载、早于 CKEditor 样式）用 .ck.ck-button.style1 .ck-button__label 给它着色
+    const variant = await dropdownItemStyle(page, 'H1 článok');
+    expect(variant.classes).toContain('style1');
+    expect(variant.inLightDom).toBe(true);
+    expect(variant).toMatchObject({ color: FIXTURE_COLOR, fontSize: '20px' });
+
+    // 其它项不受影响；CKEditor 自带的 ck-heading_heading1 仍按其 heading.css 生效
+    expect(await dropdownItemStyle(page, 'Nadpis 2')).not.toMatchObject({ color: FIXTURE_COLOR });
+    expect((await dropdownItemStyle(page, 'Nadpis 1')).fontSize).toBe('20px');
+
+    // 内容中的 <h1 class="style1"> 由同一样式表着色
+    await expect(page.locator('vaadin-ckeditor#ckeditor .ck-content h1.style1')).toHaveCSS('color', FIXTURE_COLOR);
+});
+
+test('a bare class rule styles the content but not the dropdown item, as in plain CKEditor (#159 follow-up)', async ({ page }) => {
+    await open(page);
+    // 报告者的写法：只写 .style1。先停用夹具样式表，只留这条规则：
+    // 内容 <h1 class="style1"> 生效，下拉项被工具栏 .ck-reset_all 的重置与按钮标签规则覆盖
+    await page.evaluate(() => {
+        document.querySelectorAll<HTMLLinkElement>('link[href*="heading-options.css"]').forEach((l) => { l.disabled = true; });
+    });
+    await page.addStyleTag({ content: '.style1 { color: rgb(255, 0, 0); font-size: 30px; }' });
+    await page.locator('vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__button').click();
+
+    await expect(page.locator('vaadin-ckeditor#ckeditor .ck-content h1.style1')).toHaveCSS('color', 'rgb(255, 0, 0)');
+    const variant = await dropdownItemStyle(page, 'H1 článok');
+    // 与不带自定义类名的「Normálny」相同，即 CKEditor 的默认样式
+    const plain = await dropdownItemStyle(page, 'Normálny');
+    expect(variant.classes).toContain('style1');
+    expect({ color: variant.color, fontSize: variant.fontSize })
+        .toEqual({ color: plain.color, fontSize: plain.fontSize });
+});

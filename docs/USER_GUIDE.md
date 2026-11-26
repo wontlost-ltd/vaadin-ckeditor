@@ -314,6 +314,37 @@ so `<h1 class="article">` loads as the variant and a plain `<h1>` as "Heading 1"
 `setHeading` rejects two options with the same model with an `IllegalArgumentException`:
 CKEditor would otherwise fail to start with `schema-cannot-register-item-twice`.
 
+**Styling the dropdown items.** CKEditor puts the `className` on the item's `<button>`; the text is
+in its `.ck-button__label` span. The toolbar sits under CKEditor's `.ck-reset_all`, which resets
+font and color on every element inside it, so a bare `.style1 { … }` rule styles `<h1 class="style1">`
+in the content but not the dropdown item. Plain CKEditor 5 behaves the same. Target the label with a
+selector more specific than CKEditor's own `.ck.ck-button .ck-button__label`.
+CKEditor's built-in `.ck.ck-heading_heading1 .ck-button__label` only wins because it comes later in
+CKEditor's stylesheet. A stylesheet added with `@StyleSheet` loads *before* the add-on's CKEditor CSS,
+so a rule with the same specificity loses there:
+
+```java
+config.setHeading(
+    HeadingOption.paragraph("Paragraph", "ck-heading_paragraph"),
+    HeadingOption.heading(1, "Heading 1", "ck-heading_heading1"),
+    HeadingOption.heading(1, "Article title", "style1")   // "style1" on the dropdown item
+        .withModel("heading1Article")
+        .withViewClasses("style1"));                        // "style1" on <h1> in the content
+```
+
+```css
+/* the heading in the content */
+.ck-content h1.style1 { color: #1565c0; }
+
+/* its item in the heading dropdown */
+.ck.ck-button.style1 .ck-button__label { color: #1565c0; font-size: 20px; }
+```
+
+The editor renders in the light DOM, so any global stylesheet reaches both rules: a file under
+`src/main/resources/META-INF/resources/` loaded with `@StyleSheet("styles.css")` (on the
+`AppShellConfigurator` or a view), or your theme's `styles.css`. The heading dropdown panel is part of
+the toolbar, not of the body-level `.ck-body-wrapper`, so this also holds for editors inside a Dialog.
+
 ### Common Configuration Options
 
 **Emoji** (needs `CKEditorPlugin.EMOJI`; `definitions` inlines the emoji database instead of downloading it, CKEditor 49.1+):
