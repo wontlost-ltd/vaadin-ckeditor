@@ -151,10 +151,13 @@ test('the dropdown class reaches the list item and app CSS styles it (#159 follo
     expect(await page.evaluate((sel) => document.querySelectorAll(sel).length, DROPDOWN_RULE)).toBe(1);
 
     // 其它每一项的标签在样式表启用与停用时计算样式完全相同；只有目标项变化
+    // 每次切换后先等目标项的样式到位，再读取各项（getComputedStyle 本会同步重算，这里显式等待以免依赖时序）
     const withSheet = await allItemLabelStyles(page);
     await setFixtureSheet(page, false);
+    await expect.poll(async () => (await dropdownItemStyle(page, TARGET)).color).not.toBe(FIXTURE_COLOR);
     const withoutSheet = await allItemLabelStyles(page);
     await setFixtureSheet(page, true);
+    await expect.poll(async () => (await dropdownItemStyle(page, TARGET)).color).toBe(FIXTURE_COLOR);
     expect(Object.keys(withSheet)).toEqual(['Normálny', 'Nadpis 1', 'Nadpis 2', 'Nadpis 3', 'H1 článok', 'H4 článok']);
     const others = (styles: typeof withSheet) => Object.fromEntries(Object.entries(styles).filter(([t]) => t !== TARGET));
     expect(others(withSheet)).toEqual(others(withoutSheet));
