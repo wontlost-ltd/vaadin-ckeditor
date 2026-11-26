@@ -9,9 +9,10 @@
 /*
  * 标题下拉中的选项：类名在列表项的 <button> 上，文字在其中的 .ck-button__label 里。
  * 光写 .style1 不够：工具栏处于 .ck-reset_all 之下，CKEditor 的重置规则会给按钮与标签重设字体与颜色。
- * 规则须选中标签，且特异性高于 CKEditor 的 .ck.ck-button .ck-button__label（0,3,0），才不依赖样式表的加载顺序。
+ * 规则须选中标签，且特异性高于 CKEditor 的 .ck.ck-button .ck-button__label（0,3,0），才不依赖样式表的加载顺序；
+ * 以 .ck-heading-dropdown 限定（0,4,0），只作用于标题下拉，悬停、选中状态下也保持该样式。
  */
-.ck.ck-button.style1 .ck-button__label {
+.ck-heading-dropdown .ck-button.style1 .ck-button__label {
     color: rgb(21, 101, 192);
     font-size: 20px;
 }

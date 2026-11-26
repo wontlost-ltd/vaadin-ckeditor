@@ -120,7 +120,7 @@ test('the dropdown class reaches the list item and app CSS styles it (#159 follo
     await page.locator('vaadin-ckeditor#ckeditor .ck-heading-dropdown .ck-dropdown__button').click();
 
     // 第三个参数 style1 落在下拉项的按钮上；编辑器在 light DOM 中，夹具的全局样式表
-    // （heading-options.css，经 @StyleSheet 加载、早于 CKEditor 样式）用 .ck.ck-button.style1 .ck-button__label 给它着色
+    // （heading-options.css，经 @StyleSheet 加载、早于 CKEditor 样式）用 .ck-heading-dropdown .ck-button.style1 .ck-button__label 给它着色
     const variant = await dropdownItemStyle(page, 'H1 článok');
     expect(variant.classes).toContain('style1');
     expect(variant.inLightDom).toBe(true);

@@ -317,8 +317,8 @@ CKEditor would otherwise fail to start with `schema-cannot-register-item-twice`.
 **Styling the dropdown items.** CKEditor puts the `className` on the item's `<button>`; the text is
 in its `.ck-button__label` span. The toolbar sits under CKEditor's `.ck-reset_all`, which resets
 font and color on every element inside it, so a bare `.style1 { … }` rule styles `<h1 class="style1">`
-in the content but not the dropdown item. Plain CKEditor 5 behaves the same. Target the label with a
-selector more specific than CKEditor's own `.ck.ck-button .ck-button__label`.
+in the content but not the dropdown item. Plain CKEditor 5 behaves the same. Target the label, scoped to
+the heading dropdown, with a selector more specific than CKEditor's own `.ck.ck-button .ck-button__label`.
 CKEditor's built-in `.ck.ck-heading_heading1 .ck-button__label` only wins because it comes later in
 CKEditor's stylesheet. A stylesheet added with `@StyleSheet` loads *before* the add-on's CKEditor CSS,
 so a rule with the same specificity loses there:
@@ -337,7 +337,7 @@ config.setHeading(
 .ck-content h1.style1 { color: #1565c0; }
 
 /* its item in the heading dropdown */
-.ck.ck-button.style1 .ck-button__label { color: #1565c0; font-size: 20px; }
+.ck-heading-dropdown .ck-button.style1 .ck-button__label { color: #1565c0; font-size: 20px; }
 ```
 
 The editor renders in the light DOM, so any global stylesheet reaches both rules: a file under
